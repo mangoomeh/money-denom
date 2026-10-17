@@ -574,3 +574,32 @@ main { position: relative; }
 .win-start b { color: #000080; }
 .win-task { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; box-shadow: var(--sunken); background: #dfdfdf; font-weight: 700; }
 .win-clock { box-shadow: inset -1px -1px #ffffff, inset 1px 1px #808080; }
+
+/* ---- Wide screens: show each app as a centred column ------------------------ */
+
+@media (min-width: 640px) {
+  .balance, .tabs, main, .win-titlebar {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .balance { margin-top: 1.5rem; border-radius: 18px 18px 0 0; }
+  .tabs { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  main { padding-left: 0; padding-right: 0; }
+  .theme-sushiro .tabs { margin-top: 5px; }
+
+  /* Windows 95: a window sitting on the teal desktop */
+  .theme-win95 body { padding-top: 1.5rem; }
+  .theme-win95 .win-titlebar { margin-top: 0; }
+  .theme-win95 .balance { margin: 3px auto 0; border-radius: 0; }
+  .theme-win95 .tabs { border: 0; }
+  .theme-win95 .win-titlebar, .theme-win95 .balance, .theme-win95 .tabs, .theme-win95 main {
+    box-shadow: 3px 0 #c0c0c0, -3px 0 #c0c0c0, 4px 0 #0a0a0a, -4px 0 #ffffff;
+  }
+  .theme-win95 .win-titlebar { box-shadow: 0 0 0 3px #c0c0c0, -4px -4px 0 #ffffff, 4px -4px 0 #0a0a0a, 4px 0 #0a0a0a, -4px 0 #ffffff; }
+  .theme-win95 main {
+    padding: .5rem .75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 3px 0 #c0c0c0, -3px 0 #c0c0c0, 4px 0 #0a0a0a, -4px 0 #ffffff, 0 3px #c0c0c0, 4px 4px #0a0a0a, -4px 4px #808080;
+  }
+}
