@@ -1,7 +1,7 @@
 import {
   DENOMINATIONS, emptyCounts, totalCents, parseAmount, formatCents,
   checkTransaction, applyDelta, lowDenominations,
-} from './src/cash.js';
+} from '../src/cash.js';
 
 const STORAGE_KEY = 'petty-cash-v1';
 const $ = (id) => document.getElementById(id);

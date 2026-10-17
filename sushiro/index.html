@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d7001b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Sushiro Tracker</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-sushiro">
+  <header class="balance">
+    <a class="back" href="../">‹ Apps</a>
+    <p class="brand"><span aria-hidden="true">🍣</span>Sushi Tracker</p>
+    <p class="eyebrow">THIS MEAL</p>
+    <p class="big" id="header-total">$0.00</p>
+    <p class="muted" id="header-sub">0 plates</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="meal" aria-selected="true">Meal</button>
+    <button role="tab" data-tab="visits">Visits</button>
+    <button role="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <!-- Current meal -->
+    <section data-panel="meal">
+      <div class="card">
+        <h2>Plates</h2>
+        <p class="hint">Tap + each time you take a plate.</p>
+        <ul class="denoms" id="plate-list"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Specials &amp; custom prices</h2>
+        <p class="hint">Ramen, drinks, desserts or any dish not on a plate colour.</p>
+        <ul class="specials" id="special-list"></ul>
+        <form class="inline-form" id="special-form">
+          <input class="name" id="special-name" placeholder="Name (optional)" autocomplete="off">
+          <input class="price" id="special-price" inputmode="decimal" placeholder="$0.00" autocomplete="off" required>
+          <button class="primary small" type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Bill</h2>
+        <label class="field">
+          <span>Outlet <small>(optional)</small></span>
+          <input id="outlet" autocomplete="off" placeholder="e.g. Hougang Mall">
+        </label>
+        <dl class="summary" style="margin-top:.75rem">
+          <div><dt>Subtotal</dt><dd id="bill-subtotal">$0.00</dd></div>
+          <div id="row-service"><dt id="label-service">Service charge</dt><dd id="bill-service">$0.00</dd></div>
+          <div id="row-gst"><dt id="label-gst">GST</dt><dd id="bill-gst">$0.00</dd></div>
+          <div class="diff"><dt>Total</dt><dd id="bill-total">$0.00</dd></div>
+        </dl>
+        <div class="actions">
+          <button class="secondary" id="clear-meal">Start over</button>
+          <button class="primary" id="save-visit" disabled>Save visit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Saved visits -->
+    <section data-panel="visits" hidden>
+      <div class="card">
+        <h2>This month</h2>
+        <dl class="stats">
+          <div><dt>Visits</dt><dd id="stat-visits">0</dd></div>
+          <div><dt>Plates</dt><dd id="stat-plates">0</dd></div>
+          <div><dt>Spent</dt><dd id="stat-spent">$0.00</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Saved visits</h2>
+        <ol class="history" id="visit-list"></ol>
+        <p class="hint" id="visits-empty">No visits saved yet. Finish a meal and tap “Save visit”.</p>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section data-panel="settings" hidden>
+      <div class="card">
+        <h2>Plate colours &amp; prices</h2>
+        <p class="hint">Prices before service charge and GST. Change them to match your outlet's menu.</p>
+        <div id="tier-list"></div>
+        <div class="actions">
+          <button class="secondary" id="add-tier">Add colour</button>
+          <button class="secondary" id="reset-tiers">Reset to defaults</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Charges</h2>
+        <p class="hint">Set to 0 to leave a charge off.</p>
+        <div class="rates">
+          <label class="field"><span>Service charge (%)</span><input id="rate-service" inputmode="decimal"></label>
+          <label class="field"><span>GST (%)</span><input id="rate-gst" inputmode="decimal"></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

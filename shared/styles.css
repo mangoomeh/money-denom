@@ -193,3 +193,160 @@ button.small { padding: .4rem .7rem; font-size: .9rem; }
   max-width: calc(100% - 2rem);
   box-shadow: 0 6px 20px rgb(0 0 0 / .2);
 }
+
+/* ---- Shared across apps ---------------------------------------------------- */
+
+.balance { position: relative; }
+.back {
+  position: absolute;
+  left: 1rem;
+  top: calc(.75rem + env(safe-area-inset-top));
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: .9rem;
+  opacity: .9;
+  z-index: 1;
+  padding: .25rem .25rem .25rem 0;
+}
+
+/* Home screen */
+.hub { max-width: 560px; margin: 0 auto; padding: calc(1.5rem + env(safe-area-inset-top)) 1rem 1rem; }
+.hub h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+.hub > p { margin: 0 0 1.25rem; color: var(--muted); }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: .85rem; }
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  padding: 1rem;
+  min-height: 9rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+.tile:active { background: var(--border); }
+.tile .icon { font-size: 2rem; line-height: 1; }
+.tile strong { font-size: 1.05rem; margin-top: auto; }
+.tile small { color: var(--muted); }
+
+/* Sushiro */
+.plate-dot {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  flex: none;
+  border: 3px solid var(--plate);
+  box-shadow: inset 0 0 0 3px var(--card), inset 0 0 0 20px var(--plate);
+}
+.specials { list-style: none; margin: 0; padding: 0; }
+.specials li { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; border-top: 1px solid var(--border); }
+.specials li:first-child { border-top: 0; }
+.specials .label { flex: 1; min-width: 0; }
+.specials .price { font-weight: 600; font-variant-numeric: tabular-nums; }
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1rem;
+}
+.inline-form { display: flex; gap: .5rem; margin-top: .75rem; }
+.inline-form input {
+  min-width: 0;
+  font: inherit;
+  padding: .6rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+}
+.inline-form input.name { flex: 2; }
+.inline-form input.price { flex: 1; }
+.inline-form button { flex: none; }
+.settings-row { display: grid; grid-template-columns: 1.4rem 1fr 5.5rem 2.2rem; gap: .5rem; align-items: center; padding: .4rem 0; }
+.settings-row input, .rates input {
+  width: 100%;
+  font: inherit;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+.settings-row input[type="color"] { padding: 0; height: 1.6rem; border: 0; background: none; }
+.rates { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.stats { display: flex; gap: .75rem; margin-bottom: 1rem; }
+.stats div { flex: 1; background: var(--bg); border-radius: 10px; padding: .6rem .75rem; }
+.stats dt { color: var(--muted); font-size: .8rem; }
+.stats dd { margin: 0; font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.visit summary { list-style: none; cursor: pointer; }
+.visit summary::-webkit-details-marker { display: none; }
+.visit .lines { margin: .5rem 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .9rem; }
+.visit .lines li { display: flex; justify-content: space-between; border: 0; padding: .1rem 0; }
+
+/* ---- Sushiro theme: red and white, cream paper, wave pattern ------------- */
+
+.theme-sushiro {
+  --bg: #fbf6ee;
+  --card: #ffffff;
+  --text: #2a1a14;
+  --muted: #7a675c;
+  --border: #eadfd2;
+  --accent: #d7001b;
+  --accent-text: #ffffff;
+  font-family: "M PLUS Rounded 1c", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  .theme-sushiro {
+    --bg: #1a1210;
+    --card: #251a17;
+    --text: #f5ebe3;
+    --muted: #b8a59a;
+    --border: #3a2b26;
+    --accent: #e8283d;
+    --accent-text: #ffffff;
+  }
+}
+.theme-sushiro .balance {
+  /* seigaiha-style waves */
+  background-color: var(--accent);
+  background-image:
+    radial-gradient(circle at 50% 100%, transparent 38%, rgb(255 255 255 / .12) 39%, rgb(255 255 255 / .12) 46%, transparent 47%,
+      transparent 58%, rgb(255 255 255 / .12) 59%, rgb(255 255 255 / .12) 66%, transparent 67%);
+  background-size: 44px 22px;
+  padding-bottom: 1.4rem;
+  border-bottom: 5px solid #fff;
+  box-shadow: 0 5px 0 var(--accent);
+}
+.theme-sushiro .balance .eyebrow { letter-spacing: .08em; font-weight: 700; }
+.theme-sushiro .balance .big { font-weight: 800; text-shadow: 0 2px 0 rgb(0 0 0 / .15); }
+.theme-sushiro .brand { margin: 0 0 .1rem; font-size: 1.05rem; font-weight: 800; letter-spacing: .04em; }
+.theme-sushiro .brand span { display: inline-block; margin-right: .3rem; }
+.theme-sushiro .tabs { margin-top: 5px; }
+.theme-sushiro .tabs button[aria-selected="true"] { color: var(--accent); }
+.theme-sushiro .card { border-radius: 18px; box-shadow: 0 2px 0 var(--border); }
+.theme-sushiro h2 { font-weight: 800; }
+.theme-sushiro .card > h2::before { content: "●"; color: var(--accent); font-size: .7em; margin-right: .45rem; vertical-align: .15em; }
+.theme-sushiro button.primary { border-radius: 999px; box-shadow: 0 3px 0 rgb(0 0 0 / .18); }
+.theme-sushiro button.secondary { border-radius: 999px; }
+.theme-sushiro .stepper button:last-child { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.theme-sushiro .summary .diff dd { color: var(--accent); font-size: 1.3rem; }
+
+/* Plates drawn as plates: coloured rim, white well */
+.theme-sushiro .plate-dot {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  background: radial-gradient(circle, #fff 0 46%, var(--plate) 47% 62%, #fff 63% 66%, var(--plate) 67% 100%);
+  box-shadow: 0 2px 0 rgb(0 0 0 / .18), inset 0 0 0 1px rgb(0 0 0 / .08);
+}
+.theme-sushiro .count.pop { animation: pop .18s ease-out; }
+@keyframes pop { 50% { transform: scale(1.35); } }
+
+.tile.sushiro { background: #d7001b; color: #fff; border-color: #d7001b; }
+.tile.sushiro small { color: rgb(255 255 255 / .85); }
