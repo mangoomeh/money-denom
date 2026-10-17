@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Petty Cash</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="balance">
+    <p class="eyebrow">Cash on hand</p>
+    <p class="big" id="balance">$0.00</p>
+    <p class="muted" id="low-warning" hidden></p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="spend" aria-selected="true">Spend</button>
+    <button role="tab" data-tab="stash">Cash on hand</button>
+    <button role="tab" data-tab="history">History</button>
+  </nav>
+
+  <main>
+    <!-- Spend: record a purchase -->
+    <section data-panel="spend">
+      <div class="card">
+        <h2>1. Purchase</h2>
+        <label class="field">
+          <span>Purchase amount (SGD)</span>
+          <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+        </label>
+        <label class="field">
+          <span>What was it for? <small>(optional)</small></span>
+          <input id="note" autocomplete="off" placeholder="e.g. Office snacks">
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>2. Cash you handed over</h2>
+        <p class="hint">Tap + for each note or coin you take out of the stash.</p>
+        <ul class="denoms" id="paid-list"></ul>
+      </div>
+
+      <details class="card" id="change-card">
+        <summary><h2>3. Change received <small>(optional)</small></h2></summary>
+        <p class="hint">If the shop gave you change, add the notes and coins you got back.</p>
+        <ul class="denoms" id="change-list"></ul>
+      </details>
+
+      <div class="card check" id="check">
+        <h2>4. Check</h2>
+        <dl class="summary">
+          <div><dt>Purchase amount</dt><dd id="sum-amount">$0.00</dd></div>
+          <div><dt>Cash handed over</dt><dd id="sum-paid">$0.00</dd></div>
+          <div id="sum-change-row"><dt>Change received</dt><dd id="sum-change">$0.00</dd></div>
+          <div class="diff"><dt>Difference</dt><dd id="sum-diff">$0.00</dd></div>
+        </dl>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button class="secondary" id="reset-tx">Reset</button>
+          <button class="primary" id="confirm-tx" disabled>Confirm purchase</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stash: view and edit inventory -->
+    <section data-panel="stash" hidden>
+      <div class="card">
+        <div class="row-head">
+          <h2>Cash on hand</h2>
+          <button class="secondary small" id="edit-stash">Edit counts</button>
+        </div>
+        <p class="hint" id="stash-hint">How many of each note and coin are in the petty cash box.</p>
+        <ul class="denoms" id="stash-list"></ul>
+        <div class="actions" id="stash-actions" hidden>
+          <button class="secondary" id="cancel-stash">Cancel</button>
+          <button class="primary" id="save-stash">Save counts</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Low cash warning</h2>
+        <label class="field">
+          <span>Warn me when I have fewer than this many of a note or coin (0 = off)</span>
+          <input id="threshold" type="number" min="0" step="1" inputmode="numeric">
+        </label>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section data-panel="history" hidden>
+      <div class="card">
+        <h2>Transaction history</h2>
+        <ol class="history" id="history-list"></ol>
+        <p class="hint" id="history-empty">No transactions yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
