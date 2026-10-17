@@ -350,3 +350,227 @@ button.small { padding: .4rem .7rem; font-size: .9rem; }
 
 .tile.sushiro { background: #d7001b; color: #fff; border-color: #d7001b; }
 .tile.sushiro small { color: rgb(255 255 255 / .85); }
+
+/* ---- Petty Cash theme switch ------------------------------------------------ */
+
+.theme-toggle {
+  position: absolute;
+  right: 1rem;
+  top: calc(.6rem + env(safe-area-inset-top));
+  z-index: 1;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .3rem .6rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / .5);
+  background: rgb(255 255 255 / .15);
+  color: inherit;
+}
+.win-titlebar, .win-taskbar { display: none; }
+
+/* ---- Windows 95 theme ------------------------------------------------------- */
+
+.theme-win95 {
+  --bg: #c0c0c0;
+  --card: #c0c0c0;
+  --text: #000000;
+  --muted: #404040;
+  --border: #808080;
+  --accent: #000080;
+  --accent-text: #ffffff;
+  --ok: #000000;
+  --ok-bg: #c0c0c0;
+  --warn: #000000;
+  --warn-bg: #ffffe1;
+  --bad: #ffffff;
+  --bad-bg: #800000;
+  --raised: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  --sunken: inset -1px -1px #ffffff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  color-scheme: light;
+}
+.theme-win95 body {
+  background: #008080;
+  font-family: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", Geneva, Verdana, sans-serif;
+  font-size: 15px;
+  padding: 4px 4px calc(2.6rem + env(safe-area-inset-bottom));
+  -webkit-font-smoothing: none;
+}
+.theme-win95 * { border-radius: 0 !important; }
+
+/* The page is one big window */
+.theme-win95 .win-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: env(safe-area-inset-top);
+  padding: 3px 3px 3px 6px;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+  font-weight: 700;
+  font-size: .9rem;
+  box-shadow: 0 0 0 3px #c0c0c0, 0 0 0 4px #ffffff;
+  position: relative;
+}
+.win-ctrls { display: flex; gap: 2px; }
+.win-ctrls i, .win-ctrls a {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.15rem;
+  background: #c0c0c0;
+  color: #000;
+  font-style: normal;
+  font-weight: 700;
+  font-size: .8rem;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: var(--raised);
+}
+.win-ctrls a { margin-left: 2px; }
+.theme-win95 .balance {
+  background: #c0c0c0;
+  color: #000;
+  text-align: left;
+  padding: 2.4rem .75rem .75rem;
+  margin: 3px 0 0;
+  box-shadow: none;
+}
+.theme-win95 .balance .eyebrow { opacity: 1; }
+.theme-win95 .balance .big {
+  font-family: "Courier New", Courier, monospace;
+  background: #000;
+  color: #33ff33;
+  padding: .2rem .6rem;
+  box-shadow: var(--sunken);
+  text-align: right;
+  font-size: 2.1rem;
+  letter-spacing: .05em;
+}
+.theme-win95 .balance .muted { color: #800000; font-weight: 700; }
+.theme-win95 .back, .theme-win95 .theme-toggle {
+  top: .5rem;
+  color: #000;
+  background: #c0c0c0;
+  border: 0;
+  box-shadow: var(--raised);
+  padding: .25rem .6rem;
+  opacity: 1;
+  font-weight: 400;
+}
+.theme-win95 .back { left: .75rem; }
+.theme-win95 .theme-toggle { right: .75rem; }
+
+/* Tabs */
+.theme-win95 .tabs {
+  position: static;
+  background: #c0c0c0;
+  border: 0;
+  padding: 0 .5rem;
+  gap: 2px;
+}
+.theme-win95 .tabs button {
+  color: #000;
+  font-weight: 400;
+  border: 0;
+  padding: .45rem .25rem;
+  margin-top: 3px;
+  box-shadow: inset 1px 1px #ffffff, inset -1px 0 #0a0a0a, inset -2px 0 #808080;
+}
+.theme-win95 .tabs button[aria-selected="true"] { margin-top: 0; padding-bottom: .7rem; font-weight: 700; }
+
+main { position: relative; }
+.theme-win95 main { padding: .5rem; background: #c0c0c0; box-shadow: inset 1px 1px #ffffff; }
+
+/* Group boxes and controls */
+.theme-win95 .card {
+  border: 0;
+  padding: 1.1rem .75rem .75rem;
+  margin: 1rem 0 .75rem;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #ffffff, 1px 1px #ffffff, -1px -1px #808080;
+  position: relative;
+}
+.theme-win95 .card > h2, .theme-win95 .row-head h2, .theme-win95 details.card summary {
+  position: absolute;
+  top: -.7rem;
+  left: .5rem;
+  background: #c0c0c0;
+  padding: 0 .3rem;
+  font-size: .95rem;
+  font-weight: 400;
+}
+.theme-win95 details.card summary { position: static; margin: -.4rem 0 0; padding: 0; }
+.theme-win95 .row-head { min-height: 1rem; justify-content: flex-end; }
+.theme-win95 .hint { color: #000; }
+.theme-win95 .field span { color: #000; }
+.theme-win95 .field input {
+  background: #fff;
+  border: 0;
+  box-shadow: var(--sunken);
+  font-family: inherit;
+}
+.theme-win95 #amount { font-family: "Courier New", Courier, monospace; }
+.theme-win95 .denoms li { border-top: 1px dotted #808080; }
+.theme-win95 .denoms li:first-child { border-top: 0; }
+.theme-win95 .denoms .count {
+  background: #fff;
+  min-width: 2.6rem;
+  padding: .1rem .3rem;
+  box-shadow: var(--sunken);
+  font-family: "Courier New", Courier, monospace;
+}
+.theme-win95 .denoms .label small, .theme-win95 .summary dt { color: #000; }
+.theme-win95 .denoms .label small.low { color: #800000; }
+
+.theme-win95 .stepper button,
+.theme-win95 button.primary,
+.theme-win95 button.secondary {
+  background: #c0c0c0;
+  color: #000;
+  border: 0;
+  box-shadow: var(--raised);
+  font-family: inherit;
+  font-weight: 400;
+}
+.theme-win95 .stepper button { width: 2.3rem; height: 2.3rem; font-size: 1.1rem; }
+.theme-win95 button.primary { font-weight: 700; outline: 1px solid #000; outline-offset: -1px; }
+.theme-win95 button:not(:disabled):active { box-shadow: var(--sunken); background: #c0c0c0; }
+.theme-win95 button:disabled { opacity: 1; color: #808080; text-shadow: 1px 1px #fff; }
+
+.theme-win95 .summary .diff { border-top: 1px solid #808080; box-shadow: 0 -1px #fff inset; }
+.theme-win95 .status { border: 1px solid #000; font-weight: 400; }
+.theme-win95 .status::before { margin-right: .4rem; }
+.theme-win95 .status.ok::before { content: "✔"; }
+.theme-win95 .status.warn::before { content: "⚠"; }
+.theme-win95 .status.bad::before { content: "⛔"; }
+.theme-win95 .status.neutral::before { content: "ℹ"; color: #000080; }
+.theme-win95 .history li { border-top: 1px dotted #808080; }
+.theme-win95 .history .meta, .theme-win95 .history .denom-detail { color: #000; }
+
+.theme-win95 .toast {
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 rgb(0 0 0 / .5);
+  bottom: calc(3rem + env(safe-area-inset-bottom));
+}
+
+/* Taskbar */
+.theme-win95 .win-taskbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 3px 3px calc(3px + env(safe-area-inset-bottom));
+  background: #c0c0c0;
+  box-shadow: inset 0 1px #dfdfdf, inset 0 2px #ffffff;
+}
+.win-start, .win-task, .win-clock { padding: .25rem .5rem; color: #000; text-decoration: none; font-size: .85rem; white-space: nowrap; }
+.win-start { font-weight: 700; box-shadow: var(--raised); }
+.win-start b { color: #000080; }
+.win-task { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; box-shadow: var(--sunken); background: #dfdfdf; font-weight: 700; }
+.win-clock { box-shadow: inset -1px -1px #ffffff, inset 1px 1px #808080; }

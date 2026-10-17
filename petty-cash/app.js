@@ -300,6 +300,31 @@ $('threshold').addEventListener('change', (e) => {
   render();
 });
 
+// ---- Theme: modern or Windows 95 ---------------------------------------------
+
+const THEME_KEY = 'petty-cash-theme';
+
+function applyTheme(theme) {
+  const win95 = theme === 'win95';
+  document.documentElement.classList.toggle('theme-win95', win95);
+  $('theme-toggle').textContent = win95 ? '✨ Modern' : '🖥️ Win 95';
+  $('theme-toggle').setAttribute('aria-label', win95 ? 'Switch to modern theme' : 'Switch to Windows 95 theme');
+  document.querySelector('meta[name="theme-color"]').content = win95 ? '#000080' : '#0f766e';
+}
+
+function updateClock() {
+  $('win-clock').textContent = new Date().toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
+}
+
+$('theme-toggle').addEventListener('click', () => {
+  const next = document.documentElement.classList.contains('theme-win95') ? 'modern' : 'win95';
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* theme just won't be remembered */ }
+  applyTheme(next);
+});
+applyTheme(document.documentElement.classList.contains('theme-win95') ? 'win95' : 'modern');
+updateClock();
+setInterval(updateClock, 15000);
+
 render();
 if (!state.setupDone) {
   // First run: start with the opening balance setup.

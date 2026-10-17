@@ -8,10 +8,19 @@
   <title>Petty Cash</title>
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="stylesheet" href="../shared/styles.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash of the wrong theme.
+    try { if (localStorage.getItem('petty-cash-theme') === 'win95') document.documentElement.classList.add('theme-win95'); } catch {}
+  </script>
 </head>
 <body>
+  <div class="win-titlebar" aria-hidden="true">
+    <span>💵 Petty Cash.exe</span>
+    <span class="win-ctrls"><i>_</i><i>□</i><a href="../" tabindex="-1">×</a></span>
+  </div>
   <header class="balance">
     <a class="back" href="../">‹ Apps</a>
+    <button class="theme-toggle" id="theme-toggle" type="button"></button>
     <p class="eyebrow">Cash on hand</p>
     <p class="big" id="balance">$0.00</p>
     <p class="muted" id="low-warning" hidden></p>
@@ -100,6 +109,12 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <footer class="win-taskbar" aria-hidden="true">
+    <a class="win-start" href="../" tabindex="-1"><b>⊞</b> Start</a>
+    <span class="win-task">💵 Petty Cash</span>
+    <span class="win-clock" id="win-clock"></span>
+  </footer>
 
   <script type="module" src="app.js"></script>
 </body>

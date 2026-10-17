@@ -13,6 +13,8 @@ A cash denomination counter with a transaction checker.
 - **Transaction checker:** enter the purchase amount, tap + for each note or coin you take out, and add any change you
   received. *Confirm* only deducts from your cash on hand when the cash you selected equals the purchase amount.
 - **History with undo, and low cash warnings.**
+- **Two themes:** modern, or retro Windows 95 (title bar, bevelled buttons, LCD balance, taskbar). The 🖥️ button in
+  the header switches between them, and the choice is remembered on that device.
 
 ### 🍣 Sushiro Tracker (`sushiro/`)
 
