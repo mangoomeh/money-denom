@@ -59,6 +59,39 @@
           <div id="row-gst"><dt id="label-gst">GST</dt><dd id="bill-gst">$0.00</dd></div>
           <div class="diff"><dt>Total</dt><dd id="bill-total">$0.00</dd></div>
         </dl>
+
+        <div class="receipt">
+          <h3>Check against the receipt <small>(optional)</small></h3>
+          <div id="receipt-start">
+            <div class="actions">
+              <label class="secondary btn" for="receipt-file">📷 Snap receipt</label>
+              <button class="secondary" id="paste-toggle" type="button">📋 Paste text</button>
+            </div>
+            <input type="file" id="receipt-file" accept="image/*" hidden>
+            <div id="paste-box" hidden>
+              <p class="hint">On iPhone, long-press the receipt text in Camera or Photos (Live Text), or use Google Lens on Android, then copy and paste it here.</p>
+              <textarea id="paste-text" rows="5" placeholder="Paste receipt text"></textarea>
+              <button class="secondary" id="paste-read" type="button">Read text</button>
+            </div>
+          </div>
+          <div id="receipt-progress" hidden>
+            <p class="hint" id="receipt-progress-label">Reading receipt…</p>
+            <progress id="receipt-progress-bar" max="1" value="0"></progress>
+            <button class="secondary small" id="receipt-cancel" type="button">Cancel</button>
+          </div>
+          <div id="receipt-result" hidden>
+            <div class="receipt-row">
+              <button type="button" class="receipt-thumb" id="receipt-thumb" hidden aria-label="View receipt photo"><img alt=""></button>
+              <label class="field">
+                <span>Receipt total — correct it if it was misread</span>
+                <input id="receipt-total" inputmode="decimal" autocomplete="off" placeholder="0.00">
+              </label>
+            </div>
+            <p class="status" id="receipt-status" role="status" aria-live="polite"></p>
+            <button class="secondary small" id="receipt-remove" type="button">Remove receipt</button>
+          </div>
+        </div>
+
         <div class="actions">
           <button class="secondary" id="clear-meal">Start over</button>
           <button class="primary" id="save-visit" disabled>Save visit</button>
@@ -104,6 +137,11 @@
       </div>
     </section>
   </main>
+
+  <dialog class="photo-viewer" id="photo-viewer">
+    <form method="dialog"><button class="secondary small" aria-label="Close">✕ Close</button></form>
+    <img alt="Receipt photo">
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 

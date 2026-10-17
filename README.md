@@ -27,6 +27,15 @@ Counts plates during a meal and works out the bill.
   requires. You can change either rate or set it to 0.
 - **Saved visits:** save each meal with the outlet, the items and the bill, and see this month's visits, plates and spending.
   A saved visit keeps the prices it was charged at.
+- **Receipt check:** snap the receipt, or paste its text from iPhone Live Text or Google Lens. The app reads the total
+  and compares it with what you tracked, for example "The receipt is $2.76 more. Maybe 1 Red plate wasn't counted?".
+  Text recognition runs on the phone with [Tesseract.js](https://tesseract.projectnaptha.com/), which downloads
+  about 10 MB on first use. Nothing is uploaded. If the total is misread you can correct it by hand.
+- **Receipt photos:** a compressed copy of each photo is kept with its saved visit in the browser's IndexedDB on that
+  device.
+
+The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/) and
+[Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/).
 
 ## Running it
 
@@ -41,8 +50,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`: each app's page and UI script
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

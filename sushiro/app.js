@@ -2,6 +2,11 @@ import { parseAmount, formatCents } from '../src/cash.js';
 import {
   DEFAULT_PLATES, DEFAULT_RATES, billLines, computeBill, parsePercent, monthSummary,
 } from '../src/sushiro.js';
+import { parseReceiptText, compareWithReceipt } from '../src/receipt.js';
+import { readText } from './ocr.js';
+import {
+  getPhoto, putPhoto, deletePhoto, movePhoto, loadImage, compressForStorage, prepareForOcr,
+} from './photos.js';
 
 const STORAGE_KEY = 'sushiro-v1';
 const $ = (id) => document.getElementById(id);
@@ -91,6 +96,146 @@ function renderMeal() {
   $('bill-gst').textContent = formatCents(bill.gstCents);
   $('bill-total').textContent = formatCents(bill.totalCents);
   $('save-visit').disabled = lines.length === 0;
+  renderReceipt();
+}
+
+// ---- Receipt check ----------------------------------------------------------
+
+let receiptBusy = false;
+let receiptAbort = null;
+let mealPhotoUrl = null;
+
+function receiptMessage(trackedCents, receiptCents) {
+  const r = compareWithReceipt(trackedCents, receiptCents, state.plates, state.rates);
+  const guess = (verb) => (r.suggestions?.length
+    ? ` Maybe ${r.suggestions.slice(0, 2).map((x) => `${x.count} ${x.plate.name} plate${x.count > 1 ? 's' : ''}`).join(' or ')} ${verb}?`
+    : '');
+  switch (r.status) {
+    case 'match': return ['ok', '✔ Matches the receipt.'];
+    case 'rounding': return ['ok', '✔ Matches the receipt (1¢ rounding difference).'];
+    case 'receipt-higher': return ['warn', `The receipt is ${formatCents(r.diffCents)} more than you tracked.${guess('wasn’t counted')}`];
+    case 'receipt-lower': return ['warn', `The receipt is ${formatCents(-r.diffCents)} less than you tracked.${guess('counted too many')}`];
+    default: return ['neutral', 'Couldn’t find the total on the receipt. Type it in above.'];
+  }
+}
+
+function renderReceipt() {
+  const receipt = state.meal.receipt;
+  $('receipt-start').hidden = receiptBusy || !!receipt;
+  $('receipt-progress').hidden = !receiptBusy;
+  $('receipt-result').hidden = receiptBusy || !receipt;
+  if (!receipt || receiptBusy) return;
+
+  if (document.activeElement !== $('receipt-total')) {
+    $('receipt-total').value = receipt.totalCents == null ? '' : (receipt.totalCents / 100).toFixed(2);
+  }
+  const [tone, text] = receiptMessage(currentBill().bill.totalCents, receipt.totalCents);
+  $('receipt-status').className = `status ${tone}`;
+  $('receipt-status').textContent = text;
+
+  $('receipt-thumb').hidden = !receipt.hasPhoto;
+  if (receipt.hasPhoto && !mealPhotoUrl) {
+    getPhoto('meal').then((blob) => {
+      if (!blob) return;
+      mealPhotoUrl = URL.createObjectURL(blob);
+      $('receipt-thumb').querySelector('img').src = mealPhotoUrl;
+    }).catch(() => {});
+  }
+}
+
+function forgetMealPhoto() {
+  if (mealPhotoUrl) URL.revokeObjectURL(mealPhotoUrl);
+  mealPhotoUrl = null;
+  $('receipt-thumb').querySelector('img').removeAttribute('src');
+}
+
+function setProgress(label, fraction) {
+  $('receipt-progress-label').textContent = label;
+  $('receipt-progress-bar').value = fraction;
+}
+
+async function scanReceipt(file) {
+  if (!file) return;
+  receiptBusy = true;
+  setProgress('Preparing photo…', 0);
+  renderReceipt();
+  forgetMealPhoto();
+  try {
+    const bitmap = await loadImage(file);
+    let hasPhoto = false;
+    try {
+      await putPhoto('meal', await compressForStorage(bitmap));
+      hasPhoto = true;
+    } catch {
+      toast('Couldn’t keep the photo on this device, but will still read it.');
+    }
+    state.meal.receipt = { totalCents: null, hasPhoto, source: 'photo' };
+    save();
+    receiptAbort = new AbortController();
+    try {
+      const text = await readText(prepareForOcr(bitmap), setProgress, receiptAbort.signal);
+      Object.assign(state.meal.receipt, { totalCents: parseReceiptText(text).totalCents, text });
+    } catch (err) {
+      toast(`${err.message || 'Couldn’t read the receipt.'} You can type the total in instead.`);
+    }
+    save();
+  } catch {
+    toast('Couldn’t open that photo.');
+  } finally {
+    receiptBusy = false;
+    receiptAbort = null;
+    $('receipt-file').value = '';
+    renderReceipt();
+  }
+}
+
+function readPastedReceipt() {
+  const text = $('paste-text').value;
+  if (!text.trim()) return;
+  state.meal.receipt = { totalCents: parseReceiptText(text).totalCents, hasPhoto: false, source: 'text', text };
+  $('paste-text').value = '';
+  $('paste-box').hidden = true;
+  save();
+  renderReceipt();
+}
+
+function updateReceiptTotal() {
+  if (!state.meal.receipt) return;
+  const raw = $('receipt-total').value.trim();
+  const cents = parseAmount(raw);
+  if (raw && cents == null) return; // wait until it's a valid amount
+  state.meal.receipt.totalCents = raw ? cents : null;
+  save();
+  renderReceipt();
+}
+
+async function removeReceipt() {
+  state.meal.receipt = null;
+  forgetMealPhoto();
+  save();
+  renderReceipt();
+  await deletePhoto('meal').catch(() => {});
+}
+
+async function showPhoto(key) {
+  const blob = await getPhoto(key).catch(() => null);
+  if (!blob) {
+    toast('Photo not found on this device.');
+    return;
+  }
+  const viewer = $('photo-viewer');
+  const img = viewer.querySelector('img');
+  if (img.src) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(blob);
+  viewer.showModal();
+}
+
+function receiptChip(v) {
+  if (v.receipt?.totalCents == null) return '';
+  const r = compareWithReceipt(v.bill.totalCents, v.receipt.totalCents, [], v.rates);
+  return ['match', 'rounding'].includes(r.status)
+    ? '<span class="chip ok">✔ receipt</span>'
+    : `<span class="chip warn">receipt ${formatCents(v.receipt.totalCents)}</span>`;
 }
 
 function renderVisits() {
@@ -106,11 +251,12 @@ function renderVisits() {
     li.innerHTML = `
       <details class="visit">
         <summary>
-          <div class="top"><strong></strong><span class="amt">${formatCents(v.bill.totalCents)}</span></div>
+          <div class="top"><strong></strong><span class="amt">${formatCents(v.bill.totalCents)}${receiptChip(v)}</span></div>
           <div class="meta">${when} · ${v.bill.plateCount} plate${v.bill.plateCount === 1 ? '' : 's'}</div>
         </summary>
         <ul class="lines"></ul>
-        <button class="secondary small undo" type="button">Delete visit</button>
+        ${v.receipt?.hasPhoto ? '<button type="button" class="receipt-thumb" aria-label="View receipt photo"><img alt=""></button>' : ''}
+        <div><button class="secondary small undo delete" type="button">Delete visit</button></div>
       </details>`;
     li.querySelector('strong').textContent = v.outlet || 'Sushiro';
     const rows = [
@@ -118,6 +264,7 @@ function renderVisits() {
       ['Subtotal', v.bill.subtotalCents],
       ...(v.rates.serviceBp ? [[`Service charge (${pct(v.rates.serviceBp)})`, v.bill.serviceCents]] : []),
       ...(v.rates.gstBp ? [[`GST (${pct(v.rates.gstBp)})`, v.bill.gstCents]] : []),
+      ...(v.receipt?.totalCents != null ? [['Receipt total', v.receipt.totalCents]] : []),
     ];
     li.querySelector('.lines').replaceChildren(...rows.map(([label, cents]) => {
       const row = document.createElement('li');
@@ -126,7 +273,17 @@ function renderVisits() {
       row.children[1].textContent = formatCents(cents);
       return row;
     }));
-    li.querySelector('button').addEventListener('click', () => deleteVisit(v.id));
+    li.querySelector('.delete').addEventListener('click', () => deleteVisit(v.id));
+    const thumb = li.querySelector('.receipt-thumb');
+    if (thumb) {
+      thumb.addEventListener('click', () => showPhoto(v.id));
+      // Load the thumbnail only when the visit is opened.
+      li.querySelector('details').addEventListener('toggle', async (e) => {
+        if (!e.target.open || thumb.querySelector('img').src) return;
+        const blob = await getPhoto(v.id).catch(() => null);
+        if (blob) thumb.querySelector('img').src = URL.createObjectURL(blob);
+      });
+    }
     return li;
   }));
 }
@@ -205,22 +362,31 @@ function removeSpecial(id) {
 }
 
 function clearMeal() {
-  if (!currentBill().lines.length) return;
-  if (!confirm('Clear all plates and specials from this meal?')) return;
+  if (!currentBill().lines.length && !state.meal.receipt) return;
+  if (!confirm('Clear all plates, specials and the receipt from this meal?')) return;
+  const hadPhoto = state.meal.receipt?.hasPhoto;
   state.meal = freshMeal(state.meal.outlet);
+  forgetMealPhoto();
   save();
   renderMeal();
+  if (hadPhoto) deletePhoto('meal').catch(() => {});
 }
 
-function saveVisit() {
+async function saveVisit() {
   const { lines, bill } = currentBill();
-  if (!lines.length) return;
+  if (!lines.length || receiptBusy) return;
+  const id = newId();
+  const receipt = state.meal.receipt
+    ? { totalCents: state.meal.receipt.totalCents, hasPhoto: state.meal.receipt.hasPhoto, source: state.meal.receipt.source }
+    : null;
+  if (receipt?.hasPhoto) receipt.hasPhoto = await movePhoto('meal', id).catch(() => false);
   // Store a snapshot so later price changes in Settings don't rewrite history.
   state.visits.unshift({
-    id: newId(), at: new Date().toISOString(), outlet: state.meal.outlet.trim(),
-    lines, bill, rates: { ...state.rates },
+    id, at: new Date().toISOString(), outlet: state.meal.outlet.trim(),
+    lines, bill, rates: { ...state.rates }, receipt,
   });
   state.meal = freshMeal(state.meal.outlet);
+  forgetMealPhoto();
   save();
   render();
   toast(`Visit saved: ${formatCents(bill.totalCents)}`);
@@ -228,9 +394,11 @@ function saveVisit() {
 
 function deleteVisit(id) {
   if (!confirm('Delete this saved visit?')) return;
+  const visit = state.visits.find((v) => v.id === id);
   state.visits = state.visits.filter((v) => v.id !== id);
   save();
   renderVisits();
+  if (visit?.receipt?.hasPhoto) deletePhoto(id).catch(() => {});
 }
 
 function updateTier(id, changes) {
@@ -297,6 +465,17 @@ $('special-form').addEventListener('submit', addSpecial);
 $('outlet').addEventListener('input', (e) => { state.meal.outlet = e.target.value; save(); });
 $('clear-meal').addEventListener('click', clearMeal);
 $('save-visit').addEventListener('click', saveVisit);
+$('receipt-file').addEventListener('change', (e) => scanReceipt(e.target.files[0]));
+$('paste-toggle').addEventListener('click', () => {
+  $('paste-box').hidden = !$('paste-box').hidden;
+  if (!$('paste-box').hidden) $('paste-text').focus();
+});
+$('paste-read').addEventListener('click', readPastedReceipt);
+$('receipt-total').addEventListener('input', updateReceiptTotal);
+$('receipt-total').addEventListener('blur', renderReceipt);
+$('receipt-remove').addEventListener('click', removeReceipt);
+$('receipt-cancel').addEventListener('click', () => receiptAbort?.abort());
+$('receipt-thumb').addEventListener('click', () => showPhoto('meal'));
 $('add-tier').addEventListener('click', addTier);
 $('reset-tiers').addEventListener('click', resetTiers);
 $('rate-service').addEventListener('change', (e) => updateRate(e.target, 'serviceBp'));
