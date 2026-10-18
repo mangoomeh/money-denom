@@ -22,8 +22,9 @@ const VAR_RE = /^([A-Z]|θ)$/;
 const POSTFIX = new Set(['²', '³', '⁻¹', '!']);
 const MAX = 1e100;
 
-// Tokens that make ENTER start from the previous answer, e.g. pressing "+" first gives "Ans+".
-export const ANS_STARTERS = new Set(['+', '-', '×', '÷', '^', '²', '³', '⁻¹', '!', '→', ' nPr ', ' nCr ']);
+// Tokens that start from the previous answer when typed on an empty line, e.g. "+" gives "Ans+"
+// and MATH ▶Frac gives "Ans▶Frac", like on the real calculator.
+export const ANS_STARTERS = new Set(['+', '-', '×', '÷', '^', '²', '³', '⁻¹', '!', '→', ' nPr ', ' nCr ', '▶Frac', '▶Dec', 'ˣ√']);
 
 const isDigit = (t) => /^[0-9.]$/.test(t);
 const startsValue = (t) => t != null && (isDigit(t) || t === '(' || t === '⁻' || t === 'π' || t === 'e' ||

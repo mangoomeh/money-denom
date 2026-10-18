@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  run, parse, compileFunction, formatNumber, toFraction, derivative, integrate, findZero, findExtremum, CalcError,
+  run, parse, compileFunction, ANS_STARTERS, formatNumber, toFraction, derivative, integrate, findZero, findExtremum, CalcError,
 } from '../src/ti84.js';
 
 // Splits a readable string into calculator tokens for testing, e.g. 'sin(30)+2²'.
@@ -129,4 +129,10 @@ test('numerical tools', () => {
 
 test('parse reports ▶Frac conversion', () => {
   assert.equal(parse(tk('.75▶Frac')).convert, '▶Frac');
+  assert.equal(run(tk('Ans▶Frac'), { ans: 0.25 }).convert, '▶Frac');
+});
+
+test('▶Frac and ▶Dec on an empty line start from Ans', () => {
+  assert.ok(ANS_STARTERS.has('▶Frac'));
+  assert.ok(ANS_STARTERS.has('▶Dec'));
 });
