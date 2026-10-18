@@ -38,6 +38,8 @@ export async function readText(image, onProgress = () => {}, signal) {
         else if (/loading|initializ/.test(m.status)) onProgress('Loading text reader… (first time only, about 10 MB)', m.progress);
       },
     })]);
+    // Receipts read best as one uniform block of text (tested on real Sushiro receipts).
+    await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
     const { data } = await Promise.race([failed, worker.recognize(image)]);
     return data.text;
   } finally {

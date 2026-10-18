@@ -31,6 +31,12 @@ Counts plates during a meal and works out the bill.
   and compares it with what you tracked, for example "The receipt is $2.76 more. Maybe 1 Red plate wasn't counted?".
   Text recognition runs on the phone with [Tesseract.js](https://tesseract.projectnaptha.com/), which downloads
   about 10 MB on first use. Nothing is uploaded. If the total is misread you can correct it by hand.
+- **Plate counts from the receipt:** Sushiro receipts list items by price (`$2.3 Sushi 20 $46.00`), so the scan also
+  reads each item. Sushi lines are matched to plate colours and shown next to your counts ("Red: receipt 20 · you
+  19"), and other items (chawanmushi, soup, dishes) are listed. One button fills the meal in from the receipt. The
+  reader is built to cope with common misreads on thermal paper, and it says when some lines couldn't be read,
+  because the items then don't add up to the subtotal. Pasting text from Live Text or Google Lens gives the best
+  results.
 - **Receipt photos:** a compressed copy of each photo is kept with its saved visit in the browser's IndexedDB on that
   device.
 

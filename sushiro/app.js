@@ -2,7 +2,7 @@ import { parseAmount, formatCents } from '../src/cash.js';
 import {
   DEFAULT_PLATES, DEFAULT_RATES, billLines, computeBill, parsePercent, monthSummary,
 } from '../src/sushiro.js';
-import { parseReceiptText, compareWithReceipt } from '../src/receipt.js';
+import { analyseReceipt, compareWithReceipt } from '../src/receipt.js';
 import { readText } from './ocr.js';
 import {
   getPhoto, putPhoto, deletePhoto, movePhoto, loadImage, compressForStorage, prepareForOcr,
@@ -133,6 +133,8 @@ function renderReceipt() {
   $('receipt-status').className = `status ${tone}`;
   $('receipt-status').textContent = text;
 
+  renderReceiptItems(receipt);
+
   $('receipt-thumb').hidden = !receipt.hasPhoto;
   if (receipt.hasPhoto && !mealPhotoUrl) {
     getPhoto('meal').then((blob) => {
@@ -141,6 +143,62 @@ function renderReceipt() {
       $('receipt-thumb').querySelector('img').src = mealPhotoUrl;
     }).catch(() => {});
   }
+}
+
+// What the receipt says was ordered, compared plate colour by plate colour with the meal.
+function renderReceiptItems(receipt) {
+  const box = $('receipt-items');
+  const counts = receipt.counts || {};
+  const others = receipt.others || [];
+  const hasItems = Object.keys(counts).length > 0 || others.length > 0;
+  box.hidden = !hasItems;
+  if (!hasItems) return;
+
+  const rows = [];
+  let differs = false;
+  for (const p of state.plates) {
+    const onReceipt = counts[p.id] || 0;
+    const tracked = state.meal.counts[p.id] || 0;
+    if (!onReceipt && !tracked) continue;
+    const same = onReceipt === tracked;
+    differs ||= !same;
+    rows.push(`<li class="${same ? 'same' : 'diff'}"><span class="plate-dot" style="--plate:${p.color}"></span>
+      <span class="label"></span><span class="nums">${same ? `✔ ${onReceipt}` : `receipt ${onReceipt} · you ${tracked}`}</span></li>`);
+  }
+  const otherText = others.map((o) => `${o.name}${o.qty > 1 ? ` ×${o.qty}` : ''} ${formatCents(o.cents)}`).join(' · ');
+  const missing = receipt.subtotalCents != null && receipt.itemsCents != null ? receipt.subtotalCents - receipt.itemsCents : 0;
+  const specialsCents = state.meal.specials.reduce((n, sp) => n + sp.cents, 0);
+  differs ||= others.reduce((n, o) => n + o.cents, 0) !== specialsCents;
+
+  box.innerHTML = `
+    <h4>On the receipt</h4>
+    <ul class="receipt-plates">${rows.join('')}</ul>
+    ${others.length ? '<p class="receipt-others"><b>Other items:</b> <span></span></p>' : ''}
+    ${!receipt.complete && missing > 0 ? `<p class="hint">Some lines couldn’t be read clearly (${formatCents(missing)} of items missing). Check them against the receipt.</p>` : ''}
+    ${differs ? '<button class="secondary small" type="button" id="use-receipt">Fill in this meal from the receipt</button>' : ''}`;
+  const names = state.plates.filter((p) => counts[p.id] || state.meal.counts[p.id]);
+  box.querySelectorAll('.receipt-plates .label').forEach((el, i) => { el.textContent = names[i].name; });
+  if (others.length) box.querySelector('.receipt-others span').textContent = otherText;
+  box.querySelector('#use-receipt')?.addEventListener('click', useReceiptItems);
+}
+
+function useReceiptItems() {
+  const r = state.meal.receipt;
+  if (!confirm('Replace this meal’s plates and specials with the items read from the receipt?')) return;
+  state.meal.counts = { ...r.counts };
+  state.meal.specials = (r.others || []).map((o) => ({ id: newId(), name: o.qty > 1 ? `${o.name} ×${o.qty}` : o.name, cents: o.cents }));
+  save();
+  renderMeal();
+  toast('Meal filled in from the receipt.');
+}
+
+// Totals, plate counts and other items read from receipt text.
+function readReceipt(text) {
+  const a = analyseReceipt(text, state.plates, state.rates);
+  return {
+    text, totalCents: a.totalCents, subtotalCents: a.subtotalCents,
+    counts: a.counts, others: a.others, itemsCents: a.itemsCents, complete: a.complete,
+  };
 }
 
 function forgetMealPhoto() {
@@ -174,7 +232,7 @@ async function scanReceipt(file) {
     receiptAbort = new AbortController();
     try {
       const text = await readText(prepareForOcr(bitmap), setProgress, receiptAbort.signal);
-      Object.assign(state.meal.receipt, { totalCents: parseReceiptText(text).totalCents, text });
+      Object.assign(state.meal.receipt, readReceipt(text));
     } catch (err) {
       toast(`${err.message || 'Couldn’t read the receipt.'} You can type the total in instead.`);
     }
@@ -192,7 +250,7 @@ async function scanReceipt(file) {
 function readPastedReceipt() {
   const text = $('paste-text').value;
   if (!text.trim()) return;
-  state.meal.receipt = { totalCents: parseReceiptText(text).totalCents, hasPhoto: false, source: 'text', text };
+  state.meal.receipt = { hasPhoto: false, source: 'text', ...readReceipt(text) };
   $('paste-text').value = '';
   $('paste-box').hidden = true;
   save();
