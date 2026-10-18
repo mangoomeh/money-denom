@@ -34,7 +34,7 @@ Counts plates during a meal and works out the bill.
 - **Receipt photos:** a compressed copy of each photo is kept with its saved visit in the browser's IndexedDB on that
   device.
 
-### 📈 Graphing Calculator (`graph/`)
+### 📈 Function Plotter (`graph/`)
 
 A small, Desmos-style graphing calculator.
 
@@ -46,6 +46,27 @@ A small, Desmos-style graphing calculator.
   switches to the phone keyboard. There's also a DEG/RAD switch for angles.
 - **Safe parsing:** expressions go through a small parser (`src/expr.js`) instead of `eval`, so typed text can't run
   as code. It handles implicit multiplication (`2x`, `3sin(x)`, `2pi`) and real cube roots of negative numbers.
+
+### 🧮 GX-84 Calculator (`calc84/`)
+
+A handheld graphing calculator modelled on the TI-84 Plus CE. It's a recreation, not an emulator: no Texas
+Instruments software is used.
+
+- **Keypad:** the full 84-style keypad with 2nd (blue) and ALPHA (green) functions, A-LOCK, an arrow pad that
+  repeats while held, and keyboard support on computers (digits, operators, Enter, Backspace, Esc, arrows).
+- **Home screen:** TI order of operations (`2^3^2 = 64`, `⁻2² = ⁻4`, implicit ×), automatic closing brackets, `Ans`
+  (pressing + first gives `Ans+`), STO→ to variables A–Z and θ, ENTRY recall, ENTER to repeat, and TI-style
+  errors with Quit/Goto.
+- **Menus:** MATH (▶Frac, ▶Dec, ³, ³√(, ˣ√, nDeriv(, fnInt(), NUM (abs, round, iPart, fPart, int, min, max, lcm,
+  gcd), PRB (rand, nPr, nCr, !, randInt), and VARS → Y-VARS.
+- **Graphing:** Y= with ten colour-coded functions, WINDOW, ZOOM (ZBox, Zoom In/Out, ZDecimal, ZSquare, ZStandard,
+  ZTrig, ZInteger, ZoomFit), TRACE (typing a number jumps to that X), GRAPH with a free cursor, and FORMAT (grid,
+  axes, coordinates).
+- **CALC:** value, zero, minimum, maximum, intersect, dy/dx and ∫f(x)dx, with Left/Right Bound and Guess prompts and
+  shading for integrals.
+- **TABLE and TBLSET, plus MODE** (Normal/Sci, Float/Fix 0–9, Radian/Degree). Everything is saved on the device.
+- **Not yet:** STAT, lists, MATRIX, programs, APPS and complex numbers. Their keys show a short "not in this version"
+  note.
 
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/) and
 [Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/).
@@ -63,8 +84,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `graph/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `expr.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `graph/`, `calc84/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `expr.js`, `ti84.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

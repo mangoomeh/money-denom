@@ -1,0 +1,177 @@
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #0d0e10;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* The calculator fills the screen on phones and is a handheld-sized device elsewhere. */
+.device {
+  --key-gap: clamp(4px, 1.1vh, 9px);
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 440px;
+  max-height: 940px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #2a2d32 0%, #1c1e22 40%, #16181b 100%);
+  padding: calc(6px + env(safe-area-inset-top)) clamp(8px, 2.5vw, 16px) calc(8px + env(safe-area-inset-bottom));
+}
+@media (min-width: 480px) and (min-height: 700px) {
+  .device {
+    height: calc(100dvh - 32px);
+    border-radius: 34px 34px 46px 46px;
+    box-shadow: 0 20px 60px rgb(0 0 0 / .6), inset 0 1px 0 rgb(255 255 255 / .08);
+  }
+}
+
+.bezel {
+  flex: none;
+  background: #0f1012;
+  border-radius: 14px 14px 22px 22px;
+  padding: 6px 10px 10px;
+  box-shadow: inset 0 0 0 1px #2c2f35;
+}
+.brand-row { display: flex; justify-content: space-between; align-items: center; padding: 0 2px 5px; }
+.apps-link { color: #9aa3ad; text-decoration: none; font-size: 12px; font-weight: 600; }
+.brand { color: #c9ced6; font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.brand b { color: #e2b13c; font-weight: 800; }
+.lcd-wrap {
+  background: #000;
+  border-radius: 4px;
+  padding: 3px;
+  box-shadow: inset 0 0 0 2px #24272c;
+}
+#lcd {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  /* Keep room for the keys on short screens. */
+  max-height: 38vh;
+  max-height: 38dvh;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: #fff;
+  image-rendering: auto;
+}
+
+/* ---- Keys ---- */
+.keys {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(10, minmax(0, 1fr));
+  column-gap: clamp(6px, 2.2vw, 12px);
+  row-gap: 0;
+  padding: var(--key-gap) 4px 0;
+}
+.key {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+  padding-bottom: var(--key-gap);
+}
+.labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  height: 1.1em;
+  font-size: clamp(7.5px, 1.25vh, 10.5px);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: visible;
+  padding: 0 1px 1px;
+  pointer-events: none;
+}
+.labels span { min-width: 0; overflow: hidden; text-overflow: clip; }
+.labels .l2 { color: #5fb4f2; }
+.labels .la { color: #69cf78; margin-left: auto; }
+.key button {
+  flex: 1;
+  min-height: 18px;
+  max-height: 46px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px 7px 10px 10px;
+  font: 700 clamp(10px, 1.75vh, 15px) / 1 system-ui, -apple-system, sans-serif;
+  color: #f2f4f7;
+  background: linear-gradient(180deg, #4a4e55, #383b41);
+  box-shadow: 0 2px 0 #121316, inset 0 1px 0 rgb(255 255 255 / .12);
+  touch-action: manipulation;
+  cursor: pointer;
+  padding: 0 2px;
+  white-space: nowrap;
+}
+.key button:active, .key button.pressed { transform: translateY(1px); box-shadow: 0 1px 0 #121316; filter: brightness(.9); }
+.key.digit button { background: linear-gradient(180deg, #f4f5f7, #d9dce1); color: #1b1d21; font-size: clamp(12px, 2.1vh, 18px); }
+.key.top button { background: linear-gradient(180deg, #d8dbe0, #b9bdc4); color: #1b1d21; font-size: clamp(8.5px, 1.45vh, 12px); border-radius: 5px; max-height: 30px; }
+.key.second button { background: linear-gradient(180deg, #5fb4f2, #3d8fd0); color: #08263f; }
+.key.alpha button { background: linear-gradient(180deg, #6fd27e, #45a956); color: #0c2d13; }
+.key.enter button { background: linear-gradient(180deg, #555a62, #3f434a); }
+.key.small button { font-size: clamp(8.5px, 1.5vh, 12.5px); }
+
+/* Arrow pad, spanning two rows on the right */
+.dpad {
+  grid-column: 4 / 6;
+  grid-row: 2 / 4;
+  position: relative;
+  margin: 2px auto var(--key-gap);
+  aspect-ratio: 1;
+  height: calc(100% - var(--key-gap));
+  max-width: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #4a4e55, #2c2f34);
+  box-shadow: 0 2px 0 #0e0f11, inset 0 1px 0 rgb(255 255 255 / .1);
+}
+.dpad button {
+  position: absolute;
+  border: 0;
+  background: transparent;
+  color: #e6e8ec;
+  font-size: clamp(10px, 1.6vh, 14px);
+  width: 36%;
+  height: 36%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.dpad button:active { color: #5fb4f2; }
+.dpad .up { top: 0; left: 32%; }
+.dpad .down { bottom: 0; left: 32%; }
+.dpad .left { left: 0; top: 32%; }
+.dpad .right { right: 0; top: 32%; }
+.dpad::after { content: ""; position: absolute; inset: 37%; border-radius: 50%; background: #25282d; }
+
+/* Short portrait phones: a slightly smaller screen leaves more room for the keys */
+@media (orientation: portrait) and (max-height: 680px) {
+  #lcd { max-height: 32dvh; width: auto; }
+}
+
+/* Landscape phones: screen on the left, keys on the right */
+@media (orientation: landscape) and (max-height: 560px) {
+  .device { max-width: none; max-height: none; flex-direction: row; gap: 12px; width: 100vw; padding: 6px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); border-radius: 0; }
+  .bezel { flex: none; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+  /* As big as fits, but never more than about half the width so the keys stay usable. */
+  #lcd { width: min(50vw, calc((100dvh - 52px) * 4 / 3)); height: auto; max-height: none; }
+  .keys { flex: 1; min-width: 0; padding-top: 0; --key-gap: 2px; }
+  .key { padding-bottom: 2px; }
+  .key button { min-height: 14px; padding: 0 1px; }
+  .labels { font-size: clamp(6.5px, 2.2vh, 9.5px); height: 1.05em; }
+  .key button { font-size: clamp(9px, 2.8vh, 13px); }
+  .key.digit button { font-size: clamp(10px, 3.2vh, 15px); }
+}

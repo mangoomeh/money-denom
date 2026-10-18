@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#16181b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>GX-84 Calculator</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="calc84.css">
+</head>
+<body>
+  <div class="device" id="device">
+    <div class="bezel">
+      <div class="brand-row">
+        <a class="apps-link" href="../">‹ Apps</a>
+        <span class="brand">GX-84 <b>Plus</b></span>
+      </div>
+      <div class="lcd-wrap">
+        <canvas id="lcd" aria-label="Calculator screen" role="img"></canvas>
+      </div>
+    </div>
+    <div class="keys" id="keys" aria-label="Calculator keys"></div>
+  </div>
+  <p class="sr-only" id="announce" aria-live="polite"></p>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
