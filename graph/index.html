@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Graphing Calculator</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="graph-app">
+  <header class="topbar">
+    <a class="topbar-back" href="../">‹ Apps</a>
+    <h1>Graphing Calculator</h1>
+    <button class="pill" id="angle-mode" type="button" aria-label="Angle unit"></button>
+  </header>
+
+  <div class="graph-layout">
+    <section class="plot" id="plot-wrap" aria-label="Graph">
+      <canvas id="plot"></canvas>
+      <div class="trace" id="trace" hidden></div>
+      <div class="plot-controls">
+        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" id="zoom-reset" aria-label="Reset view">⌂</button>
+      </div>
+    </section>
+
+    <section class="exprs" aria-label="Expressions">
+      <ol class="expr-list" id="expr-list"></ol>
+      <div class="expr-actions">
+        <button class="secondary small" id="add-expr" type="button">+ Add expression</button>
+        <button class="secondary small" id="keypad-toggle" type="button"></button>
+      </div>
+      <p class="hint graph-hint">Type a function of <b>x</b> to plot it, e.g. <code>x^2 - 2</code> or <code>sin 2x</code>. Anything without x is worked out, like <code>√2 × π</code>. Drag to move, pinch or scroll to zoom, tap a curve to trace it.</p>
+    </section>
+  </div>
+
+  <div class="keypad" id="keypad" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

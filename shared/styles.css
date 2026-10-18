@@ -680,3 +680,175 @@ label.btn {
 .link-row small { color: var(--muted); }
 .link-row .url { font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .link-row .ext { font-size: 1.2rem; font-weight: 700; color: var(--muted); }
+
+/* ---- Graphing calculator --------------------------------------------------- */
+
+.graph-app {
+  --plot-bg: #ffffff;
+  --plot-minor: #f0f2f5;
+  --plot-major: #dde1e7;
+  --plot-axis: #5f6873;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .graph-app { --plot-bg: #15191d; --plot-minor: #1d2227; --plot-major: #2b323a; --plot-axis: #9aa3ad; }
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: calc(.55rem + env(safe-area-inset-top)) 1rem .55rem;
+  background: #1e293b;
+  color: #fff;
+  flex: none;
+}
+.topbar h1 { flex: 1; margin: 0; font-size: 1rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-back { color: inherit; text-decoration: none; font-weight: 600; font-size: .9rem; white-space: nowrap; }
+.pill {
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / .45);
+  background: rgb(255 255 255 / .12);
+  color: inherit;
+  min-width: 3.4rem;
+}
+
+.graph-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(170px, 1.35fr) minmax(110px, 1fr);
+}
+.plot { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid var(--border); }
+.plot canvas { display: block; touch-action: none; cursor: crosshair; }
+.plot-controls { position: absolute; right: .6rem; top: .6rem; display: flex; flex-direction: column; gap: .35rem; }
+.plot-controls button {
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.15rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / .12);
+}
+.trace {
+  position: absolute;
+  left: .6rem;
+  top: .6rem;
+  max-width: calc(100% - 4.5rem);
+  padding: .3rem .6rem;
+  border-radius: 8px;
+  background: var(--card);
+  border: 2px solid var(--c);
+  font-weight: 600;
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.exprs { min-height: 0; overflow-y: auto; padding: .5rem .75rem 1rem; background: var(--bg); }
+.expr-list { list-style: none; margin: 0; padding: 0; }
+.expr {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .45rem .5rem;
+  margin-bottom: .4rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.expr.active { border-color: #64748b; box-shadow: 0 0 0 2px rgb(100 116 139 / .25); }
+.swatch {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: .45rem;
+  border-radius: 50%;
+  border: 3px solid var(--c);
+  background: var(--c);
+  padding: 0;
+}
+.swatch.off { background: transparent; }
+.swatch[hidden] { display: block !important; visibility: hidden; }
+.expr-body { flex: 1; min-width: 0; }
+.expr input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 1.15rem/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: .3rem 0;
+  outline: none;
+}
+.expr-out { font-size: .9rem; min-height: 0; overflow-wrap: anywhere; }
+.expr-out:empty { display: none; }
+.expr-out.val { font: 600 1.05rem ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--text); text-align: right; }
+.expr-out.err { color: var(--muted); }
+.expr .icon-btn { margin-top: .2rem; }
+.expr-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .25rem; }
+.graph-hint { font-size: .85rem; }
+.graph-hint code { font-size: .85em; background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0 .25rem; }
+
+.keypad {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  background: #cbd5e1;
+}
+.keypad[hidden] { display: none; }
+.keypad button {
+  height: 2.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font: 600 1rem system-ui, sans-serif;
+  box-shadow: 0 1px 0 rgb(0 0 0 / .2);
+}
+.keypad button.digit { background: #ffffff; font-size: 1.15rem; }
+.keypad button.fn { background: #94a3b8; color: #0f172a; }
+.keypad button.primary-key { background: #1e293b; color: #fff; }
+.keypad button:active { filter: brightness(.88); }
+@media (prefers-color-scheme: dark) {
+  .keypad { background: #0b0f14; }
+  .keypad button { background: #2b323a; color: #e8eaed; }
+  .keypad button.digit { background: #3a434d; }
+  .keypad button.fn { background: #1d2227; color: #cbd5e1; }
+  .keypad button.primary-key { background: #64748b; color: #fff; }
+}
+/* Shorter screens: smaller keys so the graph keeps enough room */
+@media (max-height: 700px) {
+  .keypad button { height: 2.2rem; }
+}
+@media (max-height: 560px) {
+  .keypad button { height: 2rem; font-size: .9rem; }
+  .keypad { gap: 3px; padding: 4px; }
+}
+
+/* Wide screens: expressions (and keypad) on the left, graph on the right */
+@media (min-width: 820px) {
+  .graph-app {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "top top" "list plot" "pad plot";
+  }
+  .topbar { grid-area: top; }
+  .graph-layout { display: contents; }
+  .plot { grid-area: plot; border-bottom: 0; border-left: 1px solid var(--border); }
+  .exprs { grid-area: list; }
+  .keypad { grid-area: pad; }
+}
