@@ -132,6 +132,19 @@ test('parse reports ▶Frac conversion', () => {
   assert.equal(run(tk('Ans▶Frac'), { ans: 0.25 }).convert, '▶Frac');
 });
 
+test('stacked n/d fraction template', () => {
+  const F = (n, d) => ['FRAC(', ...tk(n), 'FRAC|', ...tk(d), 'FRAC)'];
+  assert.equal(run(F('3', '4'), {}).value, 0.75);
+  close(run([...F('1', '2'), '+', ...F('1', '3')], {}).value, 5 / 6);
+  assert.equal(run(['2', ...F('1', '2')], {}).value, 1); // implicit ×
+  assert.equal(run(F('1+2', '3×4'), {}).value, 0.25); // each part is its own group
+  assert.equal(run(F('√(9', '2'), {}).value, 1.5); // brackets close at the end of a part
+  assert.equal(run(['FRAC(', ...F('1', '2'), 'FRAC|', '4', 'FRAC)'], {}).value, 0.125); // nested
+  assert.throws(() => run(['FRAC(', 'FRAC|', '4', 'FRAC)'], {}), (e) => e.kind === 'SYNTAX'); // empty top
+  assert.throws(() => run(F('1', '0'), {}), (e) => e.kind === 'DIVIDE BY 0');
+  assert.equal(compileFunction(F('X', '2'), () => ({ vars: {} })).fn(6), 3);
+});
+
 test('▶Frac and ▶Dec on an empty line start from Ans', () => {
   assert.ok(ANS_STARTERS.has('▶Frac'));
   assert.ok(ANS_STARTERS.has('▶Dec'));

@@ -57,6 +57,9 @@ Instruments software is used.
 - **Home screen:** TI order of operations (`2^3^2 = 64`, `⁻2² = ⁻4`, implicit ×), automatic closing brackets, `Ans`
   (pressing + first gives `Ans+`), STO→ to variables A–Z and θ, ENTRY recall, ENTER to repeat, and TI-style
   errors with Quit/Goto.
+- **Stacked fractions:** ALPHA + X,T,θ,n inserts an n/d fraction box, as on the TI-84 Plus CE. ▼ and ▲ move
+  between the numerator and denominator. A calculation typed with fractions answers as a stacked fraction, and
+  ALPHA + Y= (F1) opens the FRAC menu (n/d, ▶F◀▶D, ▶Frac, ▶Dec). Fractions also work in Y=.
 - **Menus:** MATH (▶Frac, ▶Dec, ³, ³√(, ˣ√, nDeriv(, fnInt(), NUM (abs, round, iPart, fPart, int, min, max, lcm,
   gcd), PRB (rand, nPr, nCr, !, randInt), and VARS → Y-VARS.
 - **Graphing:** Y= with ten colour-coded functions, WINDOW, ZOOM (ZBox, Zoom In/Out, ZDecimal, ZSquare, ZStandard,

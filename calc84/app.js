@@ -1,6 +1,6 @@
 import {
   run, compileFunction, formatNumber, toFraction, derivative, integrate, findZero, findExtremum,
-  CalcError, ANS_STARTERS, Y_TOKENS,
+  CalcError, ANS_STARTERS, Y_TOKENS, FRAC_OPEN, FRAC_MID, FRAC_CLOSE, isFracMark,
 } from '../src/ti84.js';
 
 // ---- Screen geometry (logical pixels, like a 320×240 colour LCD) -------------------------
@@ -88,7 +88,27 @@ const yByName = (name) => yFn(Y_TOKENS.indexOf(name))?.fn ?? null;
 const env = () => ({ vars: state.vars, ans: state.ans, degrees: state.mode.degrees, y: yByName });
 const activeFns = () => state.yeq.map((y, i) => i).filter((i) => state.yeq[i].on && yFn(i).fn);
 const fmt = (v, digits = 10) => formatNumber(v, { fix: state.mode.fix, sci: state.mode.sci, digits });
-const tokensText = (tokens) => tokens.join('');
+// Plain-text form of tokens. A stacked fraction reads as n/d, with brackets only
+// around parts that need them: X/2, (X+1)/2.
+function tokensText(tokens) {
+  let i = 0;
+  const simple = (t) => /^([0-9.]+|[A-Zθπe]|Ans)$/.test(t);
+  const part = (stops) => {
+    let out = '';
+    while (i < tokens.length && !stops.includes(tokens[i])) {
+      if (tokens[i] === FRAC_OPEN) {
+        i++;
+        const num = part([FRAC_MID, FRAC_CLOSE]);
+        if (tokens[i] === FRAC_MID) i++;
+        const den = part([FRAC_CLOSE]);
+        if (tokens[i] === FRAC_CLOSE) i++;
+        out += `${simple(num) ? num : `(${num})`}/${simple(den) ? den : `(${den})`}`;
+      } else out += tokens[i++];
+    }
+    return out;
+  };
+  return part([]);
+}
 
 // Text like "⁻12.5ᴇ3" back into tokens, for editing numbers on WINDOW and TBLSET.
 const textToTokens = (s) => [...s].map((c) => (c === 'ᴇ' ? 'E' : c));
@@ -98,7 +118,7 @@ const textToTokens = (s) => [...s].map((c) => (c === 'ᴇ' ? 'E' : c));
 // An action is a token to insert ("sin(") or a command (":trace").
 
 const KEYS = [
-  ['yeq', 'Y=', 'STAT PLOT', 'F1', 'top', ':yeq', ':unsupported:STAT PLOT', null],
+  ['yeq', 'Y=', 'STAT PLOT', 'F1', 'top', ':yeq', ':unsupported:STAT PLOT', ':fmenu'],
   ['window', 'WINDOW', 'TBLSET', 'F2', 'top', ':window', ':tblset', null],
   ['zoom', 'ZOOM', 'FORMAT', 'F3', 'top', ':zoom', ':format', null],
   ['trace', 'TRACE', 'CALC', 'F4', 'top', ':trace', ':calc', null],
@@ -108,7 +128,7 @@ const KEYS = [
   ['del', 'DEL', 'INS', '', 'small', ':del', ':ins', null],
   null, null, // arrow pad
   ['alpha', 'ALPHA', 'A-LOCK', '', 'alpha', ':alpha', ':alock', ':alpha'],
-  ['xt', 'X,T,θ,n', 'LINK', '', 'small', 'X', ':unsupported:LINK', 'X'],
+  ['xt', 'X,T,θ,n', 'LINK', 'n/d', 'small', 'X', ':unsupported:LINK', ':frac'],
   ['stat', 'STAT', 'LIST', '', 'small', ':unsupported:STAT', ':unsupported:LIST', null],
   null, null,
   ['math', 'MATH', 'TEST', 'A', 'small', ':math', ':unsupported:TEST', 'A'],
@@ -279,6 +299,8 @@ function dispatch(action) {
     }
   }
   if (cmd === 'math') { openMenu(mathMenu()); return; }
+  if (cmd === 'frac') { insertTemplate(); return; }
+  if (cmd === 'fmenu') { openMenu(fracMenu()); return; }
   if (cmd === 'vars') { openMenu(varsMenu()); return; }
   if (cmd === 'ins') { ui.overwrite = !ui.overwrite; return; }
   const handler = SCREENS[ui.screen];
@@ -332,6 +354,69 @@ function insertToken(tok) {
   afterEdit();
 }
 
+// ALPHA + X,T,θ,n: an empty stacked fraction, with the cursor in the numerator.
+function insertTemplate() {
+  if (ui.screen !== 'home' && ui.screen !== 'yeq') {
+    showFlash('Fractions can be typed on the home screen and in Y=');
+    return;
+  }
+  const e = currentEditor();
+  if (e.cursor < 0) e.cursor = 0;
+  e.tokens.splice(e.cursor, 0, FRAC_OPEN, FRAC_MID, FRAC_CLOSE);
+  e.cursor++;
+  afterEdit();
+}
+
+// The fraction a marker token belongs to: indexes of its FRAC( FRAC| FRAC) markers.
+function fracAround(tokens, k) {
+  let open = k;
+  if (tokens[k] !== FRAC_OPEN) {
+    for (let j = k - 1, depth = 0; j >= 0; j--) {
+      if (tokens[j] === FRAC_CLOSE) depth++;
+      else if (tokens[j] === FRAC_OPEN) { if (depth === 0) { open = j; break; } depth--; }
+    }
+  }
+  let mid = -1, close = tokens.length;
+  for (let j = open + 1, depth = 0; j < tokens.length; j++) {
+    if (tokens[j] === FRAC_OPEN) depth++;
+    else if (tokens[j] === FRAC_CLOSE) { if (depth === 0) { close = j; break; } depth--; }
+    else if (tokens[j] === FRAC_MID && depth === 0) mid = j;
+  }
+  return { open, mid, close };
+}
+
+// The innermost fraction the cursor is inside, or null.
+function enclosingFrac(tokens, cursor) {
+  for (let j = cursor - 1, depth = 0; j >= 0; j--) {
+    if (tokens[j] === FRAC_CLOSE) depth++;
+    else if (tokens[j] === FRAC_OPEN) { if (depth === 0) return fracAround(tokens, j); depth--; }
+  }
+  return null;
+}
+
+// ▼ moves from the numerator to the denominator and ▲ back, like the CE.
+function fracNav(e, dir) {
+  const f = e.cursor >= 0 && enclosingFrac(e.tokens, e.cursor);
+  if (!f) return false;
+  const inNum = e.cursor <= f.mid;
+  if (dir === 'down' && inNum) e.cursor = f.mid + 1;
+  else if (dir === 'up' && !inNum) e.cursor = f.mid;
+  return true;
+}
+
+// Deleting a fraction's edge removes the fraction once it's empty; otherwise it's kept
+// (and backspace steps into it) so its contents aren't lost.
+function deleteAtMarker(e, k, backwards) {
+  const f = fracAround(e.tokens, k);
+  if (f.close - f.open === 2) {
+    e.tokens.splice(f.open, 3);
+    e.cursor = f.open;
+    afterEdit();
+  } else if (backwards) {
+    e.cursor--;
+  }
+}
+
 function afterEdit() {
   if (ui.screen === 'yeq') {
     state.yeq[ui.yeqSel].tokens = [...ui.yeqEd.tokens];
@@ -349,13 +434,17 @@ function editKeys(cmd, e) {
     case 'right':
       if (e.cursor < e.tokens.length) e.cursor++;
       return true;
-    case 'del':
+    case 'del': {
       if (e.fresh) { e.fresh = false; }
+      const k = e.cursor < e.tokens.length ? e.cursor : e.cursor - 1;
+      if (k >= 0 && isFracMark(e.tokens[k])) { deleteAtMarker(e, k, false); return true; }
       if (e.cursor < e.tokens.length) e.tokens.splice(e.cursor, 1);
       else if (e.cursor > 0) e.tokens.splice(--e.cursor, 1);
       afterEdit();
       return true;
+    }
     case 'backspace':
+      if (e.cursor > 0 && isFracMark(e.tokens[e.cursor - 1])) { deleteAtMarker(e, e.cursor - 1, true); return true; }
       if (e.cursor > 0) { e.tokens.splice(--e.cursor, 1); afterEdit(); }
       return true;
   }
@@ -379,12 +468,16 @@ function homeEnter() {
     const { value, store, convert } = run(tokens, ctx());
     if (store) state.vars[store] = value;
     state.ans = value;
+    // Like the CE's AUTO answers: a calculation typed with n/d fractions answers as a fraction.
+    let asFrac = convert === '▶Frac' || (tokens.some(isFracMark) && convert !== '▶Dec');
+    if (convert === '▶F◀▶D') asFrac = !state.history.at(-1)?.frac;
     let out = fmt(value);
-    if (convert === '▶Frac') {
-      const f = toFraction(value);
-      if (f) out = `${f.n < 0 ? '⁻' : ''}${Math.abs(f.n)}/${f.d}`;
+    let frac = null;
+    if (asFrac) {
+      frac = toFraction(value);
+      if (frac) out = `${frac.n < 0 ? '⁻' : ''}${Math.abs(frac.n)}/${frac.d}`;
     }
-    state.history.push({ input: [...tokens], output: out });
+    state.history.push({ input: [...tokens], output: out, ...(frac ? { frac } : {}) });
     if (state.history.length > 60) state.history.shift();
     state.entries.push([...tokens]);
     if (state.entries.length > 30) state.entries.shift();
@@ -406,8 +499,8 @@ SCREENS.home = (cmd) => {
   switch (cmd) {
     case 'enter': homeEnter(); return;
     case 'entry': recallEntry(1); return;
-    case 'up': recallEntry(1); return;
-    case 'down': recallEntry(-1); return;
+    case 'up': if (!fracNav(e, 'up')) recallEntry(1); return;
+    case 'down': if (!fracNav(e, 'down')) recallEntry(-1); return;
     case 'clear':
       if (e.tokens.length) ui.home = ed();
       else state.history = [];
@@ -469,6 +562,17 @@ function mathMenu() {
         { label: 'randInt(', run: menuInsert('randInt(') },
       ] },
     ],
+  };
+}
+
+function fracMenu() {
+  return {
+    tabs: [{ name: 'FRAC', items: [
+      { label: 'n/d', run: () => insertTemplate() },
+      { label: '▶F◀▶D', run: menuInsert('▶F◀▶D') },
+      { label: '▶Frac', run: menuInsert('▶Frac') },
+      { label: '▶Dec', run: menuInsert('▶Dec') },
+    ] }],
   };
 }
 
@@ -548,6 +652,7 @@ SCREENS.yeq = (cmd) => {
     if (cmd === 'right') { e.cursor = 0; return; }
   } else if (cmd === 'left' && e.cursor === 0) { e.cursor = -1; return; }
   if (e.cursor >= 0 && editKeys(cmd, e)) return;
+  if ((cmd === 'up' || cmd === 'down') && fracNav(e, cmd)) return;
   switch (cmd) {
     case 'up': moveY(-1); break;
     case 'down': case 'enter': moveY(1); break;
@@ -1056,15 +1161,130 @@ function editorLines(e, prefix = '', prefixSegs = []) {
   });
 }
 
-function renderHome() {
-  const lines = [];
-  for (const h of state.history) {
-    for (const l of wrap(tokensText(h.input))) lines.push({ segs: [{ text: l.text }] });
-    lines.push({ segs: [{ text: h.output }], right: true });
+// ---- Stacked fractions ---------------------------------------------------------------------------------
+// Tokens containing n/d templates are laid out in two dimensions: each part is a box with
+// a width and the space it needs above (up) and below (down) the middle of the text line.
+
+function layoutTokens(tokens) {
+  let i = 0;
+  function seq(stops) {
+    const start = i;
+    const items = [];
+    let w = 0, up = ROW_H / 2, down = ROW_H / 2;
+    while (i < tokens.length && !stops.includes(tokens[i])) {
+      const t = tokens[i];
+      if (t === FRAC_OPEN) {
+        const open = i++;
+        const num = seq([FRAC_MID, FRAC_CLOSE]);
+        if (tokens[i] === FRAC_MID) i++;
+        const den = seq([FRAC_CLOSE]);
+        if (tokens[i] === FRAC_CLOSE) i++;
+        const fw = Math.max(num.w, den.w) + 8;
+        items.push({ kind: 'frac', idx: open, x: w, w: fw, num, den });
+        w += fw;
+        up = Math.max(up, num.up + num.down + 1);
+        down = Math.max(down, den.up + den.down + 1);
+      } else {
+        const n = [...t].length;
+        items.push({ kind: 'text', idx: i, x: w, w: n * CW, text: t });
+        w += n * CW;
+        i++;
+      }
+    }
+    const empty = !items.length;
+    return { items, w: empty ? CW : w, up, down, end: i, empty };
   }
-  for (const segs of editorLines(ui.home)) lines.push({ segs });
-  const visible = lines.slice(-ROWS);
-  visible.forEach((l, r) => drawRow(r, l.segs, { right: l.right }));
+  return seq([]);
+}
+
+// Draws (or, with paint=false, only measures) a box with its text middle line at y,
+// recording the screen position of every cursor index in `pos`.
+function drawBox(box, x, y, pos, cursor, paint = true) {
+  for (const it of box.items) {
+    pos[it.idx] ??= { x: x + it.x, y };
+    if (it.kind === 'text') {
+      if (!paint) continue;
+      const chars = [...it.text];
+      chars.forEach((ch, k) => {
+        const cx = x + it.x + k * CW;
+        const isCursor = k === 0 && cursor === it.idx && ui.blink;
+        if (isCursor) {
+          g2.fillStyle = '#111';
+          g2.fillRect(cx, y - ROW_H / 2, CW, ROW_H - 1);
+          pos.cursorDrawn = true;
+        }
+        g2.fillStyle = isCursor ? '#fff' : '#111';
+        g2.fillText(isCursor && cursorChar() ? cursorChar() : ch, cx + 0.5, y + 1);
+      });
+    } else {
+      const fx = x + it.x;
+      const numX = fx + (it.w - it.num.w) / 2, denX = fx + (it.w - it.den.w) / 2;
+      drawBox(it.num, numX, y - 1 - it.num.down, pos, cursor, paint);
+      drawBox(it.den, denX, y + 1 + it.den.up, pos, cursor, paint);
+      if (paint) {
+        g2.fillStyle = '#111';
+        g2.fillRect(fx + 2, Math.round(y) - 0.5, it.w - 4, 1.5);
+      }
+    }
+  }
+  pos[box.end] ??= { x: x + (box.empty ? 0 : box.w), y };
+  if (box.empty && paint) {
+    // An empty slot in a template shows as a dotted box.
+    g2.strokeStyle = '#8a8f98';
+    g2.setLineDash([2, 2]);
+    g2.strokeRect(x + 1.5, y - 8.5, CW - 3, 17);
+    g2.setLineDash([]);
+  }
+}
+
+// Paints a laid-out line whose top edge is at `top`. Long lines scroll to keep the cursor visible.
+function paintBox(box, { top, right = false, cursor = null, left = 4 }) {
+  const y = top + box.up;
+  let x = right ? W - 4 - box.w : left;
+  if (cursor != null) {
+    const probe = {};
+    drawBox(box, 0, y, probe, cursor, false);
+    const cx = left + (probe[cursor]?.x ?? box.w);
+    if (cx + CW > W - 4) x = left - (cx + CW - (W - 4));
+  }
+  setFont(20);
+  g2.textBaseline = 'middle';
+  const pos = {};
+  drawBox(box, x, y, pos, cursor);
+  // Cursor on a fraction edge or at the end of a part: a block on its own.
+  if (cursor != null && ui.blink && !pos.cursorDrawn && pos[cursor]) {
+    const p = pos[cursor];
+    g2.fillStyle = '#111';
+    g2.fillRect(p.x, p.y - ROW_H / 2, CW, ROW_H - 1);
+    if (cursorChar()) {
+      g2.fillStyle = '#fff';
+      g2.fillText(cursorChar(), p.x + 0.5, p.y + 1);
+    }
+  }
+}
+
+const fracTokens = ({ n, d }) => [...(n < 0 ? ['⁻'] : []), FRAC_OPEN, ...String(Math.abs(n)), FRAC_MID, ...String(d), FRAC_CLOSE];
+
+function renderHome() {
+  // Each block is one line (or a taller line holding fractions) with its height.
+  const blocks = [];
+  const textLine = (segs, right = false) => ({ h: ROW_H, draw: (top) => drawRow(0, segs, { right, y: top }) });
+  const boxLine = (tokens, opts = {}) => {
+    const box = layoutTokens(tokens);
+    return { h: box.up + box.down, draw: (top) => paintBox(box, { top, ...opts }) };
+  };
+  for (const h of state.history) {
+    if (h.input.some(isFracMark)) blocks.push(boxLine(h.input));
+    else for (const l of wrap(tokensText(h.input))) blocks.push(textLine([{ text: l.text }]));
+    blocks.push(h.frac ? boxLine(fracTokens(h.frac), { right: true }) : textLine([{ text: h.output }], true));
+  }
+  if (ui.home.tokens.some(isFracMark)) blocks.push(boxLine(ui.home.tokens, { cursor: ui.home.cursor }));
+  else for (const segs of editorLines(ui.home)) blocks.push(textLine(segs));
+  // Show the newest lines that fit.
+  let used = 0, first = blocks.length;
+  while (first > 0 && used + blocks[first - 1].h <= H - TOP) used += blocks[--first].h;
+  let top = TOP;
+  for (const b of blocks.slice(first)) { b.draw(top); top += b.h; }
 }
 
 function renderMenu() {
@@ -1090,36 +1310,54 @@ function renderMenu() {
 
 function renderYeq() {
   drawRow(0, [{ text: ' Plot1 Plot2 Plot3', color: '#777' }]);
-  const first = Math.max(0, Math.min(ui.yeqSel - (ROWS - 2), state.yeq.length - (ROWS - 1)));
-  let row = 1;
-  for (let i = first; i < state.yeq.length && row < ROWS; i++, row++) {
-    const y = state.yeq[i];
-    const name = `Y${i === 9 ? 0 : i + 1}`;
-    const prefix = `■${name}=`;
-    const eqIdx = prefix.length - 1;
-    const prefixSegs = [
+  const blocks = state.yeq.map((y, i) => yeqBlock(y, i));
+  // Scroll so the selected equation is visible.
+  const avail = H - TOP - ROW_H;
+  const span = (a, b) => blocks.slice(a, b + 1).reduce((n, bl) => n + bl.h, 0);
+  let first = 0;
+  while (first < ui.yeqSel && span(first, ui.yeqSel) > avail) first++;
+  let top = TOP + ROW_H;
+  for (let i = first; i < blocks.length && top < H; i++) { blocks[i].draw(top); top += blocks[i].h; }
+}
+
+function yeqBlock(y, i) {
+  const prefix = `■Y${i === 9 ? 0 : i + 1}=`;
+  const eqIdx = prefix.length - 1;
+  const selected = i === ui.yeqSel;
+  const e = selected ? currentEditor() : { tokens: y.tokens, cursor: null };
+  const onEq = selected && e.cursor === -1 && ui.blink;
+  const prefixSegs = [...prefix].map((ch, k) => ({
+    text: ch,
+    color: k === 0 ? Y_COLORS[i] : undefined,
+    inv: k === eqIdx && (y.on || onEq),
+    invColor: onEq && y.on ? '#3d8fd0' : '#111',
+  }));
+
+  if (e.tokens.some(isFracMark)) {
+    const box = layoutTokens(e.tokens);
+    const h = Math.max(ROW_H, box.up + box.down);
+    return {
+      h,
+      draw: (top) => {
+        drawRow(0, prefixSegs, { y: top + box.up - ROW_H / 2 });
+        paintBox(box, { top, left: 4 + prefix.length * CW, cursor: selected && e.cursor >= 0 ? e.cursor : null });
+      },
+    };
+  }
+  if (selected) {
+    const ranges = [
       { from: 0, to: 1, color: Y_COLORS[i] },
       { from: eqIdx, to: eqIdx + 1, inv: y.on, invColor: '#111' },
     ];
-    if (i === ui.yeqSel) {
-      const e = currentEditor();
-      const lines = editorLines(e.cursor === -1 ? { ...e, cursor: 0, tokens: e.tokens } : e, prefix, prefixSegs);
-      if (e.cursor === -1 && ui.blink) {
-        // Cursor on the "=" sign
-        lines[0][eqIdx] = { text: '=', inv: true, invColor: y.on ? '#3d8fd0' : '#111' };
-        if (lines[0][prefix.length]) lines[0][prefix.length].inv = false;
-      }
-      for (const segs of lines) { if (row >= ROWS) break; drawRow(row++, segs); }
-      row--;
-    } else {
-      const text = prefix + tokensText(y.tokens);
-      const segs = [...text].slice(0, COLS).map((ch, k) => {
-        const pre = prefixSegs.find((p) => k >= p.from && k < p.to);
-        return { text: ch, inv: pre?.inv, color: pre?.color };
-      });
-      drawRow(row, segs);
+    const lines = editorLines(e.cursor === -1 ? { ...e, cursor: 0 } : e, prefix, ranges);
+    if (e.cursor === -1) {
+      lines[0][eqIdx] = prefixSegs[eqIdx];
+      if (lines[0][prefix.length]) lines[0][prefix.length].inv = false;
     }
+    return { h: lines.length * ROW_H, draw: (top) => lines.forEach((segs, k) => drawRow(0, segs, { y: top + k * ROW_H })) };
   }
+  const rest = [...tokensText(y.tokens)].slice(0, COLS - prefix.length).join('');
+  return { h: ROW_H, draw: (top) => drawRow(0, [...prefixSegs, { text: rest }], { y: top }) };
 }
 
 function renderFields(title) {

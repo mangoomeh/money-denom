@@ -24,20 +24,27 @@ const MAX = 1e100;
 
 // Tokens that start from the previous answer when typed on an empty line, e.g. "+" gives "Ans+"
 // and MATH ▶Frac gives "Ans▶Frac", like on the real calculator.
-export const ANS_STARTERS = new Set(['+', '-', '×', '÷', '^', '²', '³', '⁻¹', '!', '→', ' nPr ', ' nCr ', '▶Frac', '▶Dec', 'ˣ√']);
+export const ANS_STARTERS = new Set(['+', '-', '×', '÷', '^', '²', '³', '⁻¹', '!', '→', ' nPr ', ' nCr ', '▶Frac', '▶Dec', '▶F◀▶D', 'ˣ√']);
+
+// The stacked n/d fraction template is stored as three marker tokens around its parts:
+// FRAC( numerator FRAC| denominator FRAC)
+export const FRAC_OPEN = 'FRAC(', FRAC_MID = 'FRAC|', FRAC_CLOSE = 'FRAC)';
+export const isFracMark = (t) => t === FRAC_OPEN || t === FRAC_MID || t === FRAC_CLOSE;
+const CONVERSIONS = new Set(['▶Frac', '▶Dec', '▶F◀▶D']);
 
 const isDigit = (t) => /^[0-9.]$/.test(t);
-const startsValue = (t) => t != null && (isDigit(t) || t === '(' || t === '⁻' || t === 'π' || t === 'e' ||
+const startsValue = (t) => t != null && (isDigit(t) || t === '(' || t === FRAC_OPEN || t === '⁻' || t === 'π' || t === 'e' ||
   t === 'Ans' || t === 'rand' || t in FUNC_TOKENS || VAR_RE.test(t) || Y_TOKENS.includes(t));
 
 export function parse(tokens) {
   let pos = 0;
   const peek = () => tokens[pos];
-  const atEnd = () => pos >= tokens.length || tokens[pos] === '→' || tokens[pos] === '▶Frac' || tokens[pos] === '▶Dec';
+  const atEnd = () => pos >= tokens.length || tokens[pos] === '→' || CONVERSIONS.has(tokens[pos]);
   const syntax = () => { throw new CalcError('SYNTAX'); };
   const close = () => {
     if (peek() === ')') pos++;
-    else if (!atEnd() && peek() !== ',') syntax(); // auto-close only at the end
+    // Missing ")" are closed automatically at the end, or at the end of a fraction part.
+    else if (!atEnd() && peek() !== ',' && peek() !== FRAC_MID && peek() !== FRAC_CLOSE) syntax();
   };
 
   function number() {
@@ -68,6 +75,15 @@ export function parse(tokens) {
     if (isDigit(t) || t === 'E') return number();
     pos++;
     if (t === '(') { const e = expr(); close(); return e; }
+    if (t === FRAC_OPEN) {
+      const num = expr();
+      if (peek() !== FRAC_MID) syntax();
+      pos++;
+      const den = expr();
+      if (peek() !== FRAC_CLOSE) syntax();
+      pos++;
+      return { op: '÷', a: num, b: den };
+    }
     if (t === 'π') return { op: 'num', value: Math.PI };
     if (t === 'e') return { op: 'num', value: Math.E };
     if (t === 'Ans') return { op: 'ans' };
@@ -140,7 +156,7 @@ export function parse(tokens) {
   if (!tokens.length) syntax();
   const tree = expr();
   let store = null, convert = null;
-  if (peek() === '▶Frac' || peek() === '▶Dec') convert = tokens[pos++];
+  if (CONVERSIONS.has(peek())) convert = tokens[pos++];
   if (peek() === '→') {
     pos++;
     const v = tokens[pos++];
