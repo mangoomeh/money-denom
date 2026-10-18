@@ -34,19 +34,6 @@ Counts plates during a meal and works out the bill.
 - **Receipt photos:** a compressed copy of each photo is kept with its saved visit in the browser's IndexedDB on that
   device.
 
-### 📈 Function Plotter (`graph/`)
-
-A small, Desmos-style graphing calculator.
-
-- **Expressions:** type a function of `x` to plot it (`x^2 - 2`, `sin 2x`, `y = (x+1)(x-1)`). A row without `x` is
-  worked out as a calculation (`√2 × π = 4.442882938`).
-- **Graph:** drag to move and pinch or scroll to zoom. Tap a curve to trace its coordinates, and tapping near an
-  x-intercept snaps to it. x-intercepts are also marked on the graph. Tap a colour dot to show or hide its curve.
-- **Maths keypad:** sin, cos, tan, ln, log, √, π, powers and more. It's on by default on touch screens, and ⌨
-  switches to the phone keyboard. There's also a DEG/RAD switch for angles.
-- **Safe parsing:** expressions go through a small parser (`src/expr.js`) instead of `eval`, so typed text can't run
-  as code. It handles implicit multiplication (`2x`, `3sin(x)`, `2pi`) and real cube roots of negative numbers.
-
 ### 🧮 GX-84 Calculator (`calc84/`)
 
 A handheld graphing calculator modelled on the TI-84 Plus CE. It's a recreation, not an emulator: no Texas
@@ -87,8 +74,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `graph/`, `calc84/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `expr.js`, `ti84.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
