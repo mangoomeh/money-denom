@@ -44,11 +44,10 @@ const DM_NOTES = [
   'rain and mist: intuitive, quiet, perceptive',
 ];
 const PILLAR_LABELS = {
-  both: { hour: 'Hour 时', day: 'Day 日', month: 'Month 月', year: 'Year 年' },
   zh: { hour: '时柱', day: '日柱', month: '月柱', year: '年柱' },
   en: { hour: 'Hour', day: 'Day', month: 'Month', year: 'Year' },
 };
-const lang = () => state.lang || 'both';
+const lang = () => (state.lang === 'zh' ? 'zh' : 'en');
 const t = (en, zh) => (lang() === 'zh' ? zh : en);
 const tl = () => (lang() === 'zh' ? 'zh' : 'en');
 const cityName = (n) => (lang() === 'zh' ? CITY_ZH[n] || n : n);
@@ -57,10 +56,10 @@ const GOD_EN_SHORT = ['Friend', 'Rob', 'Eating', 'Hurting', 'Ind. Wealth', 'Weal
 // ---- State ---------------------------------------------------------------------------------------
 
 function load() {
-  const defaults = { form: { name: '', cal: 'western', date: '', time: '', noTime: false, gender: 'male', tz: 'fixed:8', trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [], lang: 'both' };
+  const defaults = { form: { name: '', cal: 'western', date: '', time: '', noTime: false, gender: 'male', tz: 'fixed:8', trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [], lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en' };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.form) return { ...defaults, ...saved, form: { ...defaults.form, ...saved.form } };
+    if (saved && saved.form) return { ...defaults, ...saved, lang: saved.lang === 'zh' ? 'zh' : 'en', form: { ...defaults.form, ...saved.form } };
   } catch { /* storage unavailable or corrupt: start fresh */ }
   return defaults;
 }
@@ -392,7 +391,7 @@ function renderPillars() {
     cells.stage.push(`<div class="pc sub${day}">${btn(`stage:${p.stage}`, L === 'en' ? LIFE_STAGES_EN[p.stage] : LIFE_STAGES[p.stage])}</div>`);
   }
   $('pillars').innerHTML = `<div class="pc"></div>${heads.join('')}`
-    + ROWS.map(([k, zh, en]) => `<div class="pc rl">${btn(`row:${k}`, L === 'both' ? `${zh}<small>${en}</small>` : L === 'zh' ? zh : en)}</div>${cells[k].join('')}`).join('');
+    + ROWS.map(([k, zh, en]) => `<div class="pc rl">${btn(`row:${k}`, L === 'zh' ? zh : `${en}<small>${zh}</small>`)}</div>${cells[k].join('')}`).join('');
 }
 
 function renderDayMaster() {
@@ -415,7 +414,7 @@ function renderDayMaster() {
 function renderElements() {
   const max = Math.max(...chart.weighted, 1);
   $('elements').innerHTML = ELEMENTS.map((el, i) => `<li>
-      <span class="el-name ${elClass(i)}">${lang() === 'en' ? el.en : lang() === 'zh' ? el.zh : `${el.zh} ${el.en}`}</span>
+      <span class="el-name ${elClass(i)}">${lang() === 'zh' ? el.zh : `${el.en} ${el.zh}`}</span>
       <span class="bar"><span class="${elClass(i)}" style="width:${(chart.weighted[i] / max) * 100}%"></span></span>
       <span class="el-num"><strong>${chart.counts[i]}</strong> <small>${chart.weighted[i].toFixed(1)}</small></span>
     </li>`).join('');
@@ -426,7 +425,7 @@ function renderInteractions() {
   const items = chart.interactions.map((x) => {
     const where = [...new Set(x.who)].map((i) => short[i]).join(' + ');
     const [en, zh] = INTERACTION_NAMES[x.name];
-    const label = lang() === 'zh' ? `${x.chars}${zh}` : lang() === 'en' ? `${x.chars} ${en}` : `${x.chars} ${zh} ${en}`;
+    const label = lang() === 'zh' ? `${x.chars}${zh}` : `${x.chars} ${en}`;
     const el = x.element != null ? ` → ${lang() === 'zh' ? ELEMENTS[x.element].zh : ELEMENTS[x.element].en}` : '';
     return `<li><strong>${esc(label)}</strong>${el} <small>(${where})</small></li>`;
   });
@@ -436,7 +435,7 @@ function renderInteractions() {
 function renderStars() {
   const stars = symbolicStars(chart);
   const names = lang() === 'zh' ? { hour: '时柱', day: '日柱', month: '月柱', year: '年柱' } : { hour: 'Hour', day: 'Day', month: 'Month', year: 'Year' };
-  const label = (s) => (lang() === 'en' ? s.en : lang() === 'zh' ? s.zh : `${s.zh} ${s.en}`);
+  const label = (s) => (lang() === 'zh' ? s.zh : `${s.en} (${s.zh})`);
   $('stars').innerHTML = stars.length
     ? stars.map((s) => `<li><strong>${label(s)}</strong> <small>(${s.where.map((w) => names[w]).join(t(', ', '、'))})</small><br>${esc(lang() === 'zh' ? s.noteZh : s.note)}</li>`).join('')
     : `<li>${t('None of the common stars appear in this chart.', '命盘中没有常见的神煞。')}</li>`;
@@ -466,7 +465,7 @@ function renderDetails(f) {
     const l = solarToLunar(input.year, input.month, input.day);
     rows.push([t('Lunar date', '农历'), lunarText(l).replace(/^(Lunar date: |农历 )/, '')]);
   }
-  const jieName = (j) => (lang() === 'zh' ? j.zh : lang() === 'en' ? j.en : `${j.zh} ${j.en}`);
+  const jieName = (j) => (lang() === 'zh' ? j.zh : `${j.en} (${j.zh})`);
   rows.push([t('Solar year', '节气年'), t(`${chart.solarYear} (${chart.pillars[3].name}, ${chart.animal})`, `${chart.solarYear}（${chart.pillars[3].name}，属${ANIMALS_ZH[chart.pillars[3].branch]}）`)]);
   rows.push([t('Time zone', '时区'), `${fmtOffset(input.tzOffset)}${chartPlaceName(f)}`]);
   rows.push([t('Month began', '本月始于'), `${jieName(jie.prev)}, ${fmtLocal(jie.prev.ms, input.tzOffset)}`]);
@@ -605,7 +604,7 @@ function renderNow() {
   $('months-title').innerHTML = t(`Months of ${nowChart.solarYear} <small>流月 · each starts on its solar term</small>`, `${nowChart.solarYear}年的流月 <small>每月从节气开始</small>`);
   $('months').innerHTML = months.map((p, i) => {
     const current = Date.now() >= p.startMs && (i === 11 || Date.now() < months[i + 1].startMs);
-    return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), lang() === 'en' ? p.jie.en : p.jie.zh, fmtDay(p.startMs))}</div>`;
+    return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), p.jie.zh, fmtDay(p.startMs))}</div>`;
   }).join('');
 
   const y = d.getFullYear(); const m = d.getMonth() + 1;
@@ -765,7 +764,7 @@ fillSelects();
 const shared = formFromHash();
 writeForm(shared || state.form);
 if (shared) history.replaceState(null, '', location.pathname);
-document.querySelector(`input[name="lang"][value="${state.lang || 'both'}"]`).checked = true;
+document.querySelector(`input[name="lang"][value="${lang()}"]`).checked = true;
 applyLanguage();
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] select').forEach((el) => el.addEventListener('input', () => {

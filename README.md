@@ -138,8 +138,9 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   Goat Blade, with where they fall.
 - **No birth time:** all twelve possible hour pillars are shown; tap one to try it.
 - **Share:** a link that opens the same chart (no account needed), or the chart copied as text.
-- **Language:** a 中文 / EN / 中/EN switch in the header changes the whole app, including readings and
-  explanations. English mode keeps the BaZi characters and terms.
+- **Language:** a 中文 / EN switch in the header changes the whole app, including readings and explanations.
+  English mode keeps the BaZi characters and shows the Chinese term beside its English name where it helps. The
+  first visit follows the phone's language.
 - **Match:** compares two charts (the current one and any saved one) on day masters, spouse star, spouse
   palaces (day branches), zodiac signs and whether each brings the other's favourable elements (`src/bazimatch.js`).
 - **Saved charts** are kept on the device.
