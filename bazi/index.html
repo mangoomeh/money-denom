@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7a1f1f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>BaZi Calculator</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-bazi">
+  <header class="balance">
+    <a class="back" href="../">‹ Apps</a>
+    <p class="eyebrow">八字 · Four Pillars</p>
+    <p class="bazi-headline" id="headline">Enter a birth date</p>
+    <p class="muted" id="subline">Year, month, day and hour pillars</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="chart" aria-selected="true">Chart</button>
+    <button role="tab" data-tab="luck">Luck</button>
+    <button role="tab" data-tab="saved">Saved</button>
+  </nav>
+
+  <main>
+    <section data-panel="chart">
+      <div class="card">
+        <h2>Birth details</h2>
+        <label class="field">
+          <span>Name <small>(optional)</small></span>
+          <input id="name" autocomplete="off" placeholder="e.g. Me">
+        </label>
+        <div class="window-row">
+          <label class="field">
+            <span>Date of birth</span>
+            <input id="date" type="date" min="1800-01-01" max="2200-12-31">
+          </label>
+          <label class="field">
+            <span>Time of birth</span>
+            <input id="time" type="time">
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="no-time"> I don't know the birth time (three pillars only)</label>
+        <div class="seg" role="radiogroup" aria-label="Gender">
+          <label><input type="radio" name="gender" value="male" checked> Male</label>
+          <label><input type="radio" name="gender" value="female"> Female</label>
+        </div>
+        <p class="hint">Gender sets the direction of the luck pillars.</p>
+
+        <details class="programs">
+          <summary>Place and time options</summary>
+          <label class="field">
+            <span>Time zone at the birthplace <small>(standard time; subtract an hour if daylight saving was on)</small></span>
+            <select id="tz"></select>
+          </label>
+          <label class="check"><input type="checkbox" id="true-solar"> Use true solar time</label>
+          <div id="solar-fields" hidden>
+            <label class="field">
+              <span>Birthplace</span>
+              <select id="city"></select>
+            </label>
+            <label class="field">
+              <span>Longitude <small>(° east; negative for west)</small></span>
+              <input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal">
+            </label>
+          </div>
+          <label class="check"><input type="checkbox" id="zi-day" checked> 23:00 starts the next day (子时换日)</label>
+          <p class="hint">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
+        </details>
+      </div>
+
+      <p class="status bad" id="error" hidden></p>
+
+      <div id="result" hidden>
+        <div class="card">
+          <h2>Four Pillars <small id="chart-note"></small></h2>
+          <div class="pillars" id="pillars"></div>
+          <p class="hint pillar-key">Small text: ten god relative to the day master · hidden stems · 纳音 · life stage</p>
+        </div>
+
+        <div class="card">
+          <h2>Day master</h2>
+          <p class="dm-line" id="dm"></p>
+        </div>
+
+        <div class="card">
+          <h2>Five elements</h2>
+          <ul class="elements" id="elements"></ul>
+          <p class="hint">Count of the eight characters (each branch by its main qi). The second number includes hidden stems.</p>
+        </div>
+
+        <div class="card">
+          <h2>Interactions</h2>
+          <ul class="notes" id="interactions"></ul>
+        </div>
+
+        <div class="card">
+          <h2>Details</h2>
+          <dl class="summary" id="details"></dl>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="save" type="button">Save chart</button>
+        </div>
+      </div>
+    </section>
+
+    <section data-panel="luck" hidden>
+      <div class="card">
+        <h2>Luck pillars <small>大运</small></h2>
+        <p class="hint" id="luck-note">Enter a birth date on the Chart tab.</p>
+        <div class="luck-row" id="luck"></div>
+      </div>
+      <div class="card" id="years-card" hidden>
+        <h2 id="years-title">Years</h2>
+        <div class="luck-row years" id="years"></div>
+      </div>
+    </section>
+
+    <section data-panel="saved" hidden>
+      <div class="card">
+        <h2>Saved charts</h2>
+        <ul class="groups" id="saved"></ul>
+        <p class="hint" id="saved-empty">No saved charts yet. Use “Save chart” on the Chart tab.</p>
+      </div>
+      <div class="card">
+        <h2>About</h2>
+        <ul class="notes">
+          <li>The year changes at 立春 (Start of Spring, about 4 February) and each month at its solar term, not on the lunar calendar.</li>
+          <li>Solar terms are worked out from the sun's position on your device and agree with published times to within a minute.</li>
+          <li>Enter the birth date on the Western (Gregorian) calendar.</li>
+          <li>Charts are kept in this browser only.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

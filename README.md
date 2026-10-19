@@ -96,6 +96,26 @@ reads public blockchain data: there's no wallet connection and nothing to sign.
     calls aren't needed.
   - An optional Helius key can be set as a backup.
 
+### ☯️ BaZi Calculator (`bazi/`)
+
+Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
+
+- **Four Pillars:** the year, month, day and hour stems and branches, coloured by element, with each one's ten god
+  (relative to the day master), hidden stems, 纳音 and life stage. If the birth time is unknown, the hour pillar is
+  left out.
+- **Solar terms:** the year changes at 立春 and each month at its solar term. The terms are worked out from the sun's
+  position (abridged VSOP87, in `src/bazi.js`), so the app needs no tables or network and agrees with published
+  times to within a minute. The chart shows which term the birth month began with.
+- **True solar time (optional):** pick a city or enter a longitude, and the day and hour pillars use local solar
+  time (longitude plus the equation of time). You can choose whether 23:00 starts the next day.
+- **Five elements, day master, and interactions:** element counts (with and without hidden stems), stem
+  combinations and clashes, branch combinations, clashes, harms, punishments, three-harmony and directional groups,
+  and the void branches.
+- **Luck pillars (大运):** ten 10-year pillars, forward or backward by gender and year polarity. The start age is
+  worked out from the days to the nearest solar term (3 days = 1 year). Tap a pillar to see its ten years (流年);
+  the current ones are highlighted.
+- **Saved charts** are kept on the device.
+
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
 [Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/) and
 [Deliberate](https://mangoomeh.github.io/learn-react/).
@@ -113,8 +133,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

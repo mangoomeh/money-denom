@@ -29,7 +29,7 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp -r index.html manifest.webmanifest shared src petty-cash sushiro calc84 wallets _site/
+          cp -r index.html manifest.webmanifest shared src petty-cash sushiro calc84 wallets bazi _site/
       - uses: actions/configure-pages@v5
         with:
           enablement: true
