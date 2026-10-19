@@ -5,6 +5,7 @@ import {
 } from '../src/fengshui.js';
 import { BRANCHES, ANIMALS, ANIMALS_ZH, ELEMENTS, STEMS, JIE, computeChart, parseBirth, analyseStrength } from '../src/bazi.js';
 import { placeFor } from '../src/places.js';
+import { headingFromOrientation } from '../src/compass.js';
 import { getPlan, putPlan, deletePlan, fileToPlan, rotatePlan } from './plan.js';
 import { insideGrid, dragGrid, rotateGrid90, fitOutline, nearestSide, screenAngleOf } from '../src/plangrid.js';
 
@@ -841,13 +842,25 @@ function showHeading(deg) {
   });
 }
 
-function onReading(deg) {
+let rawHeading = null; // the sensor's smoothed reading before the user's adjustment
+
+function onReading(deg, edge = 'top') {
+  // The screen's top edge turns with the screen when the phone is on its side.
+  const d = edge === 'top' ? deg + (screen.orientation?.angle || 0) : deg;
   // Average on the unit circle so the reading doesn't jump between 359° and 0°.
-  const a = deg * Math.PI / 180;
-  smoothX = smoothX * 0.8 + Math.cos(a) * 0.2;
-  smoothY = smoothY * 0.8 + Math.sin(a) * 0.2;
-  const angle = screen.orientation?.angle || 0;
-  showHeading(mod(Math.atan2(smoothY, smoothX) * 180 / Math.PI + angle, 360));
+  const a = d * Math.PI / 180;
+  smoothX = smoothX * 0.6 + Math.cos(a) * 0.4;
+  smoothY = smoothY * 0.6 + Math.sin(a) * 0.4;
+  rawHeading = mod(Math.atan2(smoothY, smoothX) * 180 / Math.PI, 360);
+  showHeading(mod(rawHeading + (state.compassOffset || 0), 360));
+}
+
+function renderOffset() {
+  const off = state.compassOffset || 0;
+  $('offset-line').textContent = off
+    ? t(`Readings are adjusted by ${off > 0 ? '+' : ''}${off.toFixed(1)}° to match your phone's compass app.`, `读数已调整 ${off > 0 ? '+' : ''}${off.toFixed(1)}°，与手机自带罗盘一致。`)
+    : t('No adjustment.', '未调整。');
+  $('offset-reset').hidden = !off;
 }
 
 async function startCompass() {
@@ -859,16 +872,18 @@ async function startCompass() {
     }
   } catch { /* fall through to listening */ }
   if (typeof DeviceOrientationEvent === 'undefined') { status.textContent = t('This device has no compass. Enter the degrees by hand below.', '此设备没有罗盘，请在下方手动输入度数。'); return; }
+  // Android gives absolute angles, which need tilt allowed for; iPhones give a ready-made heading.
+  const fromAngles = (e) => { const h = headingFromOrientation(e.alpha, e.beta || 0, e.gamma || 0); onReading(h.heading, h.edge); };
   window.addEventListener('deviceorientationabsolute', (e) => {
     if (e.alpha == null) return;
     gotAbsolute = true;
-    onReading(mod(360 - e.alpha, 360));
+    fromAngles(e);
   });
   window.addEventListener('deviceorientation', (e) => {
-    if (e.webkitCompassHeading != null) onReading(e.webkitCompassHeading);
-    else if (!gotAbsolute && e.absolute && e.alpha != null) onReading(mod(360 - e.alpha, 360));
+    if (e.webkitCompassHeading != null) onReading(e.webkitCompassHeading, 'ios');
+    else if (!gotAbsolute && e.absolute && e.alpha != null) fromAngles(e);
   });
-  status.textContent = t('Hold the phone flat. If the reading looks wrong, move it in a figure 8 to calibrate.', '手机平放。如读数不准，请将手机画“8”字校准。');
+  status.textContent = t('Hold the phone flat with the top pointing out, or upright with the back camera looking out. If the reading looks wrong, move the phone in a figure 8 to calibrate.', '手机平放、顶部朝外，或竖起、后镜头朝外。如读数不准，请将手机画“8”字校准。');
   setTimeout(() => { if (heading == null || heading === Number($('manual-deg').value)) status.textContent = t('No compass reading yet. On a computer, or if your browser blocks the sensor, enter the degrees by hand.', '暂无罗盘读数。在电脑上或浏览器禁用传感器时，请手动输入度数。'); }, 3000);
   $('compass-start').hidden = true;
 }
@@ -965,6 +980,24 @@ $('people').addEventListener('click', (e) => {
 $('p-add').addEventListener('click', addPerson);
 $('home-guide').querySelector('summary').addEventListener('click', () => { guideTouched = true; });
 $('compass-start').addEventListener('click', startCompass);
+$('offset-set').addEventListener('click', () => {
+  const theirs = parseFloat($('offset-input').value);
+  if (!Number.isFinite(theirs) || rawHeading == null) {
+    $('offset-line').textContent = rawHeading == null ? t('Start the compass first.', '请先开启罗盘。') : t('Enter the reading from your phone\'s compass app.', '请输入手机自带罗盘的读数。');
+    return;
+  }
+  state.compassOffset = mod(theirs - rawHeading + 180, 360) - 180;
+  persist();
+  showHeading(mod(rawHeading + state.compassOffset, 360));
+  renderOffset();
+});
+$('offset-reset').addEventListener('click', () => {
+  state.compassOffset = 0;
+  persist();
+  if (rawHeading != null) showHeading(rawHeading);
+  renderOffset();
+});
+renderOffset();
 $('manual-deg').addEventListener('input', () => { smoothX = 0; smoothY = 0; showHeading(Number($('manual-deg').value)); });
 $('use-facing').addEventListener('click', () => {
   if (heading == null) return;

@@ -1202,3 +1202,5 @@ label.fs-file.secondary { padding: .4rem .7rem; font-size: .9rem; border-radius:
 .fs-plan-svg .prose-t.n { fill: #c2410c; }
 .fs-plan-svg .pdoor-pin { fill: #c2410c; stroke: #fff; }
 .fs-plan-svg .pdoor-label { fill: #c2410c; font-weight: 800; }
+.fs-offset { text-align: left; }
+.fs-offset input { flex: 1; min-width: 0; font: inherit; padding: .55rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); }
