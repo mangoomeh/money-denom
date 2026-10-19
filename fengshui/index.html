@@ -109,7 +109,25 @@
               <label><input type="radio" name="plan-mode" value="missing"> <span data-zh="标缺角">Missing</span></label>
             </div>
             <p class="hint" id="plan-help"></p>
-            <div class="fs-plan"><img id="plan-img" alt=""><svg id="plan-svg" class="fs-plan-svg"></svg></div>
+            <div class="fs-plan-fit" id="plan-fit-controls" hidden>
+              <div class="fs-ctl">
+                <span data-zh="转动">Turn</span>
+                <button class="secondary small" type="button" id="plan-turn-left" aria-label="Turn left">↺</button>
+                <input id="plan-angle" type="range" min="-45" max="45" step="0.5" value="0" aria-label="Grid angle">
+                <button class="secondary small" type="button" id="plan-turn-right" aria-label="Turn right">↻</button>
+                <output id="plan-angle-out">0°</output>
+              </div>
+              <div class="fs-ctl">
+                <span data-zh="缩放">Zoom</span>
+                <button class="secondary small" type="button" id="plan-zoom-out-btn" aria-label="Zoom out">−</button>
+                <output id="plan-zoom-out">100%</output>
+                <button class="secondary small" type="button" id="plan-zoom-in" aria-label="Zoom in">+</button>
+                <span class="fs-spacer"></span>
+                <button class="secondary small" type="button" id="plan-rotate" data-zh="图转90°">Rotate plan 90°</button>
+                <button class="secondary small" type="button" id="plan-reset" data-zh="重置">Reset</button>
+              </div>
+            </div>
+            <div class="fs-plan" id="plan-box"><div class="fs-plan-stage" id="plan-stage"><img id="plan-img" alt=""><svg id="plan-svg" class="fs-plan-svg"></svg></div></div>
             <p class="fs-label" data-zh="大门在图的哪一边？">Which side of the plan is the main door on?</p>
             <div class="seg" role="radiogroup" aria-label="Door side">
               <label><input type="radio" name="plan-side" value="top"> <span data-zh="上">Top</span></label>
@@ -121,7 +139,6 @@
             <label class="field" id="plan-layer-field"><span data-zh="显示">Show</span><select id="plan-layer"></select></label>
             <div class="explain" id="plan-detail"></div>
             <div class="fs-plan-actions">
-              <button class="secondary small" type="button" id="plan-rotate" data-zh="旋转90°">Rotate 90°</button>
               <label class="secondary small fs-file"><input type="file" id="plan-replace" accept="image/*,application/pdf"><span data-zh="更换">Replace</span></label>
               <button class="secondary small" type="button" id="plan-remove" data-zh="删除">Remove</button>
             </div>

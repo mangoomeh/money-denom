@@ -6,6 +6,7 @@ import {
 import { BRANCHES, ANIMALS, ANIMALS_ZH, ELEMENTS, STEMS, JIE, computeChart, parseBirth, analyseStrength } from '../src/bazi.js';
 import { placeFor } from '../src/places.js';
 import { getPlan, putPlan, deletePlan, fileToPlan, rotatePlan } from './plan.js';
+import { insideGrid, dragGrid, rotateGrid90, fitOutline } from '../src/plangrid.js';
 
 const STORAGE_KEY = 'fengshui-v1';
 const BAZI_KEY = 'bazi-v1';
@@ -18,7 +19,7 @@ const mod = (n, m) => ((n % m) + m) % m;
 function load() {
   const defaults = {
     home: { facing: '', moveIn: '', period: 'auto', replace: 'auto', orient: 'south', showAnnual: true },
-    plan: { rect: [0.1, 0.1, 0.9, 0.9], side: 'bottom', missing: [], layer: 'stars' },
+    plan: { grid: null, side: 'bottom', missing: [], layer: 'stars' },
     people: [],
     lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en',
   };
@@ -313,6 +314,9 @@ let planSize = null; // natural width and height of the image
 let planMode = 'read';
 let planCell = null; // index 0–8 of the tapped square
 let planDrag = null;
+let planZoom = 1;
+const ZOOMS = [1, 1.5, 2, 3];
+const planHeight = () => (1000 * planSize[1]) / planSize[0];
 
 async function loadPlanImage() {
   let blob = null;
@@ -327,18 +331,54 @@ function setPlanBlob(blob, save = true) {
   if (save) (blob ? putPlan(blob) : deletePlan()).catch(() => {});
   if (!blob) { renderHome(); return; }
   const img = $('plan-img');
-  img.onload = () => { planSize = [img.naturalWidth, img.naturalHeight]; renderHome(); };
+  img.onload = () => {
+    planSize = [img.naturalWidth, img.naturalHeight];
+    if (!state.plan.grid) {
+      const H = planHeight();
+      const r = state.plan.rect; // grids saved before turning was possible
+      state.plan.grid = r ? { cx: (r[0] + r[2]) * 500, cy: ((r[1] + r[3]) / 2) * H, w: (r[2] - r[0]) * 1000, h: (r[3] - r[1]) * H, angle: 0 } : autoGrid(img);
+      delete state.plan.rect;
+      persist();
+    }
+    renderHome();
+  };
   img.src = planUrl;
+}
+
+// Start the grid on the plan's walls, turned to match them, or with a margin if none are found.
+function autoGrid(img) {
+  const H = planHeight();
+  try {
+    const w = 300; const h = Math.max(1, Math.round((300 * img.naturalHeight) / img.naturalWidth));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) gray[i] = (d[i * 4] * 3 + d[i * 4 + 1] * 6 + d[i * 4 + 2]) / 10;
+    const f = fitOutline(gray, w, h);
+    const k = 1000 / w;
+    if (f) return { cx: f.cx * k, cy: f.cy * k, w: f.w * k, h: f.h * k, angle: f.angle };
+  } catch { /* fall back to a margin */ }
+  return { cx: 500, cy: H / 2, w: 800, h: H * 0.8, angle: 0 };
 }
 
 function renderPlan(chart, annual, aff) {
   const has = !!planUrl;
   $('plan-empty').hidden = has;
   $('plan-view').hidden = !has;
-  if (!has || !planSize) return;
+  if (!has || !planSize || !state.plan.grid) return;
   const pl = state.plan;
+  const g = pl.grid;
+  const fitting = planMode === 'fit';
   document.querySelector(`input[name="plan-side"][value="${pl.side}"]`).checked = true;
   document.querySelector(`input[name="plan-mode"][value="${planMode}"]`).checked = true;
+  $('plan-fit-controls').hidden = !fitting;
+  $('plan-angle').value = g.angle;
+  $('plan-angle-out').textContent = `${Number(g.angle.toFixed(1))}°`;
+  $('plan-zoom-out').textContent = `${Math.round(planZoom * 100)}%`;
+  $('plan-stage').style.width = `${planZoom * 100}%`;
   const layers = [['stars', t('Flying stars', '飞星')], ...state.people.flatMap((p, i) => (kuaFor(p) ? [[`p${i}`, `${p.name || t('Someone', '某人')} · ${t('Eight Mansions', '八宅')}`]] : []))];
   if (!layers.some(([v]) => v === pl.layer)) pl.layer = 'stars';
   $('plan-layer').innerHTML = layers.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
@@ -346,14 +386,18 @@ function renderPlan(chart, annual, aff) {
   $('plan-layer-field').hidden = layers.length < 2;
 
   const W = 1000;
-  const H = (W * planSize[1]) / planSize[0];
-  const [x0, y0, x1, y1] = pl.rect.map((v, i) => v * (i % 2 ? H : W));
-  const cw = (x1 - x0) / 3; const ch = (y1 - y0) / 3;
+  const H = planHeight();
+  const x0 = g.cx - g.w / 2; const y0 = g.cy - g.h / 2; const x1 = g.cx + g.w / 2; const y1 = g.cy + g.h / 2;
+  const cw = g.w / 3; const ch = g.h / 3;
   const unit = Math.max(14, Math.min(cw, ch));
   const palaces = gridPalaces(chart.facingPalace, pl.side);
   const person = pl.layer.startsWith('p') ? state.people[Number(pl.layer.slice(1))] : null;
   const kua = person ? kuaFor(person) : null;
+  const svg = $('plan-svg');
+  const px = svg.getBoundingClientRect().width;
+  const scale = px > 0 ? W / px : 3; // plan units per screen pixel
   const out = [`<defs><pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="12" class="hatch"/></pattern></defs>`];
+  out.push(`<g transform="rotate(${g.angle} ${g.cx} ${g.cy})">`);
   for (let i = 0; i < 9; i++) {
     const p = palaces[i];
     const cx = x0 + (i % 3) * cw; const cy = y0 + Math.floor(i / 3) * ch;
@@ -376,35 +420,43 @@ function renderPlan(chart, annual, aff) {
       sub = state.home.showAnnual ? `${at(chart.base)} · ${t('year', '年')} ${at(annual)}` : String(at(chart.base));
     }
     const big = kua && p !== 'c' ? unit * 0.2 : unit * 0.34;
-    out.push(`<g class="pcell ${tone} ${missing ? 'missing' : ''} ${planCell === i ? 'on' : ''}" data-sq="${i}">
+    const label = `${palaceShort(p)}${p === 'c' ? '' : ` ${TRIGRAMS[p]}`}${p === chart.facingPalace ? ` · ${t('Facing', '向')}` : ''}${missing ? ` · ${t('missing', '缺角')}` : ''}`;
+    out.push(`<g class="pcell ${fitting ? '' : tone} ${missing ? 'missing' : ''} ${planCell === i && !fitting ? 'on' : ''}" data-sq="${i}">
       <rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" class="pfill"/>
       ${missing ? `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="url(#hatch)"/>` : ''}
-      <text x="${cx + cw / 2}" y="${cy + ch * 0.2}" class="plabel" style="font-size:${unit * 0.13}px">${palaceShort(p)}${p === 'c' ? '' : ` ${TRIGRAMS[p]}`}${p === chart.facingPalace ? ` · ${t('Facing', '向')}` : ''}${missing ? ` · ${t('missing', '缺角')}` : ''}</text>
+      ${fitting ? `<text x="${cx + cw / 2}" y="${cy + ch / 2}" class="plabel faint" style="font-size:${Math.max(unit * 0.13, 11 * scale)}px">${palaceShort(p)}</text>` : `
+      <text x="${cx + cw / 2}" y="${cy + ch * 0.2}" class="plabel" style="font-size:${unit * 0.13}px">${label}</text>
       <text x="${cx + cw / 2}" y="${cy + ch * 0.52}" class="pmain" style="font-size:${big}px">${main}</text>
-      <text x="${cx + cw / 2}" y="${cy + ch * 0.78}" class="psub" style="font-size:${unit * 0.12}px">${esc(sub)}</text>
+      <text x="${cx + cw / 2}" y="${cy + ch * 0.78}" class="psub" style="font-size:${unit * 0.12}px">${esc(sub)}</text>`}
     </g>`);
   }
   for (let k = 1; k < 3; k++) {
     out.push(`<line x1="${x0 + k * cw}" y1="${y0}" x2="${x0 + k * cw}" y2="${y1}" class="pline"/><line x1="${x0}" y1="${y0 + k * ch}" x2="${x1}" y2="${y0 + k * ch}" class="pline"/>`);
   }
-  out.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" class="pframe"/>`);
+  out.push(`<rect x="${x0}" y="${y0}" width="${g.w}" height="${g.h}" class="pframe" style="stroke-width:${2 * scale}px"/>`);
   // The door side, drawn as a thick edge.
   const door = { top: [x0, y0, x1, y0], bottom: [x0, y1, x1, y1], left: [x0, y0, x0, y1], right: [x1, y0, x1, y1] }[pl.side];
-  out.push(`<line x1="${door[0]}" y1="${door[1]}" x2="${door[2]}" y2="${door[3]}" class="pdoor"/>`);
-  if (planMode === 'fit') {
-    const r = Math.max(16, W * 0.03);
-    for (const [hx, hy, h] of [[x0, y0, 'tl'], [x1, y0, 'tr'], [x0, y1, 'bl'], [x1, y1, 'br']]) out.push(`<circle cx="${hx}" cy="${hy}" r="${r}" class="phandle" data-h="${h}"/>`);
+  out.push(`<line x1="${door[0]}" y1="${door[1]}" x2="${door[2]}" y2="${door[3]}" class="pdoor" style="stroke-width:${5 * scale}px"/>`);
+  if (fitting) {
+    // Handles a finger can hit: about 26 px across on screen, whatever the zoom.
+    const r = 13 * scale;
+    for (const [hx, hy, h] of [[g.cx, y0, 't'], [x1, g.cy, 'r'], [g.cx, y1, 'b'], [x0, g.cy, 'l']]) {
+      const horiz = h === 't' || h === 'b';
+      out.push(`<rect x="${hx - (horiz ? 2.2 : 0.8) * r}" y="${hy - (horiz ? 0.8 : 2.2) * r}" width="${(horiz ? 4.4 : 1.6) * r}" height="${(horiz ? 1.6 : 4.4) * r}" rx="${0.8 * r}" class="phandle" data-h="${h}" style="stroke-width:${2 * scale}px"/>`);
+    }
+    for (const [hx, hy, h] of [[x0, y0, 'tl'], [x1, y0, 'tr'], [x0, y1, 'bl'], [x1, y1, 'br']]) out.push(`<circle cx="${hx}" cy="${hy}" r="${r}" class="phandle" data-h="${h}" style="stroke-width:${2 * scale}px"/>`);
   }
-  const svg = $('plan-svg');
+  out.push('</g>');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = out.join('');
-  svg.classList.toggle('fitting', planMode === 'fit');
-  $('plan-help').textContent = planMode === 'fit'
-    ? t('Drag the corners to the outer walls of the flat (include the household shelter and service yard, not the common corridor). Drag inside the grid to move it.', '拖动四角对准单位外墙（含防空壕和后阳台，不含公共走廊）。在格内拖动可整体移动。')
+  svg.classList.toggle('fitting', fitting);
+  $('plan-help').textContent = fitting
+    ? t('Drag the corners and edges onto the flat\'s outer walls (include the household shelter and service yard, not the common corridor). Drag inside the grid to move it, and outside it to scroll when zoomed in. Use Turn if the plan is at an angle.', '拖动四角和四边对准单位外墙（含防空壕和后阳台，不含公共走廊）。在格内拖动可整体移动，放大后在格外拖动可滚动。图纸是斜的就用“转动”。')
     : planMode === 'missing'
       ? t('Tap the squares that are mostly outside the flat to mark them as missing corners.', '点按大部分在单位外的格子，标为缺角。')
       : t('Tap a square to read that part of your home.', '点按格子查看屋内该区的解读。');
-  if (planCell == null) { $('plan-detail').innerHTML = t('Tap a square to read it.', '点按格子查看解释。'); return; }
+  if (planCell == null || fitting) { $('plan-detail').innerHTML = fitting ? '' : t('Tap a square to read it.', '点按格子查看解释。'); $('plan-detail').hidden = fitting; return; }
+  $('plan-detail').hidden = false;
   const p = palaces[planCell];
   const extra = pl.missing.includes(planCell) && p !== 'c'
     ? t(`<b>Missing corner:</b> traditionally the ${PALACE_PEOPLE[p].en} and the matters of ${PALACES_EN[p]} are weaker. A mirror on that wall, or good light there, is the usual remedy.`, `<b>缺角：</b>传统认为${PALACE_PEOPLE[p].zh}及${PALACES_ZH[p]}方之事较弱。常在该墙挂镜或加强照明以补。`)
@@ -417,39 +469,29 @@ function svgPoint(e) {
   const pt = svg.createSVGPoint();
   pt.x = e.clientX; pt.y = e.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
-  const vb = svg.viewBox.baseVal;
-  return [p.x / vb.width, p.y / vb.height];
+  return [p.x, p.y];
 }
 
 function planPointerDown(e) {
   if (planMode !== 'fit') return;
-  const [x, y] = svgPoint(e);
+  const at = svgPoint(e);
   const h = e.target.closest('[data-h]')?.dataset.h;
-  const [x0, y0, x1, y1] = state.plan.rect;
-  if (!h && !(x > x0 && x < x1 && y > y0 && y < y1)) return;
-  planDrag = { h: h || 'move', start: [x, y], rect: [...state.plan.rect] };
+  const box = $('plan-box');
+  if (h || insideGrid(state.plan.grid, at)) planDrag = { h: h || 'move', start: at, grid: { ...state.plan.grid } };
+  else planDrag = { h: 'pan', x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop };
   $('plan-svg').setPointerCapture(e.pointerId);
   e.preventDefault();
 }
 
 function planPointerMove(e) {
   if (!planDrag) return;
-  const [x, y] = svgPoint(e);
-  const dx = x - planDrag.start[0]; const dy = y - planDrag.start[1];
-  let [x0, y0, x1, y1] = planDrag.rect;
-  const clamp = (v) => Math.min(1, Math.max(0, v));
-  const MIN = 0.08;
-  if (planDrag.h === 'move') {
-    const w = x1 - x0; const h = y1 - y0;
-    x0 = Math.min(1 - w, Math.max(0, x0 + dx)); y0 = Math.min(1 - h, Math.max(0, y0 + dy));
-    x1 = x0 + w; y1 = y0 + h;
-  } else {
-    if (planDrag.h.includes('l')) x0 = Math.min(clamp(x0 + dx), x1 - MIN);
-    if (planDrag.h.includes('r')) x1 = Math.max(clamp(x1 + dx), x0 + MIN);
-    if (planDrag.h.includes('t')) y0 = Math.min(clamp(y0 + dy), y1 - MIN);
-    if (planDrag.h.includes('b')) y1 = Math.max(clamp(y1 + dy), y0 + MIN);
+  if (planDrag.h === 'pan') {
+    const box = $('plan-box');
+    box.scrollLeft = planDrag.left - (e.clientX - planDrag.x);
+    box.scrollTop = planDrag.top - (e.clientY - planDrag.y);
+    return;
   }
-  state.plan.rect = [x0, y0, x1, y1];
+  state.plan.grid = dragGrid(planDrag.grid, planDrag.h, planDrag.start, svgPoint(e));
   renderHome();
 }
 
@@ -473,14 +515,32 @@ function planClick(e) {
   renderHome();
 }
 
+function setGrid(patch) {
+  state.plan.grid = { ...state.plan.grid, ...patch };
+  persist();
+  renderHome();
+}
+
+function setZoom(z) {
+  const box = $('plan-box');
+  const fx = (box.scrollLeft + box.clientWidth / 2) / box.scrollWidth;
+  const fy = (box.scrollTop + box.clientHeight / 2) / box.scrollHeight;
+  planZoom = z;
+  renderHome();
+  box.scrollLeft = fx * box.scrollWidth - box.clientWidth / 2;
+  box.scrollTop = fy * box.scrollHeight - box.clientHeight / 2;
+  renderHome(); // handles are sized from the new on-screen width
+}
+
 async function pickPlan(file) {
   if (!file) return;
   $('plan-status').textContent = t('Loading…', '载入中…');
   try {
     const blob = await fileToPlan(file);
-    state.plan = { ...state.plan, rect: [0.1, 0.1, 0.9, 0.9], missing: [] };
+    state.plan = { ...state.plan, grid: null, missing: [] };
     planMode = 'fit';
     planCell = null;
+    planZoom = 1;
     persist();
     setPlanBlob(blob);
     $('plan-status').textContent = '';
@@ -864,14 +924,19 @@ $('plan-remove').addEventListener('click', () => {
 });
 $('plan-rotate').addEventListener('click', async () => {
   const blob = await getPlan().catch(() => null);
-  if (!blob) return;
-  const [x0, y0, x1, y1] = state.plan.rect;
-  state.plan.rect = [1 - y1, x0, 1 - y0, x1]; // keep the grid on the same walls
+  if (!blob || !planSize) return;
+  state.plan.grid = rotateGrid90(state.plan.grid, planHeight()); // keep the grid on the same walls
   state.plan.side = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }[state.plan.side];
   state.plan.missing = state.plan.missing.map((i) => (i % 3) * 3 + (2 - Math.floor(i / 3)));
   persist();
   setPlanBlob(await rotatePlan(blob));
 });
+$('plan-angle').addEventListener('input', () => setGrid({ angle: Number($('plan-angle').value) }));
+$('plan-turn-left').addEventListener('click', () => setGrid({ angle: Math.max(-45, state.plan.grid.angle - 0.5) }));
+$('plan-turn-right').addEventListener('click', () => setGrid({ angle: Math.min(45, state.plan.grid.angle + 0.5) }));
+$('plan-zoom-in').addEventListener('click', () => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(planZoom) + 1)]));
+$('plan-zoom-out-btn').addEventListener('click', () => setZoom(ZOOMS[Math.max(0, ZOOMS.indexOf(planZoom) - 1)]));
+$('plan-reset').addEventListener('click', () => { state.plan.grid = autoGrid($('plan-img')); persist(); renderHome(); });
 document.querySelectorAll('input[name="plan-side"]').forEach((el) => el.addEventListener('input', () => { state.plan.side = el.value; persist(); renderHome(); }));
 document.querySelectorAll('input[name="plan-mode"]').forEach((el) => el.addEventListener('input', () => { planMode = el.value; renderHome(); }));
 $('plan-layer').addEventListener('input', () => { state.plan.layer = $('plan-layer').value; persist(); renderHome(); });
