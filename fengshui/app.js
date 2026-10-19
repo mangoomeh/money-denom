@@ -454,7 +454,7 @@ function renderPlan(chart, annual, aff) {
     ? t('Drag the corners and edges onto the flat\'s outer walls (include the household shelter and service yard, not the common corridor). Drag inside the grid to move it, and outside it to scroll when zoomed in. Use Turn if the plan is at an angle.', '拖动四角和四边对准单位外墙（含防空壕和后阳台，不含公共走廊）。在格内拖动可整体移动，放大后在格外拖动可滚动。图纸是斜的就用“转动”。')
     : planMode === 'missing'
       ? t('Tap the squares that are mostly outside the flat to mark them as missing corners.', '点按大部分在单位外的格子，标为缺角。')
-      : t('Tap a square to read that part of your home.', '点按格子查看屋内该区的解读。');
+      : t('Tap a square to read that part of your home. To move, resize or turn the grid, tap Fit grid above.', '点按格子查看屋内该区的解读。要移动、缩放或转动格子，请点上方的“对齐格子”。');
   if (planCell == null || fitting) { $('plan-detail').innerHTML = fitting ? '' : t('Tap a square to read it.', '点按格子查看解释。'); $('plan-detail').hidden = fitting; return; }
   $('plan-detail').hidden = false;
   const p = palaces[planCell];
