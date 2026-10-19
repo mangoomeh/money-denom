@@ -251,7 +251,9 @@ async function scanReceipt(file, useAi = false) {
     try {
       if (useAi) {
         setProgress(`Your AI (${state.ai.model}) is reading the receipt… This can take 10–60 seconds.`, null);
-        Object.assign(state.meal.receipt, readAiReceipt(await readReceiptWithAi(bitmap, state.ai, receiptAbort.signal)));
+        Object.assign(state.meal.receipt, readAiReceipt(await readReceiptWithAi(bitmap, state.ai, receiptAbort.signal, {
+          plates: state.plates, rates: state.rates, onProgress: (label) => setProgress(label, null),
+        })));
       } else {
         const text = await readText(prepareForOcr(bitmap), setProgress, receiptAbort.signal);
         Object.assign(state.meal.receipt, readReceipt(text));

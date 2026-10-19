@@ -3,7 +3,7 @@
 // match AI_RECEIPT_SCHEMA, so the app gets clean numbers back instead of free text.
 
 import { normaliseServer } from '../src/chat.js';
-import { AI_RECEIPT_SCHEMA, AI_RECEIPT_PROMPT } from '../src/receipt.js';
+import { AI_RECEIPT_SCHEMA, aiReceiptPrompt, aiReceiptProblems } from '../src/receipt.js';
 
 const TIMEOUT_MS = 180000; // a cold model load plus a large photo can take a while on a modest PC
 
@@ -41,16 +41,39 @@ export async function listModels(serverText) {
   return withCaps;
 }
 
-export async function readReceiptWithAi(bitmap, { server: serverText, model }, signal) {
+// Reads the receipt, then checks the reading the same way the text reader is checked. If lines
+// don't add up, the model is told exactly what's wrong and asked to look again, once; the reading
+// with fewer problems wins.
+export async function readReceiptWithAi(bitmap, { server: serverText, model }, signal, { plates, rates, onProgress = () => {} }) {
   const server = normaliseServer(serverText);
   if (!server || !model) throw new Error('Set up your AI in Settings first.');
+  const image = toBase64(bitmap);
+  const first = [{ role: 'user', content: aiReceiptPrompt(plates, rates), images: [image] }];
+  const reading = await ask(server, model, first, signal);
+  const problems = aiReceiptProblems(reading, rates);
+  if (!problems.length) return reading;
+  onProgress('Some numbers didn’t add up. Asking your AI to check those lines again…');
+  try {
+    const again = await ask(server, model, [
+      ...first,
+      { role: 'assistant', content: JSON.stringify(reading) },
+      { role: 'user', content: `Some numbers in your reading don't add up:\n- ${problems.join('\n- ')}\nLook at the receipt again, especially those lines, and return the complete corrected JSON.` },
+    ], signal);
+    return aiReceiptProblems(again, rates).length < problems.length ? again : reading;
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    return reading; // the first reading still stands
+  }
+}
+
+// One request for JSON matching AI_RECEIPT_SCHEMA. Reading a receipt needs no reasoning: thinking
+// off is faster and leaves the model's memory (context) for the photo and the answer. Models that
+// can't think reject the setting, so it is dropped for them.
+async function ask(server, model, messages, signal) {
   const timeout = new AbortController();
   const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS);
   const onAbort = () => timeout.abort();
   signal?.addEventListener('abort', onAbort);
-  // Reading a receipt needs no reasoning: thinking off is faster and leaves the model's memory
-  // (context) for the photo and the answer. Models that can't think reject the setting, so it is
-  // dropped for them.
   const send = (think) => fetch(`${server}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,18 +84,25 @@ export async function readReceiptWithAi(bitmap, { server: serverText, model }, s
       format: AI_RECEIPT_SCHEMA,
       ...(think === false ? { think: false } : {}),
       options: { temperature: 0, num_ctx: 8192 },
-      messages: [{ role: 'user', content: AI_RECEIPT_PROMPT, images: [image] }],
+      messages,
     }),
   });
-  const image = toBase64(bitmap);
   let res;
+  let body;
   try {
     res = await send(false);
     if (res.status === 400) {
       const err = await res.clone().json().catch(() => ({}));
       if (/think/i.test(err.error || '')) res = await send(undefined);
     }
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error || ''; } catch { /* ignore */ }
+      throw Object.assign(new Error(detail && res.status !== 403 && res.status !== 404 ? `Your AI said: ${detail}` : explain(server, res.status)), { fromServer: true });
+    }
+    body = await res.json();
   } catch (e) {
+    if (e.fromServer) throw e;
     if (signal?.aborted) throw new Error('Cancelled.');
     if (timeout.signal.aborted) throw new Error('Your AI took too long. Try again, or try a smaller model.');
     throw new Error(explain(server));
@@ -80,12 +110,6 @@ export async function readReceiptWithAi(bitmap, { server: serverText, model }, s
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
   }
-  if (!res.ok) {
-    let detail = '';
-    try { detail = (await res.json()).error || ''; } catch { /* ignore */ }
-    throw new Error(detail && res.status !== 403 && res.status !== 404 ? `Your AI said: ${detail}` : explain(server, res.status));
-  }
-  const body = await res.json();
   try {
     return JSON.parse(body.message?.content || '');
   } catch {
