@@ -97,3 +97,17 @@ export function fitOutline(gray, width, height) {
   const [ox, oy] = rot([(l + r) / 2, (t + b) / 2], angle);
   return { cx: cx0 + ox, cy: cy0 + oy, w: r - l, h: b - t, angle };
 }
+
+// The grid side ('top', 'right', 'bottom' or 'left' in the grid's own frame) nearest a point, such as
+// where the main door was tapped.
+export function nearestSide(g, [px, py]) {
+  const [x, y] = rot([px - g.cx, py - g.cy], -g.angle);
+  const d = { top: Math.abs(y + g.h / 2), bottom: Math.abs(y - g.h / 2), left: Math.abs(x + g.w / 2), right: Math.abs(x - g.w / 2) };
+  return Object.keys(d).reduce((a, b) => (d[b] < d[a] ? b : a));
+}
+
+// The on-screen angle (degrees clockwise from pointing right) of a compass bearing on the plan. The
+// door side points out along the facing bearing, and a plan seen from above turns the same way as
+// the compass.
+const SIDE_ANGLE = { right: 0, bottom: 90, left: 180, top: 270 };
+export const screenAngleOf = (g, side, facingDeg, bearing) => SIDE_ANGLE[side] + g.angle + bearing - facingDeg;

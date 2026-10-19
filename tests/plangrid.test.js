@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gridCorners, insideGrid, dragGrid, rotateGrid90, fitOutline } from '../src/plangrid.js';
+import { gridCorners, insideGrid, dragGrid, rotateGrid90, fitOutline, nearestSide, screenAngleOf } from '../src/plangrid.js';
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≠ ${b}`);
 const g0 = { cx: 500, cy: 400, w: 600, h: 400, angle: 0 };
@@ -60,4 +60,21 @@ test('outline fit finds the walls, skips labels, and finds the tilt', () => {
   const f = fitOutline(tilted, 200, 200);
   assert.ok(Math.abs(f.angle - 10) <= 0.5, `angle ${f.angle}`);
   assert.ok(Math.abs(f.w - 121) < 4 && Math.abs(f.h - 121) < 4, `size ${f.w} × ${f.h}`);
+});
+
+test('nearest side follows the grid\'s turn', () => {
+  assert.equal(nearestSide(g0, [500, 590]), 'bottom');
+  assert.equal(nearestSide(g0, [210, 400]), 'left');
+  assert.equal(nearestSide({ ...g0, angle: 90 }, [500, 690]), 'right');
+});
+
+test('compass on the plan: door at the bottom facing south puts north at the top', () => {
+  const mod = (a) => ((a % 360) + 360) % 360;
+  assert.equal(mod(screenAngleOf(g0, 'bottom', 180, 0)), 270); // north points up the screen
+  assert.equal(mod(screenAngleOf(g0, 'bottom', 180, 90)), 0); // east to the right
+  // Door on the right facing north: north points right, east points down.
+  assert.equal(mod(screenAngleOf(g0, 'right', 0, 0)), 0);
+  assert.equal(mod(screenAngleOf(g0, 'right', 0, 90)), 90);
+  // A turned grid turns the compass with it.
+  assert.equal(mod(screenAngleOf({ ...g0, angle: 10 }, 'bottom', 180, 0)), 280);
 });

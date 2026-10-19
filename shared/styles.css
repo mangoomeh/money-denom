@@ -1194,3 +1194,11 @@ label.fs-file.secondary { padding: .4rem .7rem; font-size: .9rem; border-radius:
 .la-search { margin-top: .5rem; }
 .la-glossary dt { font-weight: 700; margin-top: .8rem; }
 .la-glossary dd { margin: .2rem 0 0; color: var(--muted); }
+.fs-door-btn { width: 100%; margin-top: .75rem; }
+.fs-plan-svg .prose-bg { fill: rgb(255 255 255 / .85); stroke: #14503c; stroke-width: 1; }
+.fs-plan-svg .prose-n { stroke: #c2410c; stroke-linecap: round; }
+.fs-plan-svg .prose-l { stroke: #14503c; opacity: .6; }
+.fs-plan-svg .prose-t { fill: #14503c; font-weight: 800; stroke: none; }
+.fs-plan-svg .prose-t.n { fill: #c2410c; }
+.fs-plan-svg .pdoor-pin { fill: #c2410c; stroke: #fff; }
+.fs-plan-svg .pdoor-label { fill: #c2410c; font-weight: 800; }

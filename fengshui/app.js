@@ -1,12 +1,12 @@
 import {
   PALACES, PALACES_EN, PALACES_ZH, TRIGRAMS, TRIGRAM_SYMBOLS, MOUNTAINS, MOUNTAIN_PINYIN, STARS, mountainOf, mountainLabel,
-  mountainPalace, mountainOffset, houseChart, fly, annualStar, monthStar, monthOf, monthStartMs, afflictions, solarYear,
+  mountainPalace, mountainOffset, palaceOf, houseChart, fly, annualStar, monthStar, monthOf, monthStartMs, afflictions, solarYear,
   periodOf, periodRange, timeliness, comboFor, kuaOf, isEastGroup, MANSIONS, mansionAt, houseKua, yearBranch, gridPalaces,
 } from '../src/fengshui.js';
 import { BRANCHES, ANIMALS, ANIMALS_ZH, ELEMENTS, STEMS, JIE, computeChart, parseBirth, analyseStrength } from '../src/bazi.js';
 import { placeFor } from '../src/places.js';
 import { getPlan, putPlan, deletePlan, fileToPlan, rotatePlan } from './plan.js';
-import { insideGrid, dragGrid, rotateGrid90, fitOutline } from '../src/plangrid.js';
+import { insideGrid, dragGrid, rotateGrid90, fitOutline, nearestSide, screenAngleOf } from '../src/plangrid.js';
 
 const STORAGE_KEY = 'fengshui-v1';
 const BAZI_KEY = 'bazi-v1';
@@ -315,6 +315,8 @@ let planMode = 'read';
 let planCell = null; // index 0–8 of the tapped square
 let planDrag = null;
 let planZoom = 1;
+let pickingDoor = false;
+let justMarkedDoor = false;
 const ZOOMS = [1, 1.5, 2, 3];
 const planHeight = () => (1000 * planSize[1]) / planSize[0];
 
@@ -372,6 +374,13 @@ function renderPlan(chart, annual, aff) {
   const pl = state.plan;
   const g = pl.grid;
   const fitting = planMode === 'fit';
+  if (pl.door) { // the door mark decides the side, wherever the grid goes
+    const side = nearestSide(g, pl.door);
+    if (side !== pl.side) { pl.side = side; persist(); }
+  }
+  $('plan-door').textContent = pickingDoor ? t('Tap the main door on the plan…', '请在图上点大门位置…') : pl.door ? t('📍 Move the main door mark', '📍 重新标大门') : t('📍 Mark the main door on the plan', '📍 在图上标出大门');
+  $('plan-door').classList.toggle('primary', !pl.door || pickingDoor);
+  $('plan-door').classList.toggle('secondary', !!pl.door && !pickingDoor);
   document.querySelector(`input[name="plan-side"][value="${pl.side}"]`).checked = true;
   document.querySelector(`input[name="plan-mode"][value="${planMode}"]`).checked = true;
   $('plan-fit-controls').hidden = !fitting;
@@ -447,10 +456,35 @@ function renderPlan(chart, annual, aff) {
     for (const [hx, hy, h] of [[x0, y0, 'tl'], [x1, y0, 'tr'], [x0, y1, 'bl'], [x1, y1, 'br']]) out.push(`<circle cx="${hx}" cy="${hy}" r="${r}" class="phandle" data-h="${h}" style="stroke-width:${2 * scale}px"/>`);
   }
   out.push('</g>');
+  // A compass drawn from the measured facing: the door side points along the facing bearing.
+  const rose = (bx, by, R) => {
+    const pt = (bearing, len) => {
+      const a = (screenAngleOf(g, pl.side, chart.facingDeg, bearing) * Math.PI) / 180;
+      return [bx + Math.cos(a) * len, by + Math.sin(a) * len];
+    };
+    const parts = [`<circle cx="${bx}" cy="${by}" r="${R * 1.05}" class="prose-bg"/>`];
+    for (let b = 0; b < 360; b += 45) {
+      const [x, y] = pt(b, b % 90 ? R * 0.55 : R * 0.7);
+      parts.push(`<line x1="${bx}" y1="${by}" x2="${x}" y2="${y}" class="${b === 0 ? 'prose-n' : 'prose-l'}" style="stroke-width:${(b === 0 ? 3 : 1.2) * scale}px"/>`);
+    }
+    for (const [b, lab] of [[0, 'N'], [90, 'E'], [180, 'S'], [270, 'W']]) {
+      const [x, y] = pt(b, R * 0.88);
+      parts.push(`<text x="${x}" y="${y}" class="prose-t ${b === 0 ? 'n' : ''}" style="font-size:${11 * scale}px">${t(lab, { N: '北', E: '东', S: '南', W: '西' }[lab])}</text>`);
+    }
+    return parts.join('');
+  };
+  const R = 34 * scale;
+  out.push(rose(Math.min(W - R * 1.2, Math.max(R * 1.2, W - R * 1.3)), R * 1.3, R));
+  if (pl.door) {
+    const [dx, dy] = pl.door;
+    out.push(`<circle cx="${dx}" cy="${dy}" r="${9 * scale}" class="pdoor-pin" style="stroke-width:${2.5 * scale}px"/>
+      <text x="${dx}" y="${dy - 20 * scale}" class="pdoor-label" style="font-size:${11 * scale}px;text-anchor:${dx > W * 0.65 ? 'end' : dx < W * 0.35 ? 'start' : 'middle'}">${t(`Door · facing ${fmtDeg(chart.facingDeg)} ${PALACES[palaceOf(chart.facingDeg)]}`, `大门 · 向${fmtDeg(chart.facingDeg)} ${PALACES_ZH[palaceOf(chart.facingDeg)]}`)}</text>`);
+  }
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = out.join('');
+  renderWallCheck(chart);
   svg.classList.toggle('fitting', fitting);
-  $('plan-help').textContent = fitting
+  $('plan-help').textContent = pickingDoor ? t('Tap the spot on the plan where the main door is.', '在图上点大门的位置。') : fitting
     ? t('Drag the corners and edges onto the flat\'s outer walls (include the household shelter and service yard, not the common corridor). Drag inside the grid to move it, and outside it to scroll when zoomed in. Use Turn if the plan is at an angle.', '拖动四角和四边对准单位外墙（含防空壕和后阳台，不含公共走廊）。在格内拖动可整体移动，放大后在格外拖动可滚动。图纸是斜的就用“转动”。')
     : planMode === 'missing'
       ? t('Tap the squares that are mostly outside the flat to mark them as missing corners.', '点按大部分在单位外的格子，标为缺角。')
@@ -464,6 +498,22 @@ function renderPlan(chart, annual, aff) {
   renderCellDetail(chart, annual, aff, $('plan-detail'), String(p), extra);
 }
 
+// Which way each outer wall of the plan should face, from the measured door facing, so it can be checked
+// at a window with the compass even when the plan has no north arrow.
+const SIDE_TURN = { top: 0, right: 90, bottom: 180, left: 270 };
+function renderWallCheck(chart) {
+  const side = state.plan.side;
+  const sideName = { top: t('top', '上'), right: t('right', '右'), bottom: t('bottom', '下'), left: t('left', '左') };
+  const rows = ['top', 'right', 'bottom', 'left'].map((s2) => {
+    const b = mod(chart.facingDeg + SIDE_TURN[s2] - SIDE_TURN[side], 360);
+    const dir = t(PALACES_EN[palaceOf(b)], PALACES_ZH[palaceOf(b)]);
+    return `<li><b>${sideName[s2]}</b>${t(' side', '边')}${s2 === side ? t(' (main door)', '（大门）') : ''}: ${t('faces', '朝')} ${fmtDeg(b)} ${dir}</li>`;
+  }).join('');
+  $('plan-check').innerHTML = `<p>${t('<b>No north arrow on your plan?</b> No problem: the compass on the plan comes from your measurement. To double-check it, stand at a window on another side of the flat, look straight out, and read the Compass tab. It should be close to:', '<b>户型图没有北方箭头？</b>没关系：图上的指南针是按你量的朝向画的。要复核，可站在另一边的窗前向外看，用“罗盘”页读数，应接近：')}</p>
+    <ul>${rows}</ul>
+    <p>${t('Within about 10° is fine (phones and walls are rarely exact). If it\'s far off, the main door mark or the measured facing is wrong.', '相差10°以内都正常（手机和墙都不会完全精准）。相差很大就是大门位置标错或朝向量错了。')}</p>`;
+}
+
 function svgPoint(e) {
   const svg = $('plan-svg');
   const pt = svg.createSVGPoint();
@@ -473,6 +523,15 @@ function svgPoint(e) {
 }
 
 function planPointerDown(e) {
+  if (pickingDoor) {
+    state.plan.door = svgPoint(e);
+    pickingDoor = false;
+    justMarkedDoor = true;
+    persist();
+    renderHome();
+    e.preventDefault();
+    return;
+  }
   if (planMode !== 'fit') return;
   const at = svgPoint(e);
   const h = e.target.closest('[data-h]')?.dataset.h;
@@ -502,6 +561,7 @@ function planPointerUp() {
 }
 
 function planClick(e) {
+  if (justMarkedDoor) { justMarkedDoor = false; return; } // the tap that placed the door mark
   if (planMode === 'fit') return;
   const g = e.target.closest('[data-sq]');
   if (!g) return;
@@ -537,7 +597,7 @@ async function pickPlan(file) {
   $('plan-status').textContent = t('Loading…', '载入中…');
   try {
     const blob = await fileToPlan(file);
-    state.plan = { ...state.plan, grid: null, missing: [] };
+    state.plan = { ...state.plan, grid: null, missing: [], door: null };
     planMode = 'fit';
     planCell = null;
     planZoom = 1;
@@ -925,7 +985,9 @@ $('plan-remove').addEventListener('click', () => {
 $('plan-rotate').addEventListener('click', async () => {
   const blob = await getPlan().catch(() => null);
   if (!blob || !planSize) return;
-  state.plan.grid = rotateGrid90(state.plan.grid, planHeight()); // keep the grid on the same walls
+  const H0 = planHeight();
+  if (state.plan.door) state.plan.door = [1000 - state.plan.door[1] * (1000 / H0), state.plan.door[0] * (1000 / H0)];
+  state.plan.grid = rotateGrid90(state.plan.grid, H0); // keep the grid on the same walls
   state.plan.side = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }[state.plan.side];
   state.plan.missing = state.plan.missing.map((i) => (i % 3) * 3 + (2 - Math.floor(i / 3)));
   persist();
@@ -937,7 +999,8 @@ $('plan-turn-right').addEventListener('click', () => setGrid({ angle: Math.min(4
 $('plan-zoom-in').addEventListener('click', () => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(planZoom) + 1)]));
 $('plan-zoom-out-btn').addEventListener('click', () => setZoom(ZOOMS[Math.max(0, ZOOMS.indexOf(planZoom) - 1)]));
 $('plan-reset').addEventListener('click', () => { state.plan.grid = autoGrid($('plan-img')); persist(); renderHome(); });
-document.querySelectorAll('input[name="plan-side"]').forEach((el) => el.addEventListener('input', () => { state.plan.side = el.value; persist(); renderHome(); }));
+document.querySelectorAll('input[name="plan-side"]').forEach((el) => el.addEventListener('input', () => { state.plan.side = el.value; state.plan.door = null; persist(); renderHome(); }));
+$('plan-door').addEventListener('click', () => { pickingDoor = !pickingDoor; renderHome(); });
 document.querySelectorAll('input[name="plan-mode"]').forEach((el) => el.addEventListener('input', () => { planMode = el.value; renderHome(); }));
 $('plan-layer').addEventListener('input', () => { state.plan.layer = $('plan-layer').value; persist(); renderHome(); });
 $('plan-svg').addEventListener('pointerdown', planPointerDown);

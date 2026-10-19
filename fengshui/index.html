@@ -128,7 +128,10 @@
               </div>
             </div>
             <div class="fs-plan" id="plan-box"><div class="fs-plan-stage" id="plan-stage"><img id="plan-img" alt=""><svg id="plan-svg" class="fs-plan-svg"></svg></div></div>
-            <p class="fs-label" data-zh="大门在图的哪一边？">Which side of the plan is the main door on?</p>
+            <button type="button" class="primary fs-door-btn" id="plan-door"></button>
+            <p class="hint" data-zh="标出大门后，app 会自动定出大门那一边，并按你量的朝向在图上画出指南针。若户型图印有北方箭头，可对照：方向一致就对了；不一致就复测朝向或检查大门标记。">Mark the main door and the app works out the door side for you, then draws a compass on the plan from the facing you measured. If your plan has a north arrow, compare it with the compass's N: if they agree, you're set; if not, re-measure the facing or check the door mark.</p>
+            <details class="fs-more fs-check"><summary data-zh="没有北方箭头？用窗户复核">No north arrow? Check with a window</summary><div class="explain" id="plan-check"></div></details>
+            <p class="fs-label" data-zh="或手动选：大门在图的哪一边？">Or pick it yourself: which side of the plan is the main door on?</p>
             <div class="seg" role="radiogroup" aria-label="Door side">
               <label><input type="radio" name="plan-side" value="top"> <span data-zh="上">Top</span></label>
               <label><input type="radio" name="plan-side" value="right"> <span data-zh="右">Right</span></label>

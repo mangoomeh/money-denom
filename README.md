@@ -159,7 +159,7 @@ Flying Star (玄空飞星) and Eight Mansions (八宅) feng shui for a home and 
   afflictions there, and how each household member finds it. The grid can be drawn south-up or north-up.
 - **Floor plan:** add a photo, screenshot or PDF of the floor plan (e.g. an HDB plan) and drag the 3×3 grid onto
   the flat's outer walls (it starts on the walls it finds, turned to match a tilted scan; drag corners or
-  edges, turn it freely, zoom in, or rotate the plan 90°). Pick the side the main door is on; the grid follows the walls, with the front middle
+  edges, turn it freely, zoom in, or rotate the plan 90°). Tap the main door on the plan (or pick its side); a compass is drawn on the plan from the measured facing, to compare with the plan's north arrow, and for plans without one the app lists which way each outer wall should face so it can be checked at a window. The grid follows the walls, with the front middle
   square as the facing. Each room then shows its stars (or a person's Eight Mansions directions), squares outside
   an L-shaped flat can be marked as missing corners, and tapping a square gives its reading. The plan is kept in
   the browser's IndexedDB; PDFs are rendered with pdf.js from the CDN.
