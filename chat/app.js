@@ -212,16 +212,25 @@ async function persistChat() {
 // again. Only your own gestures turn it off, never the page growing as text streams in.
 let stickToBottom = true;
 let touching = false; // a finger is on the chat: never scroll under it
+let touchY = 0;
 const scroller = $('scroller');
 const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
-scroller.addEventListener('touchstart', () => { touching = true; }, { passive: true });
-const touchEnd = () => { touching = false; stickToBottom = nearBottom(); renderJump(); };
-scroller.addEventListener('touchend', touchEnd, { passive: true });
-scroller.addEventListener('touchcancel', touchEnd, { passive: true });
-scroller.addEventListener('wheel', (e) => { if (e.deltaY < 0) { stickToBottom = false; renderJump(); } }, { passive: true });
+const atBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 8;
+const stopFollowing = () => { if (stickToBottom) { stickToBottom = false; renderJump(); } };
+// Any move towards older messages stops following straight away, however small.
+scroller.addEventListener('touchstart', (e) => { touching = true; touchY = e.touches[0].clientY; }, { passive: true });
+scroller.addEventListener('touchmove', (e) => {
+  const y = e.touches[0].clientY;
+  if (y > touchY + 2) stopFollowing(); // finger moving down = scrolling up
+  touchY = y;
+}, { passive: true });
+scroller.addEventListener('touchend', () => { touching = false; }, { passive: true });
+scroller.addEventListener('touchcancel', () => { touching = false; }, { passive: true });
+scroller.addEventListener('wheel', (e) => { if (e.deltaY < 0) stopFollowing(); }, { passive: true });
+scroller.addEventListener('keydown', (e) => { if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) stopFollowing(); });
+// Following starts again only once you're right back at the bottom (or tap ↓).
 scroller.addEventListener('scroll', () => {
-  if (touching) return;
-  if (nearBottom()) stickToBottom = true; // scrolled back down: follow again
+  if (!touching && !stickToBottom && atBottom()) stickToBottom = true;
   renderJump();
 }, { passive: true });
 function followBottom(force = false) {
