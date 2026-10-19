@@ -543,6 +543,9 @@ function applyChain() {
 }
 $('chain').addEventListener('change', () => {
   state.chain = $('chain').value;
+  // Results belong to the chain they came from.
+  for (const k of ['b', 'c', 'w']) { $(`${k}-results`).hidden = true; $(`${k}-progress`).hidden = true; running[k]?.abort(); }
+  lastBuyers = null;
   save();
   applyChain();
   renderGroups();

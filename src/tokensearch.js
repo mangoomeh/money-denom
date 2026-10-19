@@ -16,16 +16,22 @@ export async function searchTokens(query, chain, { fetchImpl = (...a) => fetch(.
 }
 
 export function groupPairs(pairs, chain, query) {
+  const strict = collect(pairs, chain, query, true);
+  // Nothing whose name matches exactly: fall back to whatever DexScreener matched.
+  return strict.length ? strict : collect(pairs, chain, query, false);
+}
+
+function collect(pairs, chain, query, strict) {
   const wanted = CHAIN_IDS[chain];
   const needle = query.toLowerCase();
   const tokens = new Map();
   for (const p of pairs) {
     if (p.chainId !== wanted) continue;
-    // Usually the searched token is the base; include the quote side only if it matches.
+    // Only tokens whose own name or symbol matches (not the token they trade against).
     for (const side of [p.baseToken, p.quoteToken]) {
       if (!side?.address) continue;
       const matches = side.symbol?.toLowerCase().includes(needle) || side.name?.toLowerCase().includes(needle);
-      if (side !== p.baseToken && !matches) continue;
+      if (strict ? !matches : side !== p.baseToken) continue;
       const key = side.address.toLowerCase();
       const t = tokens.get(key) || {
         address: side.address, symbol: side.symbol || '?', name: side.name || '',

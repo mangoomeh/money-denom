@@ -38,6 +38,15 @@ test('groups pairs per token on the chosen chain, most traded first', () => {
   assert.deepEqual(groupPairs(PAIRS, 'solana', 'paper').map((t) => t.address), ['2UVvBmymicq5XJnf2RaiSoa2Pguozuv71DAm24Ztpump']);
 });
 
+test('a token that only trades against the searched one is left out', () => {
+  const pairs = [
+    pair('solana', 'EyWrMX', 'REVS', 'RevShare', 66400, 35800, 1, { address: '7xmSq', symbol: 'STFU', name: 'shut the f up' }),
+    pair('solana', '7xmSq', 'STFU', 'shut the f up', 0, 31600, 1, { address: 'So111', symbol: 'SOL', name: 'Wrapped SOL' }),
+  ];
+  assert.deepEqual(groupPairs(pairs, 'solana', 'stfu').map((t) => t.symbol), ['STFU']);
+  assert.deepEqual(groupPairs(pairs, 'solana', 'zzz').map((t) => t.symbol), ['REVS', 'STFU']); // loose fallback
+});
+
 test('the quote side is only included when it matches the search', () => {
   assert.equal(groupPairs(PAIRS, 'robinhood', 'paper').some((t) => t.symbol === 'WETH'), false);
   assert.equal(groupPairs(PAIRS, 'robinhood', 'weth')[0].symbol, 'WETH');
