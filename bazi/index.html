@@ -11,37 +11,40 @@
 </head>
 <body class="theme-bazi">
   <header class="balance">
-    <a class="back" href="../">‹ Apps</a>
-    <p class="eyebrow">八字 · Four Pillars</p>
+    <a class="back" href="../" data-zh="‹ 应用">‹ Apps</a>
+    <div class="lang-switch" role="radiogroup" aria-label="Language 语言">
+      <label><input type="radio" name="lang" value="zh"> 中文</label>
+      <label><input type="radio" name="lang" value="en"> EN</label>
+      <label><input type="radio" name="lang" value="both" checked> 中/EN</label>
+    </div>
+    <p class="eyebrow" data-zh="八字 · 四柱">八字 · Four Pillars</p>
     <p class="bazi-headline" id="headline">Enter a birth date</p>
     <p class="muted" id="subline">Year, month, day and hour pillars</p>
   </header>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="chart" aria-selected="true">Chart</button>
-    <button role="tab" data-tab="summary">Summary</button>
-    <button role="tab" data-tab="reading">Reading</button>
-    <button role="tab" data-tab="luck">Luck</button>
-    <button role="tab" data-tab="match">Match</button>
-    <button role="tab" data-tab="saved">Saved</button>
+    <button role="tab" data-tab="chart" aria-selected="true" data-zh="命盘">Chart</button>
+    <button role="tab" data-tab="summary" data-zh="摘要">Summary</button>
+    <button role="tab" data-tab="luck" data-zh="运势">Luck</button>
+    <button role="tab" data-tab="more" data-zh="更多">More</button>
   </nav>
 
   <main>
     <section data-panel="chart">
       <div class="card">
-        <h2>Birth details</h2>
+        <h2 data-zh="出生资料">Birth details</h2>
         <label class="field">
-          <span>Name <small>(optional)</small></span>
-          <input id="name" autocomplete="off" placeholder="e.g. Me">
+          <span data-zh="姓名 <small>（可不填）</small>">Name <small>(optional)</small></span>
+          <input id="name" autocomplete="off" placeholder="e.g. Me" data-zh-placeholder="例如：我">
         </label>
         <div class="seg" role="radiogroup" aria-label="Calendar">
-          <label><input type="radio" name="cal" value="western" checked> Western date</label>
-          <label><input type="radio" name="cal" value="lunar"> Lunar 农历</label>
+          <label><input type="radio" name="cal" value="western" checked> <span data-zh="公历">Western date</span></label>
+          <label><input type="radio" name="cal" value="lunar"> <span data-zh="农历">Lunar 农历</span></label>
         </div>
         <div class="lunar-row" id="lunar-fields" hidden>
-          <label class="field"><span>Lunar year</span><input id="l-year" type="number" min="1901" max="2099" inputmode="numeric"></label>
-          <label class="field"><span>Month</span><select id="l-month"></select></label>
-          <label class="field"><span>Day</span><select id="l-day"></select></label>
+          <label class="field"><span data-zh="农历年">Lunar year</span><input id="l-year" type="number" min="1901" max="2099" inputmode="numeric"></label>
+          <label class="field"><span data-zh="月">Month</span><select id="l-month"></select></label>
+          <label class="field"><span data-zh="日">Day</span><select id="l-day"></select></label>
         </div>
         <div class="window-row">
           <label class="field" id="date-field">
@@ -49,89 +52,89 @@
             <input id="date" type="date" min="1800-01-01" max="2200-12-31">
           </label>
           <label class="field">
-            <span>Time of birth</span>
+            <span data-zh="出生时间">Time of birth</span>
             <input id="time" type="time">
           </label>
         </div>
         <p class="hint lunar-line" id="lunar-line"></p>
-        <label class="check"><input type="checkbox" id="no-time"> I don't know the birth time (three pillars only)</label>
+        <label class="check"><input type="checkbox" id="no-time"> <span data-zh="不知道出生时间（只排三柱）">I don't know the birth time (three pillars only)</span></label>
         <div class="seg" role="radiogroup" aria-label="Gender">
-          <label><input type="radio" name="gender" value="male" checked> Male</label>
-          <label><input type="radio" name="gender" value="female"> Female</label>
+          <label><input type="radio" name="gender" value="male" checked> <span data-zh="男">Male</span></label>
+          <label><input type="radio" name="gender" value="female"> <span data-zh="女">Female</span></label>
         </div>
-        <p class="hint">Gender sets the direction of the luck pillars.</p>
+        <p class="hint" data-zh="性别决定大运顺排还是逆排。">Gender sets the direction of the luck pillars.</p>
         <label class="field">
-          <span>Birthplace</span>
+          <span data-zh="出生地">Birthplace</span>
           <select id="city"></select>
         </label>
         <p class="hint tz-line" id="tz-line"></p>
         <div id="other-fields" hidden>
           <label class="field">
-            <span>Time zone <small>(pick a region to allow for daylight saving automatically)</small></span>
+            <span data-zh="时区 <small>（选择地区可自动计算夏令时）</small>">Time zone <small>(pick a region to allow for daylight saving automatically)</small></span>
             <select id="tz"></select>
           </label>
           <label class="field">
-            <span>Longitude <small>(° east; negative for west; for true solar time)</small></span>
+            <span data-zh="经度 <small>（东经为正，西经为负；用于真太阳时）</small>">Longitude <small>(° east; negative for west; for true solar time)</small></span>
             <input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal">
           </label>
         </div>
 
         <details class="programs">
-          <summary>Time options</summary>
-          <label class="check"><input type="checkbox" id="true-solar"> Use true solar time (from the birthplace's longitude)</label>
-          <label class="check"><input type="checkbox" id="zi-day" checked> 23:00 starts the next day (子时换日)</label>
-          <p class="hint">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
+          <summary data-zh="时间选项">Time options</summary>
+          <label class="check"><input type="checkbox" id="true-solar"> <span data-zh="使用真太阳时（按出生地经度）">Use true solar time (from the birthplace's longitude)</span></label>
+          <label class="check"><input type="checkbox" id="zi-day" checked> <span data-zh="23:00 起算次日（子时换日）">23:00 starts the next day (子时换日)</span></label>
+          <p class="hint" data-zh="不勾选时，23:00–24:00 算作当日的晚子时。">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
         </details>
       </div>
 
       <p class="status bad" id="error" hidden></p>
 
       <div id="result" hidden>
-        <button class="primary summary-cta" id="to-summary" type="button">See the short summary →</button>
+        <button class="primary summary-cta" id="to-summary" type="button" data-zh="看简要摘要 →">See the short summary →</button>
         <div class="card">
-          <h2>Four Pillars <small id="chart-note"></small></h2>
+          <h2><span data-zh="四柱">Four Pillars</span> <small id="chart-note"></small></h2>
           <div class="pgrid" id="pillars"></div>
           <p class="explain" id="explain" aria-live="polite">Tap any label or value to see what it means.</p>
         </div>
 
         <div class="card" id="hours-card" hidden>
-          <h2>Possible hour pillars <small>时柱</small></h2>
-          <p class="hint">Without a birth time, here are all twelve. Tap one to try it in the chart.</p>
+          <h2 data-zh="可能的时柱">Possible hour pillars <small>时柱</small></h2>
+          <p class="hint" data-zh="没有出生时间时，这里列出全部十二个时柱。点一个可代入命盘看看。">Without a birth time, here are all twelve. Tap one to try it in the chart.</p>
           <div class="hour-grid" id="hours"></div>
         </div>
 
         <div class="card">
-          <h2>Day master</h2>
+          <h2 data-zh="日主">Day master</h2>
           <p class="dm-line" id="dm"></p>
         </div>
 
         <div class="card">
-          <h2>Five elements</h2>
+          <h2 data-zh="五行">Five elements</h2>
           <ul class="elements" id="elements"></ul>
-          <p class="hint">Count of the eight characters (each branch by its main qi). The second number includes hidden stems.</p>
+          <p class="hint" data-zh="八字的五行个数（地支按本气算），第二个数字包括藏干。">Count of the eight characters (each branch by its main qi). The second number includes hidden stems.</p>
         </div>
 
         <div class="card">
-          <h2>Interactions</h2>
+          <h2 data-zh="刑冲合害">Interactions</h2>
           <ul class="notes" id="interactions"></ul>
         </div>
 
         <div class="card">
-          <h2>Symbolic stars <small>神煞</small></h2>
+          <h2 data-zh="神煞">Symbolic stars <small>神煞</small></h2>
           <ul class="notes" id="stars"></ul>
         </div>
 
         <div class="card">
-          <h2>Details</h2>
+          <h2 data-zh="详细资料">Details</h2>
           <dl class="summary" id="details"></dl>
         </div>
 
         <div class="actions">
-          <button class="primary" id="save" type="button">Save chart</button>
+          <button class="primary" id="save" type="button" data-zh="保存命盘">Save chart</button>
         </div>
         <div class="actions">
-          <button class="secondary" id="share" type="button">Share link</button>
-          <button class="secondary" id="copy" type="button">Copy as text</button>
+          <button class="secondary" id="share" type="button" data-zh="分享链接">Share link</button>
+          <button class="secondary" id="copy" type="button" data-zh="复制文字">Copy as text</button>
         </div>
         <p class="hint" id="share-note"></p>
       </div>
@@ -139,27 +142,27 @@
 
     <section data-panel="summary" hidden>
       <div id="summary"><div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div></div>
-    </section>
-
-    <section data-panel="reading" hidden>
-      <p class="speed-note">BaZi is a traditional Chinese system. These readings describe tendencies and themes to reflect on.
+      <details class="full-reading" id="full-reading">
+        <summary class="primary-ish" data-zh="完整解读 ▾">Full reading ▾</summary>
+      <p class="speed-note" data-zh="八字是中国传统的命理体系。这些解读描述的是值得反思的倾向和主题，并非预言或关于你的事实，不应单凭它们做重大决定。">BaZi is a traditional Chinese system. These readings describe tendencies and themes to reflect on.
         They are not predictions or facts about you, and shouldn't drive big decisions on their own.</p>
       <div id="reading"><div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div></div>
       <details class="card">
-        <summary><strong>How to read a BaZi chart</strong></summary>
+        <summary><strong data-zh="怎样看八字">How to read a BaZi chart</strong></summary>
         <ol class="notes how-to">
-          <li><strong>Start with the day master</strong> (the Day stem). It stands for you; everything else is read against it.</li>
-          <li><strong>Look at the ten gods.</strong> Each stem is a relationship to you: what supports you (Resource), what you create (Output), what you earn (Wealth), what disciplines you (Officer) and who stands beside you (Companion).</li>
-          <li><strong>Note where they sit.</strong> Year = roots and childhood, Month = parents and work, Day branch = your partner, Hour = children and later life.</li>
-          <li><strong>Check the balance.</strong> Too much or too little of an element or theme shows where life tends to feel easy or effortful.</li>
-          <li><strong>Add timing.</strong> Each 10-year luck pillar and each year brings new ten gods that switch different themes on, and clashes often mark change.</li>
+          <li data-zh="<strong>先看日主</strong>（日干）。它代表你，其他一切都对照它来看。"><strong>Start with the day master</strong> (the Day stem). It stands for you; everything else is read against it.</li>
+          <li data-zh="<strong>看十神。</strong>每个天干都是与你的一种关系：生你的（印）、你生的（食伤）、你克的（财）、克你的（官杀）和与你同类的（比劫）。"><strong>Look at the ten gods.</strong> Each stem is a relationship to you: what supports you (Resource), what you create (Output), what you earn (Wealth), what disciplines you (Officer) and who stands beside you (Companion).</li>
+          <li data-zh="<strong>看它们的位置。</strong>年柱＝根基和童年，月柱＝父母和工作，日支＝伴侣，时柱＝子女和晚年。"><strong>Note where they sit.</strong> Year = roots and childhood, Month = parents and work, Day branch = your partner, Hour = children and later life.</li>
+          <li data-zh="<strong>看平衡。</strong>某个五行或十神太多或太少，说明人生哪些方面比较顺、哪些比较费力。"><strong>Check the balance.</strong> Too much or too little of an element or theme shows where life tends to feel easy or effortful.</li>
+          <li data-zh="<strong>加上时间。</strong>每十年的大运和每年的流年带来新的十神，引动不同的主题；冲往往代表变动。"><strong>Add timing.</strong> Each 10-year luck pillar and each year brings new ten gods that switch different themes on, and clashes often mark change.</li>
         </ol>
+      </details>
       </details>
     </section>
 
     <section data-panel="luck" hidden>
       <div class="card" id="now-card" hidden>
-        <h2>Now <small>流年 · 流月 · 流日</small></h2>
+        <h2 data-zh="当下 <small>流年 · 流月 · 流日</small>">Now <small>流年 · 流月 · 流日</small></h2>
         <div class="luck-row" id="now"></div>
         <ul class="notes" id="now-notes"></ul>
       </div>
@@ -170,13 +173,13 @@
       <div class="card" id="days-card" hidden>
         <h2 id="days-title">Days</h2>
         <div class="cal" id="days"></div>
-        <p class="hint legend"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding · 冲 clashes your day branch</p>
+        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;></span> 有利 <span class=&quot;fav mixed&quot;></span> 平 <span class=&quot;fav hard&quot;></span> 吃力 · 冲：冲你的日支"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding · 冲 clashes your day branch</p>
       </div>
       <div class="card">
-        <h2>Luck pillars <small>大运</small></h2>
+        <h2 data-zh="大运">Luck pillars <small>大运</small></h2>
         <p class="hint" id="luck-note">Enter a birth date on the Chart tab.</p>
         <div class="luck-row" id="luck"></div>
-        <p class="hint legend"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding <small>(by your favourable elements; see Reading)</small></p>
+        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;></span> 有利 <span class=&quot;fav mixed&quot;></span> 平 <span class=&quot;fav hard&quot;></span> 吃力 <small>（按你的喜用神，见“解读”）</small>"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding <small>(by your favourable elements; see Reading)</small></p>
       </div>
       <div class="card" id="years-card" hidden>
         <h2 id="years-title">Years</h2>
@@ -184,42 +187,33 @@
       </div>
     </section>
 
-    <section data-panel="match" hidden>
+    <section data-panel="more" hidden>
       <div class="card">
-        <h2>Compatibility <small>合婚</small></h2>
-        <p class="hint">Compare two charts. Save charts on the Chart tab first; the current chart is always available.</p>
-        <label class="field"><span>First person</span><select id="match-a"></select></label>
-        <label class="field"><span>Second person</span><select id="match-b"></select></label>
+        <h2 data-zh="已保存的命盘">Saved charts</h2>
+        <ul class="groups" id="saved"></ul>
+        <p class="hint" id="saved-empty" data-zh="还没有保存的命盘。在“命盘”页点“保存命盘”。">No saved charts yet. Use “Save chart” on the Chart tab.</p>
+      </div>
+    </section>
+    <section data-panel="more" hidden>
+      <div class="card">
+        <h2 data-zh="合婚">Compatibility <small>合婚</small></h2>
+        <p class="hint" data-zh="比较两个命盘。先在“命盘”页保存命盘；当前命盘随时可选。">Compare two charts. Save charts on the Chart tab first; the current chart is always available.</p>
+        <label class="field"><span data-zh="第一个人">First person</span><select id="match-a"></select></label>
+        <label class="field"><span data-zh="第二个人">Second person</span><select id="match-b"></select></label>
       </div>
       <div class="card reading" id="match-result" hidden></div>
-      <p class="speed-note">Traditional compatibility looks at how two charts fit. Real relationships depend on the people, so read this for fun and reflection.</p>
-    </section>
-
-    <section data-panel="saved" hidden>
+      <p class="speed-note" data-zh="传统合婚看的是两个命盘是否契合。真实的关系取决于两个人本身，请当作参考和乐趣。">Traditional compatibility looks at how two charts fit. Real relationships depend on the people, so read this for fun and reflection.</p>
       <div class="card">
-        <h2>Saved charts</h2>
-        <ul class="groups" id="saved"></ul>
-        <p class="hint" id="saved-empty">No saved charts yet. Use “Save chart” on the Chart tab.</p>
-      </div>
-      <div class="card">
-        <h2>Display</h2>
-        <div class="seg" role="radiogroup" aria-label="Display language">
-          <label><input type="radio" name="lang" value="both" checked> Both</label>
-          <label><input type="radio" name="lang" value="zh"> 中文</label>
-          <label><input type="radio" name="lang" value="en"> English</label>
-        </div>
-        <p class="hint">Changes the chart labels and ten gods. Explanations stay in English.</p>
-      </div>
-      <div class="card">
-        <h2>About</h2>
+        <h2 data-zh="说明">About</h2>
         <ul class="notes">
-          <li>The year changes at 立春 (Start of Spring, about 4 February) and each month at its solar term, not on the lunar calendar.</li>
-          <li>Solar terms are worked out from the sun's position on your device and agree with published times to within a minute.</li>
-          <li>Lunar dates are converted using the official rules (new moons and solar terms in Beijing time), for 1901–2099.</li>
-          <li>Charts are kept in this browser only.</li>
+          <li data-zh="年份以立春（约2月4日）为界，月份以节气为界，而不是按农历。">The year changes at 立春 (Start of Spring, about 4 February) and each month at its solar term, not on the lunar calendar.</li>
+          <li data-zh="节气按太阳位置在你的设备上计算，与公布的时间相差不到一分钟。">Solar terms are worked out from the sun's position on your device and agree with published times to within a minute.</li>
+          <li data-zh="农历按官方规则（北京时间的朔日和节气）换算，适用于1901–2099年。">Lunar dates are converted using the official rules (new moons and solar terms in Beijing time), for 1901–2099.</li>
+          <li data-zh="命盘只保存在这个浏览器里。">Charts are kept in this browser only.</li>
         </ul>
       </div>
     </section>
+
   </main>
 
   <script type="module" src="app.js"></script>

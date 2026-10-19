@@ -238,3 +238,21 @@ test('summary gives one short line per point', async () => {
   assert.deepEqual(s.timing.map((t) => [t.pillar, t.favour]), [['癸卯', 'hard'], ['丙午', 'good']]);
   assert.deepEqual(s.stars, ['Academic Star']);
 });
+
+test('readings, summary and match come in Chinese', async () => {
+  const { buildReading, buildSummary } = await import('../src/baziread.js');
+  const { compareCharts } = await import('../src/bazimatch.js');
+  const c = computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8, gender: 'male' });
+  const now = new Date(2026, 9, 19);
+  const zh = buildReading(c, now, 'zh');
+  assert.deepEqual(zh.map((s) => s.title), ['你：辛阴金', '四柱各代表什么', '你的主要特质', '身强身弱与喜用神', '当下']);
+  const values = (o) => (typeof o === 'string' ? [o] : typeof o === 'object' && o ? Object.values(o).flatMap(values) : []);
+  const sum = buildSummary(c, now, 'zh');
+  const text = [...values(zh), ...values({ lines: sum.lines.map(({ label, text: x }) => ({ label, x })), timing: sum.timing.map(({ label, text: x }) => ({ label, x })), stars: sum.stars })].join(' ');
+  assert.ok(text.includes('用神：土'));
+  assert.ok(text.includes('调候：冬生需火'));
+  assert.ok(!/[A-Za-z]{4,}/.test(text), 'no English words in the Chinese reading');
+  const other = computeChart({ year: 1977, month: 3, day: 22, hour: 9, minute: 0, tzOffset: 8, gender: 'female' });
+  const m = compareCharts(c, other, '我', '她', 'zh');
+  assert.ok(!/[A-Za-z]{4,}/.test(values(m).join(' ')), 'no English words in the Chinese match');
+});

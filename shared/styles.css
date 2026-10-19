@@ -923,3 +923,19 @@ input[type="date"]:disabled { opacity: .7; }
 .fav-badge.hard { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
 .sum-more { text-align: center; }
 .linkish { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; padding: 0; cursor: pointer; text-decoration: underline; }
+.lang-switch {
+  position: absolute; right: 1rem; top: calc(.6rem + env(safe-area-inset-top)); z-index: 1;
+  display: flex; border: 1px solid rgb(255 255 255 / .5); border-radius: 999px; overflow: hidden; font-size: .8rem; font-weight: 700;
+}
+.lang-switch label { padding: .3rem .6rem; cursor: pointer; }
+.lang-switch label + label { border-left: 1px solid rgb(255 255 255 / .35); }
+.lang-switch label:has(input:checked) { background: var(--accent-text); color: var(--accent); }
+.lang-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.lang-switch label:has(input:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: -3px; }
+.theme-bazi .balance { padding-top: calc(2.6rem + env(safe-area-inset-top)); padding-bottom: .8rem; }
+.theme-bazi .balance .eyebrow { font-size: .8rem; }
+.full-reading > summary {
+  list-style: none; cursor: pointer; text-align: center; font-weight: 700; padding: .8rem 1rem; margin-bottom: 1rem;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--card);
+}
+.full-reading > summary::-webkit-details-marker { display: none; }

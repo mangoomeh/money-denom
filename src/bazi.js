@@ -7,6 +7,7 @@ export const STEM_PINYIN = ['jiǎ', 'yǐ', 'bǐng', 'dīng', 'wù', 'jǐ', 'gēn
 export const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 export const BRANCH_PINYIN = ['zǐ', 'chǒu', 'yín', 'mǎo', 'chén', 'sì', 'wǔ', 'wèi', 'shēn', 'yǒu', 'xū', 'hài'];
 export const ANIMALS = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig'];
+export const ANIMALS_ZH = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
 export const ELEMENTS = [
   { id: 'wood', zh: '木', en: 'Wood' },
   { id: 'fire', zh: '火', en: 'Fire' },
@@ -218,6 +219,12 @@ export function stemPair(a, b) {
   return { combo: key in STEM_COMBOS ? STEM_COMBOS[key] : null, clash: Math.abs(a - b) === 6 };
 }
 
+export const INTERACTION_NAMES = {
+  'stem-combo': ['combine', '合'], 'stem-clash': ['clash', '冲'], combo: ['six combination', '六合'], clash: ['clash', '冲'],
+  harm: ['harm', '害'], punish: ['punishment', '刑'], 'self-punish': ['self-punishment', '自刑'],
+  trio: ['three harmony', '三合'], meeting: ['directional meeting', '三会'],
+};
+
 // Combinations, clashes, harms and punishments among the pillars.
 export function interactions(pillars) {
   const out = [];
@@ -250,7 +257,8 @@ export function interactions(pillars) {
   for (const [a, b, c, e] of TRIOS) addGroup([a, b, c], 'trio', 'three harmony', e);
   for (const [a, b, c, e] of MEETINGS) addGroup([a, b, c], 'meeting', 'directional meeting', e);
   for (const set of PUNISH_TRIOS) addGroup(set, 'punish', 'punishment');
-  return out;
+  // chars: the characters involved; name: which INTERACTION_NAMES entry describes it
+  return out.map((x) => ({ ...x, chars: x.text.split(' ')[0], name: x.text.endsWith('self-punishment') ? 'self-punish' : x.kind }));
 }
 
 // ---- The chart ---------------------------------------------------------------------------
@@ -453,13 +461,13 @@ const BY_TRIO = { 0: [9, 2, 4], 4: [9, 2, 4], 8: [9, 2, 4], 2: [3, 8, 10], 6: [3
   5: [6, 11, 1], 9: [6, 11, 1], 1: [6, 11, 1], 11: [0, 5, 7], 3: [0, 5, 7], 7: [0, 5, 7] };
 
 export const STARS = {
-  nobleman: { zh: '天乙贵人', en: 'Nobleman', note: 'Helpful people appear when needed; support from mentors and benefactors.' },
-  academic: { zh: '文昌', en: 'Academic Star', note: 'Quick learning, good with study, exams and writing.' },
-  peach: { zh: '桃花', en: 'Peach Blossom', note: 'Charm and popularity; romance and social life are prominent.' },
-  horse: { zh: '驿马', en: 'Travelling Horse', note: 'Movement: travel, relocation and changing jobs or homes.' },
-  canopy: { zh: '华盖', en: 'Canopy', note: 'Artistic, spiritual or philosophical; enjoys solitude.' },
-  prosperity: { zh: '禄神', en: 'Prosperity Star', note: 'A steady source of income and resources.' },
-  blade: { zh: '羊刃', en: 'Goat Blade', note: 'Strong will and drive; can be forceful or impulsive. Only counted for yang day masters.' },
+  nobleman: { zh: '天乙贵人', en: 'Nobleman', note: 'Helpful people appear when needed; support from mentors and benefactors.', noteZh: '需要时有贵人出现，得到长辈和贵人的扶持。' },
+  academic: { zh: '文昌', en: 'Academic Star', note: 'Quick learning, good with study, exams and writing.', noteZh: '学习快，利于读书、考试和写作。' },
+  peach: { zh: '桃花', en: 'Peach Blossom', note: 'Charm and popularity; romance and social life are prominent.', noteZh: '有魅力、人缘好，感情和社交生活丰富。' },
+  horse: { zh: '驿马', en: 'Travelling Horse', note: 'Movement: travel, relocation and changing jobs or homes.', noteZh: '多变动：出行、迁居、换工作或换住处。' },
+  canopy: { zh: '华盖', en: 'Canopy', note: 'Artistic, spiritual or philosophical; enjoys solitude.', noteZh: '有艺术、宗教或哲学气质，喜欢独处。' },
+  prosperity: { zh: '禄神', en: 'Prosperity Star', note: 'A steady source of income and resources.', noteZh: '有稳定的收入和资源来源。' },
+  blade: { zh: '羊刃', en: 'Goat Blade', note: 'Strong will and drive; can be forceful or impulsive. Only counted for yang day masters.', noteZh: '意志坚强、有冲劲，也可能强硬或冲动。只计阳干日主。' },
 };
 
 // Which stars appear, and in which pillars. Stem-based stars come from the day master; branch-based
