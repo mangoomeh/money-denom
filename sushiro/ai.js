@@ -48,20 +48,30 @@ export async function readReceiptWithAi(bitmap, { server: serverText, model }, s
   const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS);
   const onAbort = () => timeout.abort();
   signal?.addEventListener('abort', onAbort);
+  // Reading a receipt needs no reasoning: thinking off is faster and leaves the model's memory
+  // (context) for the photo and the answer. Models that can't think reject the setting, so it is
+  // dropped for them.
+  const send = (think) => fetch(`${server}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: timeout.signal,
+    body: JSON.stringify({
+      model,
+      stream: false,
+      format: AI_RECEIPT_SCHEMA,
+      ...(think === false ? { think: false } : {}),
+      options: { temperature: 0, num_ctx: 8192 },
+      messages: [{ role: 'user', content: AI_RECEIPT_PROMPT, images: [image] }],
+    }),
+  });
+  const image = toBase64(bitmap);
   let res;
   try {
-    res = await fetch(`${server}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: timeout.signal,
-      body: JSON.stringify({
-        model,
-        stream: false,
-        format: AI_RECEIPT_SCHEMA,
-        options: { temperature: 0 },
-        messages: [{ role: 'user', content: AI_RECEIPT_PROMPT, images: [toBase64(bitmap)] }],
-      }),
-    });
+    res = await send(false);
+    if (res.status === 400) {
+      const err = await res.clone().json().catch(() => ({}));
+      if (/think/i.test(err.error || '')) res = await send(undefined);
+    }
   } catch (e) {
     if (signal?.aborted) throw new Error('Cancelled.');
     if (timeout.signal.aborted) throw new Error('Your AI took too long. Try again, or try a smaller model.');
