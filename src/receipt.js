@@ -223,7 +223,8 @@ const dollars = (c) => (c / 100).toFixed(2);
 const pct = (bp) => `${(bp / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
 
 // The instructions for the model: the same knowledge the text reader has about Sushiro receipts,
-// with this user's plate prices and charges, and a worked example from a real receipt.
+// with this user's plate prices and charges, and a made-up worked example (not a real receipt, so
+// testing on a real one is fair).
 export function aiReceiptPrompt(plates, rates) {
   const plateList = plates.map((p) => `$${dollars(p.cents)} (${p.name} plate)`).join(', ');
   return `This is a photo of a receipt from Sushiro, a conveyor-belt sushi restaurant in Singapore. Read it and return JSON.
@@ -242,9 +243,10 @@ Check your reading before answering:
 - subtotal + service_charge + gst must equal total.
 If something doesn't add up, look at that line again: a digit is probably misread.
 
-Worked example. Receipt lines:
-$2.3 Sushi 20 $46.00 | $2.9 Sushi 6 $17.40 | $3.9 Sushi 2 $7.80 | $4.9 Sushi 3 $14.70 | $3.5 Chawanmushi 2 $7.00 | $2.8 Soup 3 $8.40 | $3.5 Dish 2 $7.00 | $4.3 Dish 1 $4.30 | $5.0 Dish 1 $5.00 | $9.9 Dish 1 $9.90 | SUB TOTAL $127.50 | Service Charge (10.00%) $12.75 | GST Exclusive (9.00%) $12.62 | TOTAL(109t) $152.87 | MASTERCARD $152.87
-JSON: {"items":[{"category":"Sushi","name":"Sushi","unit_price":2.3,"quantity":20,"line_total":46.0},{"category":"Sushi","name":"Sushi","unit_price":2.9,"quantity":6,"line_total":17.4}, … one entry per line …,{"category":"Dish","name":"Dish","unit_price":9.9,"quantity":1,"line_total":9.9}],"subtotal":127.5,"service_charge":12.75,"gst":12.62,"total":152.87}
+Worked example (a made-up receipt, to show the format). Receipt lines:
+$2.3 Sushi 8 $18.40 | $2.9 Sushi 4 $11.60 | $3.9 Sushi 1 $3.90 | $3.5 Chawanmushi 1 $3.50 | $2.8 Soup 2 $5.60 | $4.3 Dish 1 $4.30 | SUB TOTAL $47.30 | Service Charge (10.00%) $4.73 | GST Exclusive (9.00%) $4.68 | TOTAL(17Qt) $56.71 | VISA $56.71
+JSON: {"items":[{"category":"Sushi","name":"Sushi","unit_price":2.3,"quantity":8,"line_total":18.4},{"category":"Sushi","name":"Sushi","unit_price":2.9,"quantity":4,"line_total":11.6},{"category":"Sushi","name":"Sushi","unit_price":3.9,"quantity":1,"line_total":3.9},{"category":"Chawanmushi","name":"Chawanmushi","unit_price":3.5,"quantity":1,"line_total":3.5},{"category":"Soup","name":"Soup","unit_price":2.8,"quantity":2,"line_total":5.6},{"category":"Dish","name":"Dish","unit_price":4.3,"quantity":1,"line_total":4.3}],"subtotal":47.3,"service_charge":4.73,"gst":4.68,"total":56.71}
+Every line on the receipt is its own entry, even when two lines have the same category: never merge or skip lines.
 
 Money is plain numbers in dollars. If a value truly can't be read, use null; don't guess and don't invent lines.`;
 }
