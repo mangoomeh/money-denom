@@ -819,19 +819,26 @@ details.programs summary { cursor: pointer; color: var(--muted); font-size: .9re
 .bazi-headline { margin: .2rem 0 0; font-size: 1.9rem; font-weight: 700; letter-spacing: .12em; }
 .el-wood { color: var(--wood); } .el-fire { color: var(--fire); } .el-earth { color: var(--earth); }
 .el-metal { color: var(--metal); } .el-water { color: var(--water); }
-.pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin-top: .5rem; }
-.pillar { text-align: center; border: 1px solid var(--border); border-radius: 12px; padding: .5rem .2rem; min-width: 0; }
-.pillar.is-day { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.pillar.missing { opacity: .55; }
-.pillar p { margin: 0; }
-.p-label { font-size: .75rem; color: var(--muted); }
-.p-god { font-size: .8rem; min-height: 1.2em; margin-top: .15rem !important; }
+.pgrid { display: grid; grid-template-columns: 3.4rem repeat(4, minmax(0, 1fr)); margin-top: .5rem; }
+.pc { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 .3rem; padding: .25rem .1rem; border-top: 1px solid var(--border); min-width: 0; text-align: center; }
+.pgrid > .pc:first-child, .pc.ph { border-top: 0; font-size: .75rem; color: var(--muted); font-weight: 600; padding-bottom: .35rem; }
+.pc.is-day { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.pc.ph.is-day { border-radius: 10px 10px 0 0; color: var(--text); }
+.pc.missing { opacity: .5; }
+.pc.rl { justify-content: flex-start; text-align: left; }
+:where(.pv) { color: inherit; }
+.pv { border: 0; background: none; font: inherit; padding: .1rem .15rem; border-radius: 6px; cursor: pointer; line-height: 1.2; }
+.pv:hover, .pv.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.pc.rl .pv { display: flex; flex-direction: column; align-items: flex-start; font-size: .82rem; font-weight: 700; }
+.pc.rl small { font-size: .62rem; font-weight: 400; color: var(--muted); }
+.pc:not(.rl) .pv { font-size: .8rem; }
+.pc.hid .pv { display: inline-flex; flex-direction: column; align-items: center; font-weight: 600; font-size: .95rem; }
+.pc.hid small { font-size: .6rem; color: var(--muted); font-weight: 400; }
+.pc.sub .pv { font-size: .72rem; color: var(--muted); }
+.explain { margin: .75rem 0 0; padding: .65rem .8rem; border-radius: 10px; background: var(--bg); font-size: .9rem; color: var(--muted); }
+.explain strong { color: var(--text); }
 .glyph { display: block; font-size: 2.1rem; line-height: 1.15; font-weight: 700; font-family: "Songti SC", "Noto Serif SC", "Noto Serif CJK SC", serif; }
-.p-hidden { display: flex; justify-content: center; flex-wrap: wrap; gap: .1rem .35rem; margin-top: .3rem !important; font-weight: 600; }
-.p-hidden span { display: inline-flex; flex-direction: column; line-height: 1.1; }
-.p-hidden small { font-size: .62rem; color: var(--muted); font-weight: 400; }
-.p-sub { font-size: .72rem; color: var(--muted); margin-top: .2rem !important; }
-.pillar-key { margin-bottom: 0; font-size: .8rem; }
+.pc:not(.rl) .pv.glyph { font-size: 2rem; }
 .dm-line { display: flex; gap: .8rem; align-items: center; margin: .25rem 0 0; }
 .dm-line small { color: var(--muted); }
 .dm-glyph { font-size: 2.6rem; font-weight: 700; line-height: 1; font-family: "Songti SC", "Noto Serif SC", serif; }

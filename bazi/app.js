@@ -1,6 +1,6 @@
 import {
-  STEMS, STEM_PINYIN, BRANCHES, BRANCH_PINYIN, ELEMENTS, TEN_GODS, LIFE_STAGES,
-  BRANCH_ELEMENT, stemElement, isYang, computeChart, annualPillar, parseBirth,
+  STEMS, STEM_PINYIN, BRANCHES, BRANCH_PINYIN, ANIMALS, ELEMENTS, TEN_GODS, LIFE_STAGES, LIFE_STAGES_EN,
+  NAYIN, NAYIN_EN, HIDDEN_STEMS, BRANCH_ELEMENT, stemElement, isYang, computeChart, annualPillar, parseBirth,
 } from '../src/bazi.js';
 
 const STORAGE_KEY = 'bazi-v1';
@@ -107,7 +107,6 @@ function chartFrom(f) {
 const elClass = (e) => `el-${ELEMENTS[e].id}`;
 const branchElement = (b) => BRANCH_ELEMENT[b];
 const godShort = (g) => TEN_GODS[g].zh;
-const stemTitle = (s) => `${STEM_PINYIN[s]} · ${isYang(s) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(s)].en}`;
 const pad = (n) => String(n).padStart(2, '0');
 const fmtLocal = (ms, tz) => {
   const d = new Date(ms + tz * 3600000);
@@ -138,6 +137,7 @@ function render() {
   $('headline').textContent = names.join(' ');
   $('subline').textContent = `${f.name ? `${f.name} · ` : ''}${STEMS[chart.dayMaster]} ${isYang(chart.dayMaster) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(chart.dayMaster)].en} day master · Year of the ${chart.animal}`;
   renderPillars();
+  $('explain').textContent = 'Tap any label or value to see what it means.';
   renderDayMaster();
   renderElements();
   renderInteractions();
@@ -146,25 +146,68 @@ function render() {
   renderLuck();
 }
 
+const ROWS = [
+  ['god', '十神', 'Ten god', 'How each stem relates to you, the day master (日主). It depends on whether the stem is your own element, the one you produce (Output), the one you control (Wealth), the one that controls you (Officer) or the one that produces you (Resource). Same or opposite yin/yang picks which of each pair.'],
+  ['stem', '天干', 'Stem', 'The heavenly stem: the visible, outward side of the pillar. Its colour shows its element.'],
+  ['branch', '地支', 'Branch', 'The earthly branch: the root of the pillar, with its animal. Its colour shows its main element.'],
+  ['hidden', '藏干', 'Hidden', 'Hidden stems: the stems stored inside each branch, main one first, each with its ten god. The ten god shown for a branch comes from its main hidden stem.'],
+  ['nayin', '纳音', 'Na Yin', 'A poetic element given to each of the 60 stem–branch pairs, such as 海中金 “Gold in the Sea”. It is a secondary reading, mostly used for the year pillar.'],
+  ['stage', '长生', 'Stage', 'The twelve life stages (十二长生): how strong your day master is in each branch, on a cycle from Birth through Peak to Tomb and round again. A stage like 死 (Death) only means the day master is weak in that branch. It is not a prediction.'],
+];
+const GOD_NOTES = [
+  'same element and yin/yang as you: peers, siblings, independence.',
+  'same element, opposite yin/yang: competitors, boldness, spending.',
+  'the element you produce, same yin/yang: creativity, enjoyment, easy-going expression.',
+  'the element you produce, opposite yin/yang: talent, outspokenness, breaking rules.',
+  'the element you control, same yin/yang: windfalls, business, opportunities.',
+  'the element you control, opposite yin/yang: steady income, hard-earned money, thrift.',
+  'the element that controls you, same yin/yang: pressure, ambition, courage.',
+  'the element that controls you, opposite yin/yang: authority, discipline, reputation.',
+  'the element that produces you, same yin/yang: unconventional learning, intuition.',
+  'the element that produces you, opposite yin/yang: support, care, study.',
+];
+const STAGE_STRENGTH = ['strong', 'unsettled', 'growing', 'strong', 'strongest', 'weakening', 'weak', 'weak',
+  'stored away', 'weakest', 'beginning again', 'gathering strength'];
+
+function explain(code) {
+  const [kind, a] = code.split(':');
+  const n = Number(a);
+  const dm = chart.dayMaster;
+  const dmName = `${STEMS[dm]} (${isYang(dm) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(dm)].en})`;
+  switch (kind) {
+    case 'row': { const r = ROWS.find((x) => x[0] === a); return `<strong>${r[1]} ${r[2]}</strong>: ${r[3]}`; }
+    case 'dm': return `<strong>日主 Day master</strong>: the day stem ${dmName} stands for you. Every ten god is worked out relative to it.`;
+    case 'god': return `<strong>${TEN_GODS[n].zh} ${TEN_GODS[n].en}</strong>: ${GOD_NOTES[n]} (Relative to your day master ${dmName}.)`;
+    case 'stem': return `<strong>${STEMS[n]} ${STEM_PINYIN[n]}</strong>: ${isYang(n) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(n)].en}.`;
+    case 'branch': return `<strong>${BRANCHES[n]} ${BRANCH_PINYIN[n]}</strong>: the ${ANIMALS[n]}, ${ELEMENTS[branchElement(n)].en}. Hidden stems: ${HIDDEN_STEMS[n].map((h) => STEMS[h]).join(' ')}.`;
+    case 'nayin': return `<strong>${NAYIN[n]}</strong>: “${NAYIN_EN[n]}”, the 纳音 element of this pillar.`;
+    case 'stage': return `<strong>${LIFE_STAGES[n]} ${LIFE_STAGES_EN[n]}</strong>: stage ${n + 1} of 12. Your day master is ${STAGE_STRENGTH[n]} in this branch.`;
+    case 'hour': return '<strong>Hour unknown</strong>: enter a birth time to get the hour pillar.';
+    default: return '';
+  }
+}
+
 function renderPillars() {
   $('chart-note').textContent = chart.input.timeKnown ? '' : '· hour unknown';
-  $('pillars').innerHTML = chart.pillars.map((p) => {
+  const btn = (code, html, cls = '') => `<button type="button" class="pv ${cls}" data-x="${code}">${html}</button>`;
+  const cells = { god: [], stem: [], branch: [], hidden: [], nayin: [], stage: [] };
+  const heads = chart.pillars.map((p) => `<div class="pc ph${p.key === 'day' ? ' is-day' : ''}">${PILLAR_LABELS[p.key]}</div>`);
+  for (const p of chart.pillars) {
+    const day = p.key === 'day' ? ' is-day' : '';
     if (p.missing) {
-      return `<div class="pillar missing"><p class="p-label">${PILLAR_LABELS[p.key]}</p><p class="p-god">&nbsp;</p>
-        <p class="glyph">?</p><p class="glyph">?</p><p class="p-sub">unknown</p></div>`;
+      for (const k of Object.keys(cells)) cells[k].push(`<div class="pc missing">${btn('hour:', k === 'stem' || k === 'branch' ? '?' : '–', k === 'stem' || k === 'branch' ? 'glyph' : '')}</div>`);
+      continue;
     }
-    const god = p.key === 'day' ? '<strong>日主</strong>' : `${godShort(p.stemGod)}`;
-    const hidden = p.hidden.map((h) => `<span class="${elClass(stemElement(h.stem))}" title="${esc(TEN_GODS[h.god].en)}">${STEMS[h.stem]}<small>${godShort(h.god)}</small></span>`).join('');
-    return `<div class="pillar${p.key === 'day' ? ' is-day' : ''}">
-      <p class="p-label">${PILLAR_LABELS[p.key]}</p>
-      <p class="p-god" title="${p.key === 'day' ? 'Day master' : esc(TEN_GODS[p.stemGod].en)}">${god}</p>
-      <p class="glyph ${elClass(stemElement(p.stem))}" title="${esc(stemTitle(p.stem))}">${STEMS[p.stem]}</p>
-      <p class="glyph ${elClass(branchElement(p.branch))}" title="${esc(`${BRANCH_PINYIN[p.branch]} · ${ELEMENTS[branchElement(p.branch)].en}`)}">${BRANCHES[p.branch]}</p>
-      <p class="p-hidden">${hidden}</p>
-      <p class="p-sub">${p.nayin}</p>
-      <p class="p-sub">${LIFE_STAGES[p.stage]}</p>
-    </div>`;
-  }).join('');
+    const ni = Math.floor(p.index / 2);
+    cells.god.push(`<div class="pc${day}">${p.key === 'day' ? btn('dm:', '<strong>日主</strong>') : btn(`god:${p.stemGod}`, godShort(p.stemGod))}</div>`);
+    cells.stem.push(`<div class="pc${day}">${btn(`stem:${p.stem}`, STEMS[p.stem], `glyph ${elClass(stemElement(p.stem))}`)}</div>`);
+    cells.branch.push(`<div class="pc${day}">${btn(`branch:${p.branch}`, BRANCHES[p.branch], `glyph ${elClass(branchElement(p.branch))}`)}</div>`);
+    cells.hidden.push(`<div class="pc hid${day}">${p.hidden.map((h) => btn(`god:${h.god}`, `<span class="${elClass(stemElement(h.stem))}">${STEMS[h.stem]}</span><small>${godShort(h.god)}</small>`)).join('')}</div>`);
+    cells.nayin.push(`<div class="pc sub${day}">${btn(`nayin:${ni}`, NAYIN[ni])}</div>`);
+    cells.stage.push(`<div class="pc sub${day}">${btn(`stage:${p.stage}`, LIFE_STAGES[p.stage])}</div>`);
+  }
+  $('pillars').innerHTML = `<div class="pc"></div>${heads.join('')}`
+    + ROWS.map(([k, zh, en]) => `<div class="pc rl">${btn(`row:${k}`, `${zh}<small>${en}</small>`)}</div>${cells[k].join('')}`).join('');
 }
 
 function renderDayMaster() {
@@ -321,5 +364,12 @@ document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] sele
   render();
 }));
 $('save').addEventListener('click', saveChart);
+$('pillars').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-x]');
+  if (!b || !chart) return;
+  $('pillars').querySelectorAll('.pv.on').forEach((x) => x.classList.remove('on'));
+  b.classList.add('on');
+  $('explain').innerHTML = explain(b.dataset.x);
+});
 render();
 renderSaved();

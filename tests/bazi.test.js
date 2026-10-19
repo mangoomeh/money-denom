@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   sunLongitude, solarTermMs, computeChart, tenGod, lifeStage, voidBranches, pillarOf, interactions,
-  annualPillar, equationOfTime, parseBirth, STEMS, BRANCHES,
+  annualPillar, equationOfTime, parseBirth, nayin, nayinEn, LIFE_STAGES_EN, STEMS, BRANCHES,
 } from '../src/bazi.js';
 
 const names = (c) => c.pillars.map((p) => (p.missing ? null : p.name));
@@ -120,4 +120,11 @@ test('equation of time and date parsing', () => {
   assert.equal(parseBirth('2023-02-29', '10:00'), null);
   assert.equal(parseBirth('2024-02-29', '10:00').day, 29);
   assert.equal(parseBirth('1990-13-01', ''), null);
+});
+
+test('纳音 and life stages have English names', () => {
+  assert.equal(nayin(pillarOf(0)), '海中金');
+  assert.equal(nayinEn(pillarOf(0)), 'Gold in the Sea');
+  assert.equal(nayinEn(pillarOf(59)), 'Great Sea Water');
+  assert.equal(LIFE_STAGES_EN.length, 12);
 });

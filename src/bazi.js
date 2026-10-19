@@ -30,12 +30,24 @@ export const TEN_GODS = [
   { zh: '偏印', en: 'Indirect Resource' }, { zh: '正印', en: 'Direct Resource' },
 ];
 
-const NAYIN = [
+export const NAYIN = [
   '海中金', '炉中火', '大林木', '路旁土', '剑锋金', '山头火', '涧下水', '城头土', '白蜡金', '杨柳木',
   '泉中水', '屋上土', '霹雳火', '松柏木', '长流水', '沙中金', '山下火', '平地木', '壁上土', '金箔金',
   '覆灯火', '天河水', '大驿土', '钗钏金', '桑柘木', '大溪水', '沙中土', '天上火', '石榴木', '大海水',
 ];
 
+export const NAYIN_EN = [
+  'Gold in the Sea', 'Fire in the Furnace', 'Wood of the Great Forest', 'Earth by the Roadside', 'Sword-Blade Metal',
+  'Fire on the Mountain', 'Water in the Brook', 'Earth on the City Wall', 'White Wax Metal', 'Willow Wood',
+  'Spring Water', 'Earth on the Roof', 'Thunderbolt Fire', 'Pine and Cypress Wood', 'Long-Flowing Water',
+  'Gold in the Sand', 'Fire at the Foot of the Mountain', 'Wood of the Plains', 'Earth on the Wall', 'Gold Leaf',
+  'Lamp Fire', 'Water of the Milky Way', 'Earth of the Great Post Road', 'Hairpin and Bracelet Gold', 'Mulberry Wood',
+  'Great Stream Water', 'Earth in the Sand', 'Fire in the Sky', 'Pomegranate Wood', 'Great Sea Water',
+];
+export const nayinEn = (p) => NAYIN_EN[Math.floor(p.index / 2)];
+
+export const LIFE_STAGES_EN = ['Birth', 'Bathing', 'Crowning', 'Coming of age', 'Peak', 'Decline',
+  'Sickness', 'Death', 'Tomb', 'Extinction', 'Conception', 'Nurturing'];
 export const LIFE_STAGES = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养'];
 const LIFE_START = [11, 6, 2, 9, 2, 9, 5, 0, 8, 3]; // branch where each stem's 长生 falls
 

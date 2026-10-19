@@ -101,7 +101,8 @@ reads public blockchain data: there's no wallet connection and nothing to sign.
 Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 
 - **Four Pillars:** the year, month, day and hour stems and branches, coloured by element, with each one's ten god
-  (relative to the day master), hidden stems, 纳音 and life stage. If the birth time is unknown, the hour pillar is
+  (relative to the day master), hidden stems, 纳音 and life stage, in labelled rows. Tap any label or value for a
+  plain-English explanation. If the birth time is unknown, the hour pillar is
   left out.
 - **Solar terms:** the year changes at 立春 and each month at its solar term. The terms are worked out from the sun's
   position (abridged VSOP87, in `src/bazi.js`), so the app needs no tables or network and agrees with published
