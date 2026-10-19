@@ -967,3 +967,95 @@ input[type="date"]:disabled { opacity: .7; }
 .luck-row { -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
 #now { -webkit-mask-image: none; mask-image: none; }
 .lp .lp-top { padding: 0 .85rem; }
+
+/* ---- Feng Shui (builds on the BaZi theme) ------------------------------------------------- */
+
+.theme-fengshui { --accent: #14503c; --accent-text: #f7efd9; --gold: #b8892b; }
+@media (prefers-color-scheme: dark) {
+  .theme-fengshui { --accent: #d9b864; --accent-text: #1a1406; --gold: #e2c06e; }
+}
+.tile.fengshui { background: #14503c; color: #f7efd9; border-color: #14503c; }
+.tile.fengshui small { color: rgb(247 239 217 / .85); }
+.fs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; margin-top: .6rem; }
+.fs-cell {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .05rem;
+  min-height: 6.2rem; padding: 1.15rem .2rem .35rem; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card); color: inherit; font: inherit; cursor: pointer; min-width: 0;
+}
+.fs-cell.center { background: var(--bg); }
+.fs-cell.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.fs-cell.combo-good { background: var(--ok-bg); }
+.fs-cell.combo-bad { background: var(--bad-bg); }
+.fs-cell.combo-mixed { background: var(--warn-bg); }
+.fs-palace { position: absolute; top: .3rem; left: .4rem; font-size: .72rem; font-weight: 700; color: var(--muted); }
+.fs-palace i { font-style: normal; font-weight: 400; }
+.fs-tags { display: flex; gap: .15rem; flex-wrap: wrap; justify-content: center; }
+.fs-tags:empty { display: none; }
+.fs-tag { font-size: .62rem; font-weight: 800; line-height: 1.3; padding: 0 .3rem; border-radius: 999px; background: var(--accent); color: var(--accent-text); }
+.fs-tag.sit { background: var(--muted); color: var(--card); }
+.fs-tag.warn { background: var(--bad); color: #fff; }
+.fs-stars { display: flex; gap: 1.1rem; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.fs-stars.one { font-size: 2.2rem; }
+.fs-base { display: flex; align-items: center; gap: .4rem; font-size: 1rem; color: var(--muted); font-weight: 600; min-height: 1.4rem; }
+.fs-base .an {
+  font-style: normal; font-size: .8rem; font-weight: 700; width: 1.35rem; height: 1.35rem; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1.5px solid var(--gold); color: var(--gold);
+}
+.fs-base .an.hard { border-color: var(--bad); color: var(--bad); }
+.ts-good { color: var(--ok); }
+.ts-mixed { color: var(--warn); }
+.ts-hard { color: var(--bad); }
+.ts-dim { color: var(--text); font-weight: 500; }
+.fs-legend span { color: var(--muted); }
+.fs-legend span.ts-good, .fs-legend span.ts-mixed, .fs-legend span.ts-hard { margin-left: .35rem; }
+.fs-legend .ts-good { color: var(--ok); } .fs-legend .ts-mixed { color: var(--warn); } .fs-legend .ts-hard { color: var(--bad); }
+.ms-key, .ws-key { color: var(--text); }
+.fs-tone { font-weight: 800; }
+.fs-tone.good { color: var(--ok); } .fs-tone.bad { color: var(--bad); } .fs-tone.mixed { color: var(--warn); }
+.explain p { margin: .35rem 0 0; }
+.explain p:first-child { margin-top: 0; }
+.seg-mini { margin-top: 0; flex: none; }
+.seg-mini label { padding: .35rem .6rem !important; font-size: .8rem; white-space: nowrap; }
+.fs-more { margin-top: .75rem; }
+.fs-more summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: .3rem 0; }
+.fs-more select { width: 100%; font: inherit; padding: .6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); }
+.fs-grid-small .fs-cell { min-height: 4.6rem; padding-top: 1.1rem; cursor: default; }
+.fs-cell.mz.good { background: var(--ok-bg); }
+.fs-cell.mz.bad { background: var(--bad-bg); }
+.fs-mz { font-weight: 700; font-size: .85rem; }
+.fs-cell.mz.good .fs-mz { color: var(--ok); }
+.fs-cell.mz.bad .fs-mz { color: var(--bad); }
+.fs-small { font-size: .7rem; color: var(--muted); text-align: center; line-height: 1.2; }
+.fs-kua { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--accent); }
+.fs-import { display: flex; flex-direction: column; gap: .4rem; }
+.fs-import button { text-align: left; }
+.fs-import small { color: var(--muted); font-weight: 400; }
+.fs-error { color: var(--bad); font-size: .9rem; margin: .5rem 0; }
+.fs-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; }
+.fs-month { display: flex; flex-direction: column; align-items: center; padding: .4rem .2rem; border-radius: 10px; background: var(--bg); text-align: center; min-width: 0; }
+.fs-month small { font-size: .7rem; color: var(--muted); }
+.fs-month b { font-size: 1.4rem; line-height: 1.2; }
+.fs-month.now { outline: 2px solid var(--accent); }
+.fs-compass-card { text-align: center; }
+.fs-compass-card button { width: 100%; margin-top: .5rem; }
+.fs-dial-wrap { position: relative; width: min(100%, 320px); margin: 0 auto; aspect-ratio: 1; }
+.fs-dial { width: 100%; height: 100%; display: block; }
+.fs-dial .ring0 { fill: var(--accent); }
+.fs-dial .ring1 { fill: color-mix(in srgb, var(--accent) 82%, #000); }
+.fs-dial .ring2 { fill: color-mix(in srgb, var(--accent) 65%, #000); }
+.fs-dial .ring3 { fill: color-mix(in srgb, var(--accent) 50%, #000); }
+.fs-dial .tick { stroke: var(--accent-text); stroke-width: 1; opacity: .7; }
+.fs-dial .edge { stroke: var(--accent-text); stroke-width: .6; opacity: .35; }
+.fs-dial .edge.big { stroke-width: 1.4; opacity: .7; }
+.fs-dial text { fill: var(--accent-text); text-anchor: middle; dominant-baseline: central; }
+.fs-dial .mtn { font-size: 15px; font-weight: 700; font-family: "Songti SC", "Noto Serif SC", serif; }
+.fs-dial .tri { fill: var(--accent-text); font-size: 22px; }
+.fs-dial .dir { font-size: 12px; font-weight: 800; }
+.fs-dial .pin { fill: var(--bad); }
+.fs-needle { position: absolute; left: 50%; top: -2px; bottom: 50%; width: 3px; margin-left: -1.5px; background: var(--bad); border-radius: 2px; pointer-events: none; }
+.fs-needle::before { content: ""; position: absolute; top: -2px; left: 50%; margin-left: -7px; border: 7px solid transparent; border-top: 10px solid var(--bad); }
+.fs-heading { margin: .8rem 0 0; font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fs-center { text-align: center; }
+.fs-steps { margin: 0; padding-left: 1.2rem; }
+.fs-steps li { margin: .35rem 0; }
+.fs-disclaimer { text-align: center; font-size: .8rem; }

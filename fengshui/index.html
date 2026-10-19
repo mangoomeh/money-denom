@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14503c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Feng Shui</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-bazi theme-fengshui">
+  <header class="balance">
+    <a class="back" href="../" data-zh="‹ 应用">‹ Apps</a>
+    <div class="lang-switch" role="radiogroup" aria-label="Language 语言">
+      <label><input type="radio" name="lang" value="zh"> 中文</label>
+      <label><input type="radio" name="lang" value="en" checked> EN</label>
+    </div>
+    <p class="eyebrow" data-zh="风水 · 玄空飞星 · 八宅">风水 · Flying Stars · Eight Mansions</p>
+    <p class="bazi-headline" id="headline">Feng Shui</p>
+    <p class="muted" id="subline"></p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="home" aria-selected="true" data-zh="宅盘">Home</button>
+    <button role="tab" data-tab="me" data-zh="命卦">People</button>
+    <button role="tab" data-tab="year" data-zh="流年">Year</button>
+    <button role="tab" data-tab="compass" data-zh="罗盘">Compass</button>
+  </nav>
+
+  <main>
+    <!-- Home: flying star chart -->
+    <section role="tabpanel" data-panel="home">
+      <div class="card">
+        <h2 data-zh="房屋资料">Your home</h2>
+        <div class="window-row">
+          <label class="field">
+            <span data-zh="大门朝向（度）">Facing (degrees)</span>
+            <input id="facing" type="number" inputmode="decimal" min="0" max="360" step="0.5" placeholder="e.g. 180" data-zh-placeholder="例如：180">
+          </label>
+          <label class="field">
+            <span data-zh="入住日期">Moved in</span>
+            <input id="move-in" type="date" min="1864-02-05" max="2200-12-31">
+          </label>
+        </div>
+        <p class="hint" id="facing-line"></p>
+        <p class="hint" data-zh="朝向：站在大门口向外看的方向，可用“罗盘”页测量。入住日期决定元运；若曾大装修（换屋顶、大门或大规模翻新），用装修完成的日期。">Facing: the direction you look when standing at the main door looking out. Measure it on the Compass tab. The move-in date sets the period; after a major renovation (new roof, main door or a full refit) use the date it finished.</p>
+        <details class="fs-more">
+          <summary data-zh="进阶设置">More settings</summary>
+          <label class="field">
+            <span data-zh="元运">Period</span>
+            <select id="period"></select>
+          </label>
+          <label class="field">
+            <span data-zh="替卦（兼向）">Replacement stars (替卦)</span>
+            <select id="replace">
+              <option value="auto" data-zh="自动：偏离山中线超过4.5°时使用">Auto: use when more than 4.5° off the mountain's centre</option>
+              <option value="off" data-zh="不用（下卦）">Never (plain chart, 下卦)</option>
+              <option value="on" data-zh="总是使用">Always</option>
+            </select>
+          </label>
+        </details>
+      </div>
+
+      <div class="card" id="home-empty">
+        <p class="hint" data-zh="输入大门朝向和入住日期，即可排出飞星盘。">Enter the facing and move-in date to draw the flying star chart.</p>
+        <button class="primary" type="button" data-go="compass" data-zh="用罗盘测量朝向">Measure the facing with the compass</button>
+      </div>
+
+      <div id="home-result" hidden>
+        <div class="card">
+          <div class="row-head">
+            <h2 id="chart-title"></h2>
+            <div class="seg seg-mini" role="radiogroup" aria-label="Orientation">
+              <label><input type="radio" name="orient" value="south" checked> <span data-zh="南上">S up</span></label>
+              <label><input type="radio" name="orient" value="north"> <span data-zh="北上">N up</span></label>
+            </div>
+          </div>
+          <div class="fs-grid" id="house-grid"></div>
+          <div class="legend fs-legend" id="house-legend"></div>
+          <label class="check"><input type="checkbox" id="show-annual" checked> <span id="show-annual-label"></span></label>
+          <div class="explain" id="cell-detail"></div>
+        </div>
+        <div class="card reading" id="house-summary"></div>
+      </div>
+    </section>
+
+    <!-- People: Kua numbers -->
+    <section role="tabpanel" data-panel="me" hidden>
+      <div id="people"></div>
+      <div class="card">
+        <h2 data-zh="添加家人">Add a person</h2>
+        <label class="field">
+          <span data-zh="姓名">Name</span>
+          <input id="p-name" autocomplete="off" placeholder="e.g. Me" data-zh-placeholder="例如：我">
+        </label>
+        <label class="field">
+          <span data-zh="出生日期（公历）">Date of birth</span>
+          <input id="p-date" type="date" min="1864-02-05" max="2200-12-31">
+        </label>
+        <div class="seg" role="radiogroup" aria-label="Gender">
+          <label><input type="radio" name="p-gender" value="male"> <span data-zh="男">Male</span></label>
+          <label><input type="radio" name="p-gender" value="female"> <span data-zh="女">Female</span></label>
+        </div>
+        <p class="hint" data-zh="命卦按立春（约2月4日）分年，与八字年柱相同。">The Kua year starts at 立春 (about 4 Feb), the same as the BaZi year pillar.</p>
+        <p class="fs-error" id="p-error" hidden></p>
+        <button class="primary" type="button" id="p-add" data-zh="添加">Add</button>
+      </div>
+      <div class="card" id="bazi-import" hidden>
+        <h2 data-zh="从八字应用导入">From the BaZi app</h2>
+        <p class="hint" data-zh="导入已保存的命盘，还能看到八字喜用五行对应的方位。">Import a saved chart to also see the directions of its favourable elements.</p>
+        <div id="bazi-list" class="fs-import"></div>
+      </div>
+    </section>
+
+    <!-- Year: annual stars and afflictions -->
+    <section role="tabpanel" data-panel="year" hidden>
+      <div class="card">
+        <div class="row-head">
+          <button class="secondary small" type="button" id="year-prev" aria-label="Previous year">‹</button>
+          <h2 id="year-title"></h2>
+          <button class="secondary small" type="button" id="year-next" aria-label="Next year">›</button>
+        </div>
+        <p class="hint" id="year-line"></p>
+        <div class="fs-grid" id="year-grid"></div>
+        <div class="legend fs-legend" id="year-legend"></div>
+        <div class="explain" id="year-detail"></div>
+      </div>
+      <div class="card reading" id="year-afflictions"></div>
+      <div class="card">
+        <h2 data-zh="月飞星">Monthly stars</h2>
+        <div id="months" class="fs-months"></div>
+      </div>
+    </section>
+
+    <!-- Compass -->
+    <section role="tabpanel" data-panel="compass" hidden>
+      <div class="card fs-compass-card">
+        <div class="fs-dial-wrap">
+          <svg class="fs-dial" id="dial" viewBox="-160 -160 320 320" aria-hidden="true"></svg>
+          <div class="fs-needle" aria-hidden="true"></div>
+        </div>
+        <p class="fs-heading" id="heading-big">—</p>
+        <p class="hint fs-center" id="heading-line"></p>
+        <button class="primary" type="button" id="compass-start" data-zh="开启罗盘">Start compass</button>
+        <p class="hint" id="compass-status"></p>
+        <label class="field">
+          <span data-zh="或手动输入度数">Or enter the degrees by hand</span>
+          <input id="manual-deg" type="range" min="0" max="359.5" step="0.5" value="180">
+        </label>
+        <button class="secondary" type="button" id="use-facing" data-zh="设为大门朝向">Use as the home's facing</button>
+      </div>
+      <div class="card">
+        <h2 data-zh="如何测量">How to measure</h2>
+        <ol class="fs-steps">
+          <li data-zh="站在大门内，面朝屋外，手机平放，顶部指向门外。">Stand just inside the main door, facing out, with the phone flat and its top pointing out the door.</li>
+          <li data-zh="远离铁门、电器和汽车，它们会干扰磁场。在门外几步再量一次，取接近的读数。">Keep away from metal doors, appliances and cars: they pull the needle. Take a second reading a few steps outside and use the one that agrees.</li>
+          <li data-zh="公寓以大楼正门或阳台大窗的朝向为准，各派做法不同。">For a flat, schools differ: many use the building's main entrance, others the balcony or largest window.</li>
+          <li data-zh="风水用磁北（罗盘指的方向），不用修正磁偏角。">Feng shui uses magnetic north, the way a luopan points, so no declination correction is needed.</li>
+        </ol>
+      </div>
+    </section>
+
+    <p class="hint fs-disclaimer" data-zh="风水是传统文化，各派算法与解释不同；本应用仅供参考。">Feng shui is a traditional practice and schools differ in both method and reading. Use this for reference.</p>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

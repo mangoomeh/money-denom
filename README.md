@@ -145,6 +145,27 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   palaces (day branches), zodiac signs and whether each brings the other's favourable elements (`src/bazimatch.js`).
 - **Saved charts** are kept on the device.
 
+### 🧭 Feng Shui (`fengshui/`)
+
+Flying Star (玄空飞星) and Eight Mansions (八宅) feng shui for a home and the people in it.
+
+- **Home:** enter the main door's facing in degrees and the move-in date. The app works out the period (20-year
+  元运, Period 9 is 2024–2043, from 立春), the facing and sitting mountains of the 24, and draws the flying star
+  chart: base, mountain (people, health) and facing (money) stars in each of the nine palaces, coloured by whether
+  they are timely in the period. Replacement stars (替卦) are used automatically when the facing is more than 4.5°
+  off the centre of its mountain, and can be switched off. It names the chart type (旺山旺向, 上山下水, double
+  stars at the facing or sitting), 合十, 父母三般卦, 连珠, 伏吟/反吟 and boundary (空亡) facings, and the house
+  trigram. Tap a sector for its stars, combinations (e.g. 2-5, 1-4, 6-8), what it suits, this year's star and
+  afflictions there, and how each household member finds it. The grid can be drawn south-up or north-up.
+- **People:** each person's Kua number (from the 立春 year and gender) with their four good and four bad directions
+  (生气, 天医, 延年, 伏位 / 祸害, 五鬼, 六煞, 绝命), East or West group, and desk and bed tips. Charts saved in the
+  BaZi app can be imported, which adds the directions of their favourable elements.
+- **Year:** the annual flying stars with Tai Sui, the Year Breaker, Three Killings, 5 Yellow and 2 Black, the twelve
+  monthly stars with their start dates, and this month's star in each sector.
+- **Compass:** uses the phone's compass (magnetic north, as a luopan does) on a 24-mountain dial; the reading can be
+  sent to the Home tab. Without a sensor, set the degrees by hand.
+- The calculations are in `src/fengshui.js`; schools differ, and the app says which method it uses.
+
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
 [Morning Pick](https://mangoomeh.github.io/morning-pick/) and
 [Deliberate](https://mangoomeh.github.io/deliberate/).
@@ -162,8 +183,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `places.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
