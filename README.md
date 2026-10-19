@@ -188,6 +188,21 @@ device.
 - **Prompts:** ready-made prompts to copy (explain a letter, cook with what's in the fridge, homework hints…).
 - **Words:** a searchable glossary.
 
+### 🦙 Local Chat (`chat/`)
+
+A chat app for your own AI models running in [Ollama](https://ollama.com) on your PC. The page talks to Ollama
+directly; chats are kept in the browser (IndexedDB) and go nowhere else.
+
+- Streaming replies with a Stop button, regenerate, and edit-and-resend; Markdown with tables and code blocks
+  (with copy buttons), rendered by a small escaping renderer in `src/chat.js`.
+- Model picker from the models you've pulled, with size and family; photos for models that can see; a folded
+  "reasoning" section for thinking models (Ollama's `think` option, or `<think>` tags).
+- Personalities or your own system prompt, temperature and context length, chat history with search, rename,
+  delete and export.
+- Setup: Ollama must allow this site with `OLLAMA_ORIGINS=https://mangoomeh.github.io`. For phones, run
+  `tailscale serve --bg 11434` on the PC (and `OLLAMA_HOST=0.0.0.0:11434`) and use the Tailscale https address.
+  The in-app setup guide and connection test walk through it.
+
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
 [Morning Pick](https://mangoomeh.github.io/morning-pick/) and
 [Deliberate](https://mangoomeh.github.io/deliberate/).
@@ -205,8 +220,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

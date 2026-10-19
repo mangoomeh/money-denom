@@ -1,7 +1,7 @@
 {
   "name": "pocket-apps",
   "version": "1.0.0",
-  "description": "Small mobile-friendly apps: petty cash, Sushiro tracker, GX-84 calculator, Wallet Radar, BaZi calculator, Feng Shui and AI for Beginners.",
+  "description": "Small mobile-friendly apps: petty cash, Sushiro tracker, GX-84 calculator, Wallet Radar, BaZi calculator, Feng Shui, AI for Beginners and Local Chat.",
   "type": "module",
   "private": true,
   "scripts": {
