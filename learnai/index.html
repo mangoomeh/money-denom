@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e40af">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>AI for Beginners</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-learnai">
+  <header class="balance">
+    <a class="back" href="../">‹ Apps</a>
+    <p class="eyebrow">No jargon · No judgement</p>
+    <p class="big">AI for Beginners</p>
+    <div class="la-progress" aria-hidden="true"><span id="progress-bar"></span></div>
+    <p class="muted" id="progress-line"></p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
+    <button role="tab" data-tab="prompts">Prompts</button>
+    <button role="tab" data-tab="words">Words</button>
+  </nav>
+
+  <main>
+    <section role="tabpanel" data-panel="learn">
+      <div id="lesson-list"></div>
+      <div id="lesson-view" hidden></div>
+    </section>
+
+    <section role="tabpanel" data-panel="prompts" hidden>
+      <div class="card">
+        <h2>Ready-made prompts</h2>
+        <p class="hint">Tap one to copy it, paste it into any chatbot, then replace the [brackets] with your details. Never paste passwords, OTPs or your NRIC.</p>
+      </div>
+      <div id="prompt-list"></div>
+    </section>
+
+    <section role="tabpanel" data-panel="words" hidden>
+      <div class="card">
+        <h2>AI words, explained</h2>
+        <input id="word-search" class="la-search" type="search" placeholder="Search, e.g. token" autocomplete="off">
+        <dl class="la-glossary" id="glossary"></dl>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

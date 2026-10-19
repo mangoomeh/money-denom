@@ -174,6 +174,20 @@ Flying Star (玄空飞星) and Eight Mansions (八宅) feng shui for a home and 
   sent to the Home tab. Without a sensor, set the degrees by hand.
 - The calculations are in `src/fengshui.js`; schools differ, and the app says which method it uses.
 
+### 🤖 AI for Beginners (`learnai/`)
+
+Ten short lessons on AI in plain English, each a few cards and a three-question quiz, with progress kept on the
+device.
+
+- **Lessons:** what AI is, how it learns, how chatbots write, tokens, why AI makes things up, how to prompt,
+  what it's good and bad at, staying safe (privacy, voice-clone and deepfake scams, ScamShield), pictures and
+  deepfakes, and using AI every day.
+- **Hands-on demos** that really work, in the browser (`src/learnai.js`): teach a scam filter (naive Bayes) and
+  test it on new messages; be the chatbot with a next-word predictor and a temperature slider; split text into
+  rough tokens; a prompt builder; a trust-or-check game; and a good-use-or-careful sorting game.
+- **Prompts:** ready-made prompts to copy (explain a letter, cook with what's in the fridge, homework hints…).
+- **Words:** a searchable glossary.
+
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
 [Morning Pick](https://mangoomeh.github.io/morning-pick/) and
 [Deliberate](https://mangoomeh.github.io/deliberate/).
@@ -191,8 +205,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `places.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
