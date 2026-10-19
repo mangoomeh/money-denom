@@ -1,7 +1,7 @@
 # Pocket Apps
 
 A set of small, mobile-friendly money tools. They need no installation or build step and run in any browser.
-Live at https://mangoomeh.github.io/money-denom/
+Live at https://mangoomeh.github.io/pocket-apps/
 
 ## Apps
 

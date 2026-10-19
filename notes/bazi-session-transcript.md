@@ -1,6 +1,6 @@
 # Building a BaZi calculator: Claude Code session transcript
 
-Repository: [mangoomeh/money-denom](https://github.com/mangoomeh/money-denom). Live site: https://mangoomeh.github.io/money-denom/
+Repository: [mangoomeh/pocket-apps](https://github.com/mangoomeh/pocket-apps) (formerly money-denom). Live site: https://mangoomeh.github.io/pocket-apps/
 
 This is a cleaned copy of the conversation. It contains every message and reply. Claude's tool calls (file edits, test runs, browser checks) are summarised in *italics* rather than shown in full.
 
@@ -154,4 +154,4 @@ elements and luck pillars". Later commits added `src/baziread.js` (readings), `s
 | `.github/workflows/pages.yml` | Deploys the `bazi/` folder |
 | `README.md` | App description |
 
-The app is live at https://mangoomeh.github.io/money-denom/bazi/
+The app is live at https://mangoomeh.github.io/pocket-apps/bazi/

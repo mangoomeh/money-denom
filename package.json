@@ -1,7 +1,7 @@
 {
-  "name": "money-denom",
+  "name": "pocket-apps",
   "version": "1.0.0",
-  "description": "Mobile-friendly petty cash tracker with a cash denomination counter and transaction checker.",
+  "description": "Small mobile-friendly apps: petty cash, Sushiro tracker, GX-84 calculator, Wallet Radar and BaZi calculator.",
   "type": "module",
   "private": true,
   "scripts": {
