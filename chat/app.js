@@ -299,7 +299,7 @@ OLLAMA_HOST    = 0.0.0.0:11434</pre>
     <pre>[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "${esc(origin)}", "User")
 [Environment]::SetEnvironmentVariable("OLLAMA_HOST", "0.0.0.0:11434", "User")
 Get-Process "ollama*" | Stop-Process -Force
-Start-Process "$env:LOCALAPPDATA\Programs\Ollama\ollama app.exe"</pre>
+Start-Process "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama app.exe"</pre>
     <p><b>Mac</b>: in Terminal, then quit and reopen Ollama:</p>
     <pre>launchctl setenv OLLAMA_ORIGINS "${esc(origin)}"
 launchctl setenv OLLAMA_HOST "0.0.0.0:11434"</pre>
