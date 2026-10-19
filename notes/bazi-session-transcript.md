@@ -109,10 +109,40 @@ This is a cleaned copy of the conversation. It contains every message and reply.
 
 ---
 
+## 4. Later changes (summarised)
+
+The rest of the session is summarised: each user message is quoted, and Claude's work and replies are described
+briefly.
+
+**User:** "have you deployed the bazi calculator on the pocket apps page?" → *Not yet; on request, Claude pushed it
+to the deploy branch and confirmed it was live.*
+
+**User:** "four pillars value is very odd can you check" (a 10 Dec 1996 chart, hour unknown) → *Claude checked every
+value by hand (year 丙子, month 庚子, day 辛巳, ten gods, 纳音, life stages) and found them correct; the layout was
+the confusing part.* **User:** "yes please" → *The pillar grid got labelled rows and tap-to-explain.*
+
+**User:** "can you also add explanations on how to understand each of those values in english. how the readings
+help with life?" → *Added a Reading tab: day master character, what each pillar covers, main ten-god themes, element
+balance, and the current decade and year, framed as traditional interpretation rather than prediction.*
+
+**User:** "what other additions do you think is useful to the bazi calculator" → *Claude suggested nine; the user
+chose the recommended three:* historical time zones by birthplace (e.g. Singapore UTC+7:30 before 1982), day master
+strength with favourable elements, and a Match tab for compatibility.
+
+**User:** "i dont think youre supposed to list so much information." → *Claude agreed to keep replies short.*
+
+**User:** "what are the things that we have skipped?" then "ok build all of it" → *Added lunar birthday input,
+this year/month/day (流年/流月/流日) with a calendar, symbolic stars, share link and copy-as-text, the twelve possible
+hour pillars when the time is unknown, a Chinese / English / both display setting, the climate (调候) adjustment,
+and time-zone regions (with daylight saving) for unlisted birthplaces.*
+
+---
+
 ## What changed in the repository
 
-Commit `f4c89b9` on branch `ccr-07176c18-kh2itk`: "Add BaZi Calculator: Four Pillars from solar terms, ten gods,
-elements and luck pillars"
+First commit `f4c89b9` on branch `ccr-07176c18-kh2itk`: "Add BaZi Calculator: Four Pillars from solar terms, ten gods,
+elements and luck pillars". Later commits added `src/baziread.js` (readings), `src/bazimatch.js` (compatibility) and
+`src/lunar.js` (lunar calendar).
 
 | File | Change |
 | --- | --- |
@@ -124,4 +154,4 @@ elements and luck pillars"
 | `.github/workflows/pages.yml` | Deploys the `bazi/` folder |
 | `README.md` | App description |
 
-Once merged into `ccr-491f8a0c-svplkf`, the app will be live at https://mangoomeh.github.io/money-denom/bazi/
+The app is live at https://mangoomeh.github.io/money-denom/bazi/

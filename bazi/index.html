@@ -33,8 +33,17 @@
           <span>Name <small>(optional)</small></span>
           <input id="name" autocomplete="off" placeholder="e.g. Me">
         </label>
+        <div class="seg" role="radiogroup" aria-label="Calendar">
+          <label><input type="radio" name="cal" value="western" checked> Western date</label>
+          <label><input type="radio" name="cal" value="lunar"> Lunar 农历</label>
+        </div>
+        <div class="lunar-row" id="lunar-fields" hidden>
+          <label class="field"><span>Lunar year</span><input id="l-year" type="number" min="1901" max="2099" inputmode="numeric"></label>
+          <label class="field"><span>Month</span><select id="l-month"></select></label>
+          <label class="field"><span>Day</span><select id="l-day"></select></label>
+        </div>
         <div class="window-row">
-          <label class="field">
+          <label class="field" id="date-field">
             <span>Date of birth</span>
             <input id="date" type="date" min="1800-01-01" max="2200-12-31">
           </label>
@@ -43,6 +52,7 @@
             <input id="time" type="time">
           </label>
         </div>
+        <p class="hint lunar-line" id="lunar-line"></p>
         <label class="check"><input type="checkbox" id="no-time"> I don't know the birth time (three pillars only)</label>
         <div class="seg" role="radiogroup" aria-label="Gender">
           <label><input type="radio" name="gender" value="male" checked> Male</label>
@@ -56,7 +66,7 @@
         <p class="hint tz-line" id="tz-line"></p>
         <div id="other-fields" hidden>
           <label class="field">
-            <span>Time zone at the birthplace <small>(add an hour if daylight saving was on)</small></span>
+            <span>Time zone <small>(pick a region to allow for daylight saving automatically)</small></span>
             <select id="tz"></select>
           </label>
           <label class="field">
@@ -82,6 +92,12 @@
           <p class="explain" id="explain" aria-live="polite">Tap any label or value to see what it means.</p>
         </div>
 
+        <div class="card" id="hours-card" hidden>
+          <h2>Possible hour pillars <small>时柱</small></h2>
+          <p class="hint">Without a birth time, here are all twelve. Tap one to try it in the chart.</p>
+          <div class="hour-grid" id="hours"></div>
+        </div>
+
         <div class="card">
           <h2>Day master</h2>
           <p class="dm-line" id="dm"></p>
@@ -99,6 +115,11 @@
         </div>
 
         <div class="card">
+          <h2>Symbolic stars <small>神煞</small></h2>
+          <ul class="notes" id="stars"></ul>
+        </div>
+
+        <div class="card">
           <h2>Details</h2>
           <dl class="summary" id="details"></dl>
         </div>
@@ -106,6 +127,11 @@
         <div class="actions">
           <button class="primary" id="save" type="button">Save chart</button>
         </div>
+        <div class="actions">
+          <button class="secondary" id="share" type="button">Share link</button>
+          <button class="secondary" id="copy" type="button">Copy as text</button>
+        </div>
+        <p class="hint" id="share-note"></p>
       </div>
     </section>
 
@@ -126,6 +152,20 @@
     </section>
 
     <section data-panel="luck" hidden>
+      <div class="card" id="now-card" hidden>
+        <h2>Now <small>流年 · 流月 · 流日</small></h2>
+        <div class="luck-row" id="now"></div>
+        <ul class="notes" id="now-notes"></ul>
+      </div>
+      <div class="card" id="months-card" hidden>
+        <h2 id="months-title">Months</h2>
+        <div class="luck-row" id="months"></div>
+      </div>
+      <div class="card" id="days-card" hidden>
+        <h2 id="days-title">Days</h2>
+        <div class="cal" id="days"></div>
+        <p class="hint legend"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding · 冲 clashes your day branch</p>
+      </div>
       <div class="card">
         <h2>Luck pillars <small>大运</small></h2>
         <p class="hint" id="luck-note">Enter a birth date on the Chart tab.</p>
@@ -156,11 +196,20 @@
         <p class="hint" id="saved-empty">No saved charts yet. Use “Save chart” on the Chart tab.</p>
       </div>
       <div class="card">
+        <h2>Display</h2>
+        <div class="seg" role="radiogroup" aria-label="Display language">
+          <label><input type="radio" name="lang" value="both" checked> Both</label>
+          <label><input type="radio" name="lang" value="zh"> 中文</label>
+          <label><input type="radio" name="lang" value="en"> English</label>
+        </div>
+        <p class="hint">Changes the chart labels and ten gods. Explanations stay in English.</p>
+      </div>
+      <div class="card">
         <h2>About</h2>
         <ul class="notes">
           <li>The year changes at 立春 (Start of Spring, about 4 February) and each month at its solar term, not on the lunar calendar.</li>
           <li>Solar terms are worked out from the sun's position on your device and agree with published times to within a minute.</li>
-          <li>Enter the birth date on the Western (Gregorian) calendar.</li>
+          <li>Lunar dates are converted using the official rules (new moons and solar terms in Beijing time), for 1901–2099.</li>
           <li>Charts are kept in this browser only.</li>
         </ul>
       </div>

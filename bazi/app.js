@@ -1,8 +1,10 @@
 import {
   STEMS, STEM_PINYIN, BRANCHES, BRANCH_PINYIN, ANIMALS, ELEMENTS, TEN_GODS, LIFE_STAGES, LIFE_STAGES_EN,
   NAYIN, NAYIN_EN, HIDDEN_STEMS, BRANCH_ELEMENT, stemElement, isYang, computeChart, annualPillar, parseBirth,
-  zoneOffset, analyseStrength, pillarFavour,
+  zoneOffset, analyseStrength, pillarFavour, tenGod, branchPair, cycleIndex, pillarOf, pillarName,
+  dayPillar, monthPillarsOf, symbolicStars,
 } from '../src/bazi.js';
+import { lunarToSolar, solarToLunar, lunarYearMonths, lunarMonthName, lunarDayName } from '../src/lunar.js';
 import { compareCharts } from '../src/bazimatch.js';
 import { buildReading, GOD_DETAILS, PILLAR_AREAS } from '../src/baziread.js';
 
@@ -37,12 +39,17 @@ const DM_NOTES = [
   'the ocean: bold, resourceful, restless',
   'rain and mist: intuitive, quiet, perceptive',
 ];
-const PILLAR_LABELS = { hour: 'Hour 时', day: 'Day 日', month: 'Month 月', year: 'Year 年' };
+const PILLAR_LABELS = {
+  both: { hour: 'Hour 时', day: 'Day 日', month: 'Month 月', year: 'Year 年' },
+  zh: { hour: '时柱', day: '日柱', month: '月柱', year: '年柱' },
+  en: { hour: 'Hour', day: 'Day', month: 'Month', year: 'Year' },
+};
+const GOD_EN_SHORT = ['Friend', 'Rob', 'Eating', 'Hurting', 'Ind. Wealth', 'Wealth', '7 Killings', 'Officer', 'Ind. Res.', 'Resource'];
 
 // ---- State ---------------------------------------------------------------------------------------
 
 function load() {
-  const defaults = { form: { name: '', date: '', time: '', noTime: false, gender: 'male', tz: 8, trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [] };
+  const defaults = { form: { name: '', cal: 'western', date: '', time: '', noTime: false, gender: 'male', tz: 'fixed:8', trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [], lang: 'both' };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && saved.form) return { ...defaults, ...saved, form: { ...defaults.form, ...saved.form } };
@@ -58,11 +65,19 @@ let selectedLuck = null;
 
 function fillSelects() {
   const tzSel = $('tz');
-  for (let h = -12; h <= 14; h += 0.5) {
-    if (!Number.isInteger(h) && ![5.5, 9.5, -3.5, 3.5, 4.5, 6.5, 10.5].includes(h)) continue;
-    const sign = h < 0 ? '−' : '+';
-    const abs = Math.abs(h);
-    tzSel.add(new Option(`UTC${sign}${Math.floor(abs)}${abs % 1 ? ':30' : ''}`, String(h)));
+  const fixed = document.createElement('optgroup');
+  fixed.label = 'Fixed offset';
+  for (let h = -12; h <= 14; h += 0.25) {
+    if (h % 1 && ![5.5, 5.75, 9.5, -3.5, 3.5, 4.5, 6.5, 7.5, 8.75, 10.5].includes(h)) continue;
+    fixed.append(new Option(`${fmtOffset(h)} (fixed)`, `fixed:${h}`));
+  }
+  tzSel.append(fixed);
+  const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
+  if (zones.length) {
+    const group = document.createElement('optgroup');
+    group.label = 'Region (handles daylight saving)';
+    for (const z of zones) group.append(new Option(z.replace(/_/g, ' '), z));
+    tzSel.append(group);
   }
   for (const [name] of CITIES) $('city').add(new Option(name, name));
   $('city').add(new Option('Other (set time zone)', ''));
@@ -70,12 +85,15 @@ function fillSelects() {
 
 function writeForm(f) {
   $('name').value = f.name;
+  document.querySelector(`input[name="cal"][value="${f.cal || 'western'}"]`).checked = true;
   $('date').value = f.date;
+  syncLunarFromDate();
+  showCalendar();
   $('time').value = f.time;
   $('no-time').checked = f.noTime;
   $('time').disabled = f.noTime;
   document.querySelector(`input[name="gender"][value="${f.gender}"]`).checked = true;
-  $('tz').value = String(f.tz);
+  $('tz').value = typeof f.tz === 'number' ? `fixed:${f.tz}` : f.tz;
   $('true-solar').checked = f.trueSolar;
   $('city').value = cityOf(f.city) ? f.city : '';
   $('other-fields').hidden = $('city').value !== '';
@@ -86,11 +104,12 @@ function writeForm(f) {
 function readForm() {
   return {
     name: $('name').value.trim(),
+    cal: document.querySelector('input[name="cal"]:checked').value,
     date: $('date').value,
     time: $('time').value,
     noTime: $('no-time').checked,
     gender: document.querySelector('input[name="gender"]:checked').value,
-    tz: Number($('tz').value),
+    tz: $('tz').value,
     trueSolar: $('true-solar').checked,
     city: $('city').value,
     lon: $('lon').value === '' ? null : Number($('lon').value),
@@ -103,7 +122,12 @@ const fmtOffset = (h) => `UTC${h < 0 ? '−' : '+'}${Math.floor(Math.abs(h))}${M
 // The birthplace's UTC offset and longitude for a form; a listed city uses its zone's history.
 function placeFor(f, birth) {
   const city = cityOf(f.city);
-  if (!city) return { tz: f.tz, lon: f.lon, city: null };
+  if (!city) {
+    const tz = String(f.tz ?? 'fixed:8');
+    if (/^-?[\d.]+$/.test(tz) || tz.startsWith('fixed:')) return { tz: Number(tz.replace('fixed:', '')), lon: f.lon, city: null };
+    const { offset, dst } = zoneOffset(tz, birth.year, birth.month, birth.day, birth.hour, birth.minute);
+    return { tz: offset, lon: f.lon, city: null, zone: tz, dst };
+  }
   const { offset, dst } = zoneOffset(city[2], birth.year, birth.month, birth.day, birth.hour, birth.minute);
   const today = zoneOffset(city[2], new Date().getFullYear(), 1, 15).offset;
   return { tz: offset, lon: city[1], city: city[0], dst, changed: offset !== today && !dst, today };
@@ -128,7 +152,8 @@ function chartFrom(f) {
 
 const elClass = (e) => `el-${ELEMENTS[e].id}`;
 const branchElement = (b) => BRANCH_ELEMENT[b];
-const godShort = (g) => TEN_GODS[g].zh;
+const lang = () => state.lang || 'both';
+const godShort = (g) => (lang() === 'en' ? GOD_EN_SHORT[g] : TEN_GODS[g].zh);
 const pad = (n) => String(n).padStart(2, '0');
 const fmtLocal = (ms, tz) => {
   const d = new Date(ms + tz * 3600000);
@@ -140,6 +165,58 @@ const ageText = (years) => {
   return m ? `${y} y ${m} m` : `${y} y`;
 };
 
+// ---- Lunar calendar input -----------------------------------------------------------------------
+
+function fillLunarMonths(year, keep) {
+  const months = year >= 1901 && year <= 2099 ? lunarYearMonths(year) : [];
+  $('l-month').innerHTML = months.map((m) => `<option value="${m.leap ? 'L' : ''}${m.month}" data-days="${m.days}">${lunarMonthName(m.month, m.leap)}</option>`).join('');
+  if (keep && [...$('l-month').options].some((o) => o.value === keep)) $('l-month').value = keep;
+  fillLunarDays();
+}
+
+function fillLunarDays() {
+  const opt = $('l-month').selectedOptions[0];
+  const days = opt ? Number(opt.dataset.days) : 30;
+  const keep = $('l-day').value;
+  $('l-day').innerHTML = Array.from({ length: days }, (_, i) => `<option value="${i + 1}">${lunarDayName(i + 1)}</option>`).join('');
+  if (keep && Number(keep) <= days) $('l-day').value = keep;
+}
+
+function syncLunarFromDate() {
+  const b = parseBirth($('date').value, '');
+  if (!b || b.year < 1901 || b.year > 2099) return;
+  const l = solarToLunar(b.year, b.month, b.day);
+  $('l-year').value = l.year;
+  fillLunarMonths(l.year, `${l.leap ? 'L' : ''}${l.month}`);
+  $('l-day').value = String(l.day);
+}
+
+function syncDateFromLunar() {
+  const y = Number($('l-year').value);
+  const mv = $('l-month').value;
+  if (!y || !mv) return;
+  const d = lunarToSolar(y, Number(mv.replace('L', '')), Number($('l-day').value), mv.startsWith('L'));
+  if (d) $('date').value = `${d.year}-${pad(d.month)}-${pad(d.day)}`;
+}
+
+function showCalendar() {
+  const lunar = document.querySelector('input[name="cal"]:checked').value === 'lunar';
+  $('lunar-fields').hidden = !lunar;
+  $('date-field').querySelector('span').textContent = lunar ? 'Western date' : 'Date of birth';
+  $('date').disabled = lunar;
+}
+
+function renderLunarLine() {
+  const b = parseBirth($('date').value, '');
+  const lunar = document.querySelector('input[name="cal"]:checked').value === 'lunar';
+  if (!b || b.year < 1901 || b.year > 2099) {
+    $('lunar-line').textContent = lunar ? 'Lunar dates work for 1901–2099.' : '';
+    return;
+  }
+  const l = solarToLunar(b.year, b.month, b.day);
+  $('lunar-line').textContent = `农历 ${l.year}年 ${lunarMonthName(l.month, l.leap)}${lunarDayName(l.day)}`;
+}
+
 function render() {
   const f = readForm();
   state.form = f;
@@ -147,6 +224,7 @@ function render() {
   if ($('match-a').options.length) renderMatchOptions();
   const { chart: c, error, place } = chartFrom(f);
   renderTzLine(place);
+  renderLunarLine();
   chart = c || null;
   $('error').hidden = !error;
   $('error').textContent = error || '';
@@ -156,6 +234,7 @@ function render() {
     $('subline').textContent = 'Year, month, day and hour pillars';
     $('reading').innerHTML = '<div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div>';
     renderLuck();
+    renderNow();
     return;
   }
   const names = chart.pillars.map((p) => (p.missing ? '··' : p.name));
@@ -166,10 +245,13 @@ function render() {
   renderDayMaster();
   renderElements();
   renderInteractions();
+  renderStars();
+  renderHours();
   renderDetails(f);
   renderReading();
   selectedLuck = null;
   renderLuck();
+  renderNow();
 }
 
 const ROWS = [
@@ -219,7 +301,7 @@ function explain(code) {
 
 function renderTzLine(place) {
   const line = $('tz-line');
-  if (!place || !place.city) { line.textContent = ''; return; }
+  if (!place || (!place.city && !place.zone)) { line.textContent = ''; return; }
   let text = `Clock time there on that date: ${fmtOffset(place.tz)}`;
   if (place.dst) text += ', daylight saving (already allowed for)';
   else if (place.changed) text += ` (it's ${fmtOffset(place.today)} today)`;
@@ -230,7 +312,9 @@ function renderPillars() {
   $('chart-note').textContent = chart.input.timeKnown ? '' : '· hour unknown';
   const btn = (code, html, cls = '') => `<button type="button" class="pv ${cls}" data-x="${code}">${html}</button>`;
   const cells = { god: [], stem: [], branch: [], hidden: [], nayin: [], stage: [] };
-  const heads = chart.pillars.map((p) => `<div class="pc ph${p.key === 'day' ? ' is-day' : ''}">${PILLAR_LABELS[p.key]}</div>`);
+  const L = lang();
+  const heads = chart.pillars.map((p) => `<div class="pc ph${p.key === 'day' ? ' is-day' : ''}">${PILLAR_LABELS[L][p.key]}</div>`);
+  const py = (t) => (L === 'en' ? `<small class="py">${t}</small>` : '');
   for (const p of chart.pillars) {
     const day = p.key === 'day' ? ' is-day' : '';
     if (p.missing) {
@@ -238,15 +322,15 @@ function renderPillars() {
       continue;
     }
     const ni = Math.floor(p.index / 2);
-    cells.god.push(`<div class="pc${day}">${p.key === 'day' ? btn('dm:', '<strong>日主</strong>') : btn(`god:${p.stemGod}:${p.key}`, godShort(p.stemGod))}</div>`);
-    cells.stem.push(`<div class="pc${day}">${btn(`stem:${p.stem}`, STEMS[p.stem], `glyph ${elClass(stemElement(p.stem))}`)}</div>`);
-    cells.branch.push(`<div class="pc${day}">${btn(`branch:${p.branch}`, BRANCHES[p.branch], `glyph ${elClass(branchElement(p.branch))}`)}</div>`);
+    cells.god.push(`<div class="pc${day}">${p.key === 'day' ? btn('dm:', `<strong>${L === 'en' ? 'You' : '日主'}</strong>`) : btn(`god:${p.stemGod}:${p.key}`, godShort(p.stemGod))}</div>`);
+    cells.stem.push(`<div class="pc${day}">${btn(`stem:${p.stem}`, STEMS[p.stem] + py(STEM_PINYIN[p.stem]), `glyph ${elClass(stemElement(p.stem))}`)}</div>`);
+    cells.branch.push(`<div class="pc${day}">${btn(`branch:${p.branch}`, BRANCHES[p.branch] + py(BRANCH_PINYIN[p.branch]), `glyph ${elClass(branchElement(p.branch))}`)}</div>`);
     cells.hidden.push(`<div class="pc hid${day}">${p.hidden.map((h) => btn(`god:${h.god}:${p.key}`, `<span class="${elClass(stemElement(h.stem))}">${STEMS[h.stem]}</span><small>${godShort(h.god)}</small>`)).join('')}</div>`);
-    cells.nayin.push(`<div class="pc sub${day}">${btn(`nayin:${ni}`, NAYIN[ni])}</div>`);
-    cells.stage.push(`<div class="pc sub${day}">${btn(`stage:${p.stage}`, LIFE_STAGES[p.stage])}</div>`);
+    cells.nayin.push(`<div class="pc sub${day}">${btn(`nayin:${ni}`, L === 'en' ? NAYIN_EN[ni] : NAYIN[ni])}</div>`);
+    cells.stage.push(`<div class="pc sub${day}">${btn(`stage:${p.stage}`, L === 'en' ? LIFE_STAGES_EN[p.stage] : LIFE_STAGES[p.stage])}</div>`);
   }
   $('pillars').innerHTML = `<div class="pc"></div>${heads.join('')}`
-    + ROWS.map(([k, zh, en]) => `<div class="pc rl">${btn(`row:${k}`, `${zh}<small>${en}</small>`)}</div>${cells[k].join('')}`).join('');
+    + ROWS.map(([k, zh, en]) => `<div class="pc rl">${btn(`row:${k}`, L === 'both' ? `${zh}<small>${en}</small>` : L === 'zh' ? zh : en)}</div>${cells[k].join('')}`).join('');
 }
 
 function renderDayMaster() {
@@ -262,7 +346,7 @@ function renderDayMaster() {
 function renderElements() {
   const max = Math.max(...chart.weighted, 1);
   $('elements').innerHTML = ELEMENTS.map((el, i) => `<li>
-      <span class="el-name ${elClass(i)}">${el.zh} ${el.en}</span>
+      <span class="el-name ${elClass(i)}">${lang() === 'en' ? el.en : lang() === 'zh' ? el.zh : `${el.zh} ${el.en}`}</span>
       <span class="bar"><span class="${elClass(i)}" style="width:${(chart.weighted[i] / max) * 100}%"></span></span>
       <span class="el-num"><strong>${chart.counts[i]}</strong> <small>${chart.weighted[i].toFixed(1)}</small></span>
     </li>`).join('');
@@ -278,11 +362,39 @@ function renderInteractions() {
   $('interactions').innerHTML = items.length ? items.join('') : '<li>No combinations or clashes between these pillars.</li>';
 }
 
+function renderStars() {
+  const stars = symbolicStars(chart);
+  const names = { hour: 'Hour', day: 'Day', month: 'Month', year: 'Year' };
+  const label = (s) => (lang() === 'en' ? s.en : lang() === 'zh' ? s.zh : `${s.zh} ${s.en}`);
+  $('stars').innerHTML = stars.length
+    ? stars.map((s) => `<li><strong>${label(s)}</strong> <small>(${s.where.map((w) => names[w]).join(', ')})</small><br>${esc(s.note)}</li>`).join('')
+    : '<li>None of the common stars appear in this chart.</li>';
+}
+
+// With no birth time, the twelve hour pillars this day could have.
+function renderHours() {
+  $('hours-card').hidden = chart.input.timeKnown;
+  if (chart.input.timeKnown) return;
+  const ds = chart.dayMaster;
+  $('hours').innerHTML = BRANCHES.map((b, hb) => {
+    const p = pillarOf(cycleIndex((ds * 2 + hb) % 10, hb));
+    const from = (hb * 2 + 23) % 24;
+    return `<button type="button" class="hour" data-h="${(hb * 2) % 24}">
+      <span class="lp-top">${pad(from)}–${pad((from + 2) % 24)}</span>
+      <span class="${elClass(stemElement(p.stem))}">${STEMS[p.stem]}</span><span class="${elClass(branchElement(p.branch))}">${b}</span>
+      <span class="lp-god">${godShort(tenGod(ds, p.stem))}</span></button>`;
+  }).join('');
+}
+
 const chartPlaceName = (f) => (cityOf(f.city) ? `, ${cityOf(f.city)[0]}` : '');
 
 function renderDetails(f) {
   const rows = [];
   const { jie, input } = chart;
+  if (input.year >= 1901 && input.year <= 2099) {
+    const l = solarToLunar(input.year, input.month, input.day);
+    rows.push(['Lunar date', `${l.year}年 ${lunarMonthName(l.month, l.leap)}${lunarDayName(l.day)}`]);
+  }
   rows.push(['Solar year', `${chart.solarYear} (${chart.pillars[3].name}, ${chart.animal})`]);
   rows.push(['Time zone', `${fmtOffset(input.tzOffset)}${chartPlaceName(f)}`]);
   rows.push(['Month began', `${jie.prev.zh} ${jie.prev.en}, ${fmtLocal(jie.prev.ms, input.tzOffset)}`]);
@@ -354,6 +466,112 @@ function renderLuck() {
     const target = row.querySelector('[aria-pressed="true"], .now');
     if (target) row.scrollLeft = Math.max(0, target.offsetLeft - row.offsetLeft - row.clientWidth / 2 + target.offsetWidth / 2);
   }
+}
+
+// ---- Now: this year, month and day -------------------------------------------------------------
+
+function renderNow() {
+  for (const id of ['now-card', 'months-card', 'days-card']) $(id).hidden = !chart;
+  if (!chart) return;
+  const st = analyseStrength(chart);
+  const dm = chart.dayMaster;
+  const d = new Date();
+  const nowChart = computeChart({
+    year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(),
+    tzOffset: -d.getTimezoneOffset() / 60,
+  });
+  const withGods = (p) => ({ ...p, stemGod: tenGod(dm, p.stem), branchGod: tenGod(dm, HIDDEN_STEMS[p.branch][0]) });
+  const [, today, month, year] = nowChart.pillars;
+  const nows = [['This year', year], ['This month', month], ['Today', today]];
+  $('now').innerHTML = nows.map(([label, p]) => `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}">${cell(withGods(p), label, p.name)}</div>`).join('');
+
+  const notes = [];
+  const natal = chart.pillars.filter((p) => !p.missing);
+  const areaName = { year: 'year (family)', month: 'month (work, parents)', day: 'day (you, partner)', hour: 'hour (children, plans)' };
+  for (const [label, p] of nows) {
+    for (const n of natal) {
+      const r = branchPair(p.branch, n.branch);
+      if (r.clash) notes.push(`${label}'s ${BRANCHES[p.branch]} clashes with your ${areaName[n.key]} ${BRANCHES[n.branch]}: expect movement or change there.`);
+      else if (r.combo != null) notes.push(`${label}'s ${BRANCHES[p.branch]} combines with your ${areaName[n.key]} ${BRANCHES[n.branch]}: things come together there.`);
+    }
+  }
+  $('now-notes').innerHTML = notes.length ? notes.map((t) => `<li>${esc(t)}</li>`).join('') : '<li>No clashes or combinations with your chart right now.</li>';
+
+  const months = monthPillarsOf(nowChart.solarYear);
+  const fmtDay = (ms) => new Date(ms).toLocaleDateString('en', { day: 'numeric', month: 'short' });
+  $('months-title').innerHTML = `Months of ${nowChart.solarYear} <small>流月 · each starts on its solar term</small>`;
+  $('months').innerHTML = months.map((p, i) => {
+    const current = Date.now() >= p.startMs && (i === 11 || Date.now() < months[i + 1].startMs);
+    return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), p.jie.zh, fmtDay(p.startMs))}</div>`;
+  }).join('');
+
+  const y = d.getFullYear(); const m = d.getMonth() + 1;
+  const daysIn = new Date(y, m, 0).getDate();
+  const lead = new Date(y, m - 1, 1).getDay();
+  const dayBranch = chart.pillars.find((p) => p.key === 'day').branch;
+  $('days-title').innerHTML = `${d.toLocaleDateString('en', { month: 'long', year: 'numeric' })} <small>流日</small>`;
+  const heads = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w) => `<span class="cal-h">${w}</span>`).join('');
+  const blanks = '<span></span>'.repeat(lead);
+  const cells = Array.from({ length: daysIn }, (_, i) => {
+    const p = dayPillar(y, m, i + 1);
+    const clash = branchPair(p.branch, dayBranch).clash;
+    return `<span class="cal-d fav-${pillarFavour(st, p.stem, p.branch)}${i + 1 === d.getDate() ? ' now' : ''}"><b>${i + 1}</b><small>${pillarName(p)}${clash ? ' 冲' : ''}</small></span>`;
+  }).join('');
+  $('days').innerHTML = heads + blanks + cells;
+  for (const row of [$('months')]) {
+    const target = row.querySelector('.now');
+    if (target) row.scrollLeft = Math.max(0, target.offsetLeft - row.offsetLeft - row.clientWidth / 2 + target.offsetWidth / 2);
+  }
+}
+
+// ---- Sharing -------------------------------------------------------------------------------------
+
+const SHARE_KEYS = { n: 'name', c: 'cal', d: 'date', t: 'time', g: 'gender', p: 'city', z: 'tz', l: 'lon' };
+
+function shareUrl(f) {
+  const q = new URLSearchParams();
+  for (const [k, field] of Object.entries(SHARE_KEYS)) if (f[field] != null && f[field] !== '') q.set(k, f[field]);
+  if (f.noTime) q.set('u', '1');
+  if (f.trueSolar) q.set('s', '1');
+  if (!f.ziDay) q.set('m', '1');
+  return `${location.origin}${location.pathname}#${q}`;
+}
+
+function formFromHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (!q.get('d')) return null;
+  const f = { ...state.form, noTime: q.get('u') === '1', trueSolar: q.get('s') === '1', ziDay: q.get('m') !== '1' };
+  for (const [k, field] of Object.entries(SHARE_KEYS)) if (q.has(k)) f[field] = q.get(k);
+  f.lon = f.lon == null || f.lon === '' ? null : Number(f.lon);
+  if (!cityOf(f.city)) f.city = '';
+  return f;
+}
+
+function chartText() {
+  const f = state.form;
+  const byKey = Object.fromEntries(chart.pillars.map((p) => [p.key, p]));
+  const st = analyseStrength(chart);
+  return [
+    `BaZi chart${f.name ? `: ${f.name}` : ''}`,
+    `Born ${f.date}${f.noTime ? '' : ` ${f.time}`}${cityOf(f.city) ? `, ${f.city}` : ''}`,
+    `年 ${byKey.year.name}  月 ${byKey.month.name}  日 ${byKey.day.name}  时 ${byKey.hour.missing ? '?' : byKey.hour.name}`,
+    `Day master ${STEMS[chart.dayMaster]} ${isYang(chart.dayMaster) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(chart.dayMaster)].en}, ${st.verdict}`,
+    `Favourable: ${st.favourable.map((e) => ELEMENTS[e].en).join(', ')}`,
+    shareUrl(f),
+  ].join('\n');
+}
+
+async function copyText(text, done) {
+  try { await navigator.clipboard.writeText(text); $('share-note').textContent = done; } catch { $('share-note').textContent = text; }
+}
+
+async function shareChart() {
+  if (!chart) return;
+  const url = shareUrl(state.form);
+  if (navigator.share) {
+    try { await navigator.share({ title: 'BaZi chart', url }); return; } catch { /* cancelled: fall back to copying */ }
+  }
+  copyText(url, 'Link copied. Anyone who opens it sees this chart.');
 }
 
 // ---- Saved charts --------------------------------------------------------------------------------
@@ -440,10 +658,18 @@ function switchTab(name) {
 }
 
 fillSelects();
-writeForm(state.form);
+const shared = formFromHash();
+writeForm(shared || state.form);
+if (shared) history.replaceState(null, '', location.pathname);
+document.querySelector(`input[name="lang"][value="${state.lang || 'both'}"]`).checked = true;
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] select').forEach((el) => el.addEventListener('input', () => {
   if (el.id === 'no-time') $('time').disabled = el.checked;
+  if (el.name === 'cal') { if (el.value === 'lunar') syncLunarFromDate(); showCalendar(); }
+  if (el.id === 'l-year') { fillLunarMonths(Number(el.value), $('l-month').value); syncDateFromLunar(); }
+  if (el.id === 'l-month') { fillLunarDays(); syncDateFromLunar(); }
+  if (el.id === 'l-day') syncDateFromLunar();
+  if (el.id === 'date') syncLunarFromDate();
   if (el.id === 'city') {
     $('other-fields').hidden = el.value !== '';
     const city = cityOf(el.value);
@@ -452,6 +678,22 @@ document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] sele
   render();
 }));
 $('save').addEventListener('click', saveChart);
+$('share').addEventListener('click', shareChart);
+$('copy').addEventListener('click', () => chart && copyText(chartText(), 'Copied.'));
+$('hours').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-h]');
+  if (!b) return;
+  $('no-time').checked = false;
+  $('time').disabled = false;
+  $('time').value = `${pad(Number(b.dataset.h))}:00`;
+  render();
+  window.scrollTo(0, 0);
+});
+document.querySelectorAll('input[name="lang"]').forEach((el) => el.addEventListener('input', () => {
+  state.lang = el.value;
+  persist();
+  render();
+}));
 $('pillars').addEventListener('click', (e) => {
   const b = e.target.closest('[data-x]');
   if (!b || !chart) return;

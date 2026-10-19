@@ -141,7 +141,8 @@ test('reading: day master, pillars, themes, balance and timing', async () => {
   assert.ok(text.includes('Day master: weak'));
   assert.ok(text.includes('Useful element: 土 Earth'));
   assert.ok(text.includes('This decade: 癸卯 (from 2025), demanding'));
-  assert.ok(text.includes('2026: 丙午, demanding'));
+  assert.ok(text.includes('2026: 丙午, favourable')); // Fire warms a winter chart
+  assert.ok(text.includes('Climate (调候): a winter chart needs Fire'));
   assert.ok(text.includes('clashes with your month pillar 子 and year pillar 子'));
   assert.ok(text.includes('Hour pillar: unknown'));
 });
@@ -167,9 +168,10 @@ test('day master strength and favourable elements', async () => {
   assert.equal(s.checks.season, false);
   assert.equal(s.checks.root, true); // 巳 holds 庚
   assert.equal(EL[s.useful].en, 'Earth'); // drained by water (output): the resource helps
-  assert.deepEqual(s.favourable.map((e) => EL[e].en), ['Earth', 'Metal']);
+  assert.deepEqual(s.favourable.map((e) => EL[e].en), ['Earth', 'Metal', 'Fire']); // Fire added for a winter birth
+  assert.equal(s.season, 'cold');
   assert.equal(pillarFavour(s, 4, 9), 'good'); // 戊酉: earth and metal
-  assert.equal(pillarFavour(s, 2, 6), 'hard'); // 丙午: fire
+  assert.equal(pillarFavour(s, 8, 0), 'hard'); // 壬子: water
   // 26 Dec 1893: 丁 fire in winter, the published reading needs wood
   const m = analyseStrength(computeChart({ year: 1893, month: 12, day: 26, hour: 8, minute: 0, tzOffset: 8 }));
   assert.equal(m.lean, 'weak');
@@ -196,4 +198,34 @@ test('compatibility checks day masters, spouse palaces, zodiac and elements', as
   const clash = compareCharts(he, find('庚午'), 'X', 'Y');
   assert.ok(clash.factors.some((f) => f.head === 'Day masters 甲庚 clash'));
   assert.ok(clash.factors.some((f) => f.head === 'Spouse palaces (day branches): 子午 clash'));
+});
+
+test('lunar calendar matches published dates', async () => {
+  const { lunarToSolar, solarToLunar, newMoonMs, lunarYearMonths } = await import('../src/lunar.js');
+  const { jdFromMs } = await import('../src/bazi.js');
+  // Meeus example 49.a: new moon of Feb 1977 at JDE 2443192.65118 (UT about 48 s earlier)
+  assert.ok(Math.abs(jdFromMs(newMoonMs(-283)) - (2443192.65118 - 48 / 86400)) < 0.0005);
+  const cny = { 1985: [2, 20], 1996: [2, 19], 2023: [1, 22], 2024: [2, 10], 2025: [1, 29], 2033: [1, 31], 2034: [2, 19] };
+  for (const [y, [m, d]] of Object.entries(cny)) assert.deepEqual(lunarToSolar(Number(y), 1, 1), { year: Number(y), month: m, day: d }, `CNY ${y}`);
+  assert.deepEqual(lunarToSolar(2020, 4, 1, true), { year: 2020, month: 5, day: 23 }); // 闰四月
+  assert.deepEqual(lunarToSolar(2023, 2, 1, true), { year: 2023, month: 3, day: 22 }); // 闰二月
+  assert.deepEqual(lunarToSolar(1984, 10, 1, true), { year: 1984, month: 11, day: 23 }); // 闰十月
+  assert.deepEqual(lunarToSolar(2033, 11, 1, true), { year: 2033, month: 12, day: 22 }); // the “2033 problem”: 闰十一月
+  assert.deepEqual(lunarToSolar(2024, 8, 15), { year: 2024, month: 9, day: 17 }); // Mid-Autumn
+  assert.equal(lunarToSolar(2024, 4, 1, true), null); // no leap 4th month in 2024
+  assert.deepEqual(solarToLunar(1996, 12, 10), { year: 1996, month: 10, day: 30, leap: false, days: 30 });
+  assert.equal(lunarYearMonths(2023).length, 13);
+});
+
+test('month and day pillars, and symbolic stars', async () => {
+  const { monthPillarsOf, dayPillar, pillarName: name, symbolicStars } = await import('../src/bazi.js');
+  const months = monthPillarsOf(2026); // 丙午 year: 寅 month is 庚寅
+  assert.equal(name(months[0]), '庚寅');
+  assert.equal(name(months[11]), '辛丑');
+  assert.equal(name(dayPillar(2000, 1, 1)), '戊午');
+  const c = computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8 });
+  assert.deepEqual(symbolicStars(c).map((x) => [x.zh, x.where]), [['文昌', ['month', 'year']]]); // 辛 → 子
+  // 26 Dec 1893: 丁 day master; 亥 and 酉 are its nobleman branches, and 酉 (day) is there
+  const m = computeChart({ year: 1893, month: 12, day: 26, hour: 8, minute: 0, tzOffset: 8 });
+  assert.ok(symbolicStars(m).some((x) => x.id === 'nobleman' && x.where.includes('day')));
 });

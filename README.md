@@ -107,9 +107,12 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 - **Solar terms:** the year changes at 立春 and each month at its solar term. The terms are worked out from the sun's
   position (abridged VSOP87, in `src/bazi.js`), so the app needs no tables or network and agrees with published
   times to within a minute. The chart shows which term the birth month began with.
+- **Lunar (农历) birthdays:** switch the date to Lunar and pick the lunar year, month (including leap months) and
+  day. The conversion (`src/lunar.js`) uses new moons and solar terms in Beijing time, as the official calendar does,
+  for 1901–2099. The lunar date is also shown for any Western date.
 - **Birthplace and historical time zones:** pick a city and the app uses the UTC offset that applied there on the
   birth date, from the browser's time zone history. For example, Singapore and Malaysia were UTC+7:30 until 1982,
-  and China used daylight saving from 1986 to 1991. "Other" lets you set the offset and longitude by hand.
+  and China used daylight saving from 1986 to 1991. "Other" lets you pick any time zone region (which also handles daylight saving) or a fixed offset, and a longitude.
 - **True solar time (optional):** the day and hour pillars use local solar time (the birthplace's longitude plus the
   equation of time). You can also choose whether 23:00 starts the next day.
 - **Five elements, day master, and interactions:** element counts (with and without hidden stems), stem
@@ -124,7 +127,15 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   interpretation, not prediction.
 - **Strength and favourable elements:** scores whether the day master is strong or weak (all stems and hidden
   stems, with the month counted double), shows the three classic checks (得令, 得地, 得势), and picks the useful
-  element (用神) and the favourable ones. Luck pillars and years are marked favourable, mixed or demanding.
+  element (用神) and the favourable ones. A winter or summer birth also counts Fire or Water as favourable for
+  climate (调候). Luck pillars, years, months and days are marked favourable, mixed or demanding.
+- **Now (Luck tab):** this year's, month's and day's pillars with their ten gods and any clashes or combinations
+  with your chart, the twelve month pillars of the year (流月), and a calendar of this month's day pillars (流日).
+- **Symbolic stars (神煞):** Nobleman, Academic Star, Peach Blossom, Travelling Horse, Canopy, Prosperity Star and
+  Goat Blade, with where they fall.
+- **No birth time:** all twelve possible hour pillars are shown; tap one to try it.
+- **Share:** a link that opens the same chart (no account needed), or the chart copied as text.
+- **Display:** both languages, Chinese labels only, or English labels with pinyin.
 - **Match:** compares two charts (the current one and any saved one) on day masters, spouse star, spouse
   palaces (day branches), zodiac signs and whether each brings the other's favourable elements (`src/bazimatch.js`).
 - **Saved charts** are kept on the device.

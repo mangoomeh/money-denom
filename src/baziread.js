@@ -142,6 +142,10 @@ export function buildReading(chart, now = new Date()) {
     items: [
       { head: `Day master: ${verdictText} (${pct}% support)`, body: `Support is your own element plus the one that produces you, weighted across all the stems and hidden stems, with the month counted double. Born in season (得令): ${yes(st.checks.season)}. Rooted in a branch (得地): ${yes(st.checks.root)}. Supporting stems (得势): ${st.checks.help}.` },
       { head: `Useful element: ${elName(st.useful)}`, body: `${REASONS[st.reason]} Traditionally you'd bring it in through ${ELEMENT_TRAITS[st.useful].boost}.` },
+      ...(st.season ? [{
+        head: `Climate (调候): ${st.season === 'cold' ? 'a winter chart needs Fire' : 'a summer chart needs Water'}`,
+        body: `You were born in a ${st.season === 'cold' ? 'cold month (亥子丑), so Fire is wanted for warmth' : 'hot month (巳午未), so Water is wanted to cool it'}, whatever the day master's strength. It is counted as favourable below.`,
+      }] : []),
       { head: `Favourable: ${st.favourable.map(elName).join(', ')}`, body: `${st.lean === 'strong' ? 'A strong day master does well when its energy is used: expressed, earned and disciplined.' : 'A weaker day master does well with support: learning, mentors and allies.'} Luck pillars and years of these elements tend to feel easier.` },
       { head: `Less favourable: ${st.unfavourable.map(elName).join(', ')}`, body: 'Periods heavy in these tend to need more effort. They are not “bad”, just more demanding.' },
       { head: `Most: ${elName(hi)} · Least: ${elName(lo)}${chart.counts[lo] === 0 ? ' (missing)' : ''}`, body: `${ELEMENTS[hi].en} brings ${ELEMENT_TRAITS[hi].traits}; ${ELEMENTS[lo].en} stands for ${ELEMENT_TRAITS[lo].traits}.` },

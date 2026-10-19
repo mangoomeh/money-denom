@@ -407,9 +407,17 @@ export function analyseStrength(chart) {
     reason = ['', 'output', 'wealth', 'officer'][drains[0][0]];
     useful = drains[0][0] === 2 ? e : (e + 4) % 5;
   }
-  const favourable = (lean === 'strong' ? [1, 2, 3] : [4, 0]).map((k) => (e + k) % 5);
-  const unfavourable = (lean === 'strong' ? [4, 0] : [1, 2, 3]).map((k) => (e + k) % 5);
-  return { scores, support, total, ratio, verdict, lean, checks, useful, reason, favourable, unfavourable };
+  let favourable = (lean === 'strong' ? [1, 2, 3] : [4, 0]).map((k) => (e + k) % 5);
+  let unfavourable = (lean === 'strong' ? [4, 0] : [1, 2, 3]).map((k) => (e + k) % 5);
+  // Climate (调候): a winter chart (亥子丑 month) wants Fire for warmth, a summer one (巳午未) wants Water,
+  // whatever the strength, so that element always counts as favourable.
+  const season = [11, 0, 1].includes(month.branch) ? 'cold' : [5, 6, 7].includes(month.branch) ? 'hot' : null;
+  const climate = season === 'cold' ? 1 : season === 'hot' ? 4 : null;
+  if (climate != null && !favourable.includes(climate)) {
+    favourable = [...favourable, climate];
+    unfavourable = unfavourable.filter((x) => x !== climate);
+  }
+  return { scores, support, total, ratio, verdict, lean, checks, useful, reason, favourable, unfavourable, season, climate };
 }
 
 // How a stem and branch (a luck pillar or year) sit with the favourable elements.
@@ -417,6 +425,69 @@ export function pillarFavour(strength, stem, branch) {
   const fav = (el) => strength.favourable.includes(el);
   const n = Number(fav(stemElement(stem))) + Number(fav(BRANCH_ELEMENT[branch]));
   return n === 2 ? 'good' : n === 1 ? 'mixed' : 'hard';
+}
+
+// ---- Month and day pillars --------------------------------------------------------------
+
+// The day pillar of a calendar date.
+export const dayPillar = (year, month, day) => pillarOf(Math.floor(Date.UTC(year, month - 1, day) / DAY_MS) + 2440588 + 49);
+
+// The twelve month pillars of a solar year (from 立春), each with the moment its term begins.
+export function monthPillarsOf(year) {
+  const yearStem = mod(year - 4, 10);
+  return JIE.map((jie, m) => ({
+    ...pillarOf(cycleIndex(mod(yearStem * 2 + 2 + m, 10), mod(m + 2, 12))),
+    jie,
+    startMs: solarTermMs(mod(315 + 30 * m, 360), Date.UTC(year, 1, 4) + m * 30.44 * DAY_MS),
+  }));
+}
+
+// ---- Symbolic stars (神煞) ----------------------------------------------------------------
+
+const NOBLEMAN = [[1, 7], [0, 8], [11, 9], [11, 9], [1, 7], [0, 8], [1, 7], [2, 6], [3, 5], [3, 5]];
+const ACADEMIC = [5, 6, 8, 9, 8, 9, 11, 0, 2, 3];
+const PROSPERITY = [2, 3, 5, 6, 5, 6, 8, 9, 11, 0];
+const BLADE = { 0: 3, 2: 6, 4: 6, 6: 9, 8: 0 }; // yang day masters only
+// By the three-harmony group of a branch: [peach blossom, travelling horse, canopy]
+const BY_TRIO = { 0: [9, 2, 4], 4: [9, 2, 4], 8: [9, 2, 4], 2: [3, 8, 10], 6: [3, 8, 10], 10: [3, 8, 10],
+  5: [6, 11, 1], 9: [6, 11, 1], 1: [6, 11, 1], 11: [0, 5, 7], 3: [0, 5, 7], 7: [0, 5, 7] };
+
+export const STARS = {
+  nobleman: { zh: '天乙贵人', en: 'Nobleman', note: 'Helpful people appear when needed; support from mentors and benefactors.' },
+  academic: { zh: '文昌', en: 'Academic Star', note: 'Quick learning, good with study, exams and writing.' },
+  peach: { zh: '桃花', en: 'Peach Blossom', note: 'Charm and popularity; romance and social life are prominent.' },
+  horse: { zh: '驿马', en: 'Travelling Horse', note: 'Movement: travel, relocation and changing jobs or homes.' },
+  canopy: { zh: '华盖', en: 'Canopy', note: 'Artistic, spiritual or philosophical; enjoys solitude.' },
+  prosperity: { zh: '禄神', en: 'Prosperity Star', note: 'A steady source of income and resources.' },
+  blade: { zh: '羊刃', en: 'Goat Blade', note: 'Strong will and drive; can be forceful or impulsive. Only counted for yang day masters.' },
+};
+
+// Which stars appear, and in which pillars. Stem-based stars come from the day master; branch-based
+// ones from the year and day branches, found in the other pillars.
+export function symbolicStars(chart) {
+  const pillars = chart.pillars.filter((p) => !p.missing);
+  const dm = chart.dayMaster;
+  const found = [];
+  const add = (id, targets, from = null) => {
+    const where = pillars.filter((p) => targets.includes(p.branch) && p.key !== from).map((p) => p.key);
+    if (where.length) {
+      const prev = found.find((f) => f.id === id);
+      if (prev) prev.where = [...new Set([...prev.where, ...where])];
+      else found.push({ id, ...STARS[id], where });
+    }
+  };
+  add('nobleman', NOBLEMAN[dm]);
+  add('academic', [ACADEMIC[dm]]);
+  add('prosperity', [PROSPERITY[dm]]);
+  if (dm in BLADE) add('blade', [BLADE[dm]]);
+  for (const base of pillars.filter((p) => p.key === 'year' || p.key === 'day')) {
+    const [peach, horse, canopy] = BY_TRIO[base.branch];
+    add('peach', [peach], base.key);
+    add('horse', [horse], base.key);
+    add('canopy', [canopy], base.key);
+  }
+  const order = Object.keys(STARS);
+  return found.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 
 // ---- Time zones --------------------------------------------------------------------------
