@@ -137,3 +137,39 @@ test('analyseReceipt says whether every item was read', () => {
   assert.equal(partial.complete, false);
   assert.equal(partial.subtotalCents - partial.itemsCents, 990);
 });
+
+test('an AI reading becomes the same receipt result, with plates matched and totals checked', async () => {
+  const { analyseAiReceipt } = await import('../src/receipt.js');
+  const red = DEFAULT_PLATES[0];
+  const data = {
+    items: [
+      { category: 'Sushi', name: 'Sushi', unit_price: red.cents / 100, quantity: 10, line_total: red.cents * 10 / 100 },
+      { category: 'Chawanmushi', name: 'Chawanmushi', unit_price: 3.5, quantity: 1, line_total: 3.5 },
+      // The model misread the quantity; the line total corrects it.
+      { category: 'Sushi', name: 'Sushi', unit_price: DEFAULT_PLATES[1].cents / 100, quantity: 3, line_total: DEFAULT_PLATES[1].cents * 2 / 100 },
+    ],
+    subtotal: null, service_charge: null, gst: null, total: null,
+  };
+  const itemsCents = red.cents * 10 + 350 + DEFAULT_PLATES[1].cents * 2;
+  const bill = computeBill([{ cents: itemsCents }], DEFAULT_RATES);
+  data.subtotal = itemsCents / 100;
+  data.total = bill.totalCents / 100;
+  const r = analyseAiReceipt(data, DEFAULT_PLATES, DEFAULT_RATES);
+  assert.equal(r.counts[red.id], 10);
+  assert.equal(r.counts[DEFAULT_PLATES[1].id], 2);
+  assert.equal(r.others.length, 1);
+  assert.equal(r.others[0].name, 'Chawanmushi');
+  assert.equal(r.totalCents, bill.totalCents);
+  assert.equal(r.complete, true);
+  assert.match(r.text, /Total \$/);
+});
+
+test('an AI reading with only a total still works, and junk is ignored', async () => {
+  const { analyseAiReceipt } = await import('../src/receipt.js');
+  const bill = computeBill([{ cents: 5000 }], DEFAULT_RATES);
+  const r = analyseAiReceipt({ items: [{ category: 'Sushi', unit_price: null, quantity: null, line_total: null }], subtotal: null, service_charge: null, gst: null, total: bill.totalCents / 100 }, DEFAULT_PLATES, DEFAULT_RATES);
+  assert.equal(r.totalCents, bill.totalCents);
+  assert.equal(r.subtotalCents, 5000);
+  assert.deepEqual(r.counts, {});
+  assert.equal(analyseAiReceipt(null, DEFAULT_PLATES, DEFAULT_RATES).totalCents, null);
+});

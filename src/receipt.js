@@ -188,3 +188,86 @@ export function compareWithReceipt(trackedTotalCents, receiptTotalCents, plates,
   }
   return { status: diffCents > 0 ? 'receipt-higher' : 'receipt-lower', diffCents, suggestions };
 }
+
+// ---- Receipts read by an AI model ------------------------------------------------------------
+// A vision model (e.g. Qwen3-VL in Ollama) returns the receipt as JSON in this shape; the same
+// checks then apply as for text: unit price × quantity, totals rebuilt from the charges, plates
+// matched by price.
+
+export const AI_RECEIPT_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['Sushi', 'Chawanmushi', 'Soup', 'Dish', 'Other'] },
+          name: { type: 'string' },
+          unit_price: { type: ['number', 'null'] },
+          quantity: { type: ['integer', 'null'] },
+          line_total: { type: ['number', 'null'] },
+        },
+        required: ['category', 'name', 'unit_price', 'quantity', 'line_total'],
+      },
+    },
+    subtotal: { type: ['number', 'null'] },
+    service_charge: { type: ['number', 'null'] },
+    gst: { type: ['number', 'null'] },
+    total: { type: ['number', 'null'] },
+  },
+  required: ['items', 'subtotal', 'service_charge', 'gst', 'total'],
+};
+
+export const AI_RECEIPT_PROMPT = `This is a photo of a receipt from Sushiro, a conveyor-belt sushi restaurant in Singapore.
+Read it carefully and return every item line and the totals as JSON.
+Item lines usually look like "$2.3 Sushi 20 $46.00": unit price $2.30, category Sushi, quantity 20, line total $46.00.
+Use the category printed on the line: Sushi, Chawanmushi, Soup or Dish; anything else is Other.
+Give money as plain numbers in dollars (46.00, not "$46.00"). service_charge is the service charge line, gst the GST line, total the final amount payable.
+If a value can't be read, use null. Don't invent lines that aren't on the receipt.`;
+
+const cents = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : null);
+
+// The AI's items, made consistent: quantity from the line total when the two disagree.
+export function itemsFromAi(data) {
+  const out = [];
+  for (const it of Array.isArray(data?.items) ? data.items : []) {
+    const unitCents = cents(it.unit_price);
+    const lineCents = cents(it.line_total);
+    let qty = Number.isInteger(it.quantity) && it.quantity > 0 ? it.quantity : null;
+    if (unitCents && lineCents != null && (qty == null || qty * unitCents !== lineCents)) {
+      const q = Math.round(lineCents / unitCents);
+      if (q >= 1 && q * unitCents === lineCents) qty = q;
+    }
+    if (!unitCents && lineCents != null && qty) {
+      out.push({ name: it.category === 'Other' ? it.name || 'Item' : it.category, unitCents: Math.round(lineCents / qty), qty, cents: lineCents, sure: false });
+      continue;
+    }
+    if (!unitCents || !qty) continue;
+    const name = it.category === 'Other' ? (String(it.name || '').trim() || 'Item') : it.category;
+    out.push({ name, unitCents, qty, cents: unitCents * qty, sure: lineCents === unitCents * qty });
+  }
+  return out;
+}
+
+// The same result as analyseReceipt, from an AI reading. `text` is a plain summary for display.
+export function analyseAiReceipt(data, plates, rates) {
+  const found = { subtotalCents: cents(data?.subtotal), serviceCents: cents(data?.service_charge), gstCents: cents(data?.gst), totalCents: cents(data?.total) };
+  if (found.totalCents == null && found.subtotalCents != null) found.totalCents = found.subtotalCents + (found.serviceCents ?? 0) + (found.gstCents ?? 0);
+  const totals = reconcileTotals(found, rates);
+  const items = itemsFromAi(data);
+  const { counts, others, itemsCents } = matchPlates(items, plates);
+  const money = (c) => (c == null ? '?' : `$${(c / 100).toFixed(2)}`);
+  const text = [
+    ...items.map((i) => `${money(i.unitCents)} ${i.name} ${i.qty} ${money(i.cents)}`),
+    `Subtotal ${money(totals.subtotalCents)}`, `Service ${money(totals.serviceCents)}`, `GST ${money(totals.gstCents)}`, `Total ${money(totals.totalCents)}`,
+  ].join('\n');
+  return {
+    ...totals,
+    counts,
+    others,
+    itemsCents,
+    text,
+    complete: items.length > 0 && totals.subtotalCents != null && itemsCents === totals.subtotalCents,
+  };
+}
