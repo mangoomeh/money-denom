@@ -146,8 +146,8 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 - **Saved charts** are kept on the device.
 
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
-[Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/) and
-[Deliberate](https://mangoomeh.github.io/learn-react/).
+[Morning Pick](https://mangoomeh.github.io/morning-pick/) and
+[Deliberate](https://mangoomeh.github.io/deliberate/).
 
 ## Running it
 
