@@ -19,6 +19,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="chart" aria-selected="true">Chart</button>
+    <button role="tab" data-tab="summary">Summary</button>
     <button role="tab" data-tab="reading">Reading</button>
     <button role="tab" data-tab="luck">Luck</button>
     <button role="tab" data-tab="match">Match</button>
@@ -86,6 +87,7 @@
       <p class="status bad" id="error" hidden></p>
 
       <div id="result" hidden>
+        <button class="primary summary-cta" id="to-summary" type="button">See the short summary →</button>
         <div class="card">
           <h2>Four Pillars <small id="chart-note"></small></h2>
           <div class="pgrid" id="pillars"></div>
@@ -133,6 +135,10 @@
         </div>
         <p class="hint" id="share-note"></p>
       </div>
+    </section>
+
+    <section data-panel="summary" hidden>
+      <div id="summary"><div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div></div>
     </section>
 
     <section data-panel="reading" hidden>

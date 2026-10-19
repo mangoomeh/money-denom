@@ -229,3 +229,12 @@ test('month and day pillars, and symbolic stars', async () => {
   const m = computeChart({ year: 1893, month: 12, day: 26, hour: 8, minute: 0, tzOffset: 8 });
   assert.ok(symbolicStars(m).some((x) => x.id === 'nobleman' && x.where.includes('day')));
 });
+
+test('summary gives one short line per point', async () => {
+  const { buildSummary } = await import('../src/baziread.js');
+  const s = buildSummary(computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8 }), new Date(2026, 9, 19));
+  assert.deepEqual(s.lines.map((l) => l.label), ['You', 'Strengths', 'Watch for', 'Main theme', 'What helps']);
+  assert.equal(s.lines[0].text, '辛 Yin Metal, like a polished jewel.');
+  assert.deepEqual(s.timing.map((t) => [t.pillar, t.favour]), [['癸卯', 'hard'], ['丙午', 'good']]);
+  assert.deepEqual(s.stars, ['Academic Star']);
+});

@@ -3,7 +3,7 @@
 // beyond counting.
 
 import {
-  STEMS, BRANCHES, ELEMENTS, TEN_GODS, stemElement, isYang, annualPillar, analyseStrength, pillarFavour,
+  STEMS, BRANCHES, ELEMENTS, TEN_GODS, stemElement, isYang, annualPillar, analyseStrength, pillarFavour, symbolicStars,
 } from './bazi.js';
 
 export const DM_PROFILES = [
@@ -176,4 +176,43 @@ export function buildReading(chart, now = new Date()) {
   sections.push({ title: 'Now', intro: 'Luck pillars and years add their own ten gods to your chart for a while.', items: timing });
 
   return sections;
+}
+
+// Three-word portraits of each day master, for the summary.
+export const DM_KEYWORDS = [
+  'Principled · steady · protective', 'Adaptable · diplomatic · persistent', 'Warm · generous · expressive',
+  'Thoughtful · caring · focused', 'Dependable · calm · patient', 'Nurturing · practical · supportive',
+  'Decisive · loyal · direct', 'Refined · precise · discerning', 'Clever · resourceful · adventurous',
+  'Intuitive · imaginative · gentle',
+];
+
+const cap = (t) => t[0].toUpperCase() + t.slice(1);
+
+// The short version: one line per point, for people who don't want the detail.
+export function buildSummary(chart, now = new Date()) {
+  const dm = chart.dayMaster;
+  const el = stemElement(dm);
+  const prof = DM_PROFILES[dm];
+  const st = analyseStrength(chart);
+  const fam = familyCounts(chart);
+  const top = fam.indexOf(Math.max(...fam));
+  const lines = [
+    { id: 'you', label: 'You', text: `${STEMS[dm]} ${isYang(dm) ? 'Yang' : 'Yin'} ${ELEMENTS[el].en}, like ${prof.image}.` },
+    { id: 'strengths', label: 'Strengths', text: `${DM_KEYWORDS[dm]}.` },
+    { id: 'watch', label: 'Watch for', text: `${cap(prof.watch.split(';')[0])}.` },
+    { id: 'theme', label: 'Main theme', text: `${FAMILIES[top].en}: ${FAMILIES[top].about}.` },
+    { id: 'helps', label: 'What helps', text: `${st.favourable.map((e) => ELEMENTS[e].en).join(', ')}. Try ${ELEMENT_TRAITS[st.useful].boost.split(';')[1].trim()}.` },
+  ];
+  const nowMs = now.getTime();
+  const idx = nowMs < chart.luck.startMs ? -1 : Math.min(Math.floor((nowMs - chart.luck.startMs) / (365.2422 * 86400000) / 10), 9);
+  const timing = [];
+  if (idx >= 0) {
+    const lp = chart.luck.pillars[idx];
+    timing.push({ id: 'decade', label: `This decade (${lp.fromYear}–${lp.fromYear + 9})`, pillar: lp.name, favour: pillarFavour(st, lp.stem, lp.branch), text: `${cap(GOD_DETAILS[lp.stemGod].theme)}.` });
+  }
+  const yp = annualPillar(now.getFullYear(), dm);
+  const clash = chart.pillars.some((p) => !p.missing && (p.branch - yp.branch + 12) % 12 === 6);
+  timing.push({ id: 'year', label: `${now.getFullYear()}`, pillar: yp.name, favour: pillarFavour(st, yp.stem, yp.branch), text: `${cap(GOD_DETAILS[yp.stemGod].theme)}.${clash ? ' Expect some change.' : ''}` });
+  const stars = symbolicStars(chart).map((x) => x.en);
+  return { lines, timing, stars };
 }

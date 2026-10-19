@@ -121,6 +121,8 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 - **Luck pillars (大运):** ten 10-year pillars, forward or backward by gender and year polarity. The start age is
   worked out from the days to the nearest solar term (3 days = 1 year). Tap a pillar to see its ten years (流年);
   the current ones are highlighted.
+- **Summary:** one screen for people who don't want the detail: the pillars, you in a line, strengths, what to
+  watch for, what helps, and whether this decade and year look favourable.
 - **Reading (plain English):** what the day master says about your strengths and watch-outs, what each pillar covers
   in life, which ten-god themes are strong or missing, element balance, and what the current luck pillar and year
   bring, plus a short guide to reading a chart. The text is in `src/baziread.js` and is framed as traditional

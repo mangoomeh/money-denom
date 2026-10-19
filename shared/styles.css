@@ -902,3 +902,24 @@ input[type="date"]:disabled { opacity: .7; }
 .cal-d.fav-hard { border-bottom-color: var(--bad); }
 .cal-d.now { outline: 2px solid var(--accent); }
 #now .lp { flex: 1 1 0; }
+.theme-bazi .tabs { overflow-x: auto; scrollbar-width: none; }
+.theme-bazi .tabs button { flex: 1 0 auto; padding-left: .55rem; padding-right: .55rem; }
+.summary-cta { width: 100%; margin-bottom: 1rem; }
+.sum-hero { text-align: center; }
+.sum-name { margin: 0 0 .5rem; font-weight: 700; font-size: 1.1rem; }
+.sum-pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.sum-p { display: flex; flex-direction: column; align-items: center; padding: .4rem 0; border-radius: 12px; }
+.sum-p.is-day { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sum-p.missing { opacity: .5; }
+.sum-p small { color: var(--muted); font-size: .75rem; }
+.sum-p b { font-size: 2.2rem; line-height: 1.15; font-family: "Songti SC", "Noto Serif SC", serif; }
+.sum { margin: 0; }
+.sum-row { padding: .55rem 0; border-top: 1px solid var(--border); }
+.sum-row:first-child { border-top: 0; padding-top: 0; }
+.sum dt { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.sum dd { margin: .15rem 0 0; font-size: 1rem; }
+.fav-badge.good { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.fav-badge.mixed { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.fav-badge.hard { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.sum-more { text-align: center; }
+.linkish { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; padding: 0; cursor: pointer; text-decoration: underline; }

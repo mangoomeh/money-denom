@@ -6,7 +6,7 @@ import {
 } from '../src/bazi.js';
 import { lunarToSolar, solarToLunar, lunarYearMonths, lunarMonthName, lunarDayName } from '../src/lunar.js';
 import { compareCharts } from '../src/bazimatch.js';
-import { buildReading, GOD_DETAILS, PILLAR_AREAS } from '../src/baziread.js';
+import { buildReading, buildSummary, GOD_DETAILS, PILLAR_AREAS, FAVOUR_TEXT } from '../src/baziread.js';
 
 const STORAGE_KEY = 'bazi-v1';
 const $ = (id) => document.getElementById(id);
@@ -233,6 +233,7 @@ function render() {
     $('headline').textContent = 'Enter a birth date';
     $('subline').textContent = 'Year, month, day and hour pillars';
     $('reading').innerHTML = '<div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div>';
+    $('summary').innerHTML = $('reading').innerHTML;
     renderLuck();
     renderNow();
     return;
@@ -249,6 +250,7 @@ function render() {
   renderHours();
   renderDetails(f);
   renderReading();
+  renderSummary(f);
   selectedLuck = null;
   renderLuck();
   renderNow();
@@ -417,6 +419,28 @@ function renderReading() {
       ${sec.intro ? `<p class="hint">${esc(sec.intro)}</p>` : ''}
       <dl>${sec.items.map((i) => `<dt>${esc(i.head)}</dt><dd>${esc(i.body)}</dd>`).join('')}</dl>
     </div>`).join('');
+}
+
+function renderSummary(f) {
+  const sum = buildSummary(chart);
+  const order = ['year', 'month', 'day', 'hour'];
+  const byKey = Object.fromEntries(chart.pillars.map((p) => [p.key, p]));
+  const labels = PILLAR_LABELS[lang()];
+  const pillarsHtml = order.map((k) => {
+    const p = byKey[k];
+    if (p.missing) return `<div class="sum-p missing"><small>${labels[k]}</small><b>?</b><b>?</b></div>`;
+    return `<div class="sum-p${k === 'day' ? ' is-day' : ''}"><small>${labels[k]}</small><b class="${elClass(stemElement(p.stem))}">${STEMS[p.stem]}</b><b class="${elClass(branchElement(p.branch))}">${BRANCHES[p.branch]}</b></div>`;
+  }).join('');
+  const row = (label, text, extra = '') => `<div class="sum-row"><dt>${esc(label)}</dt><dd>${extra}${esc(text)}</dd></div>`;
+  $('summary').innerHTML = `<div class="card sum-hero">
+      <p class="sum-name">${esc(f.name || 'Your chart')}</p>
+      <div class="sum-pillars">${pillarsHtml}</div>
+    </div>
+    <div class="card"><dl class="sum">${sum.lines.map((l) => row(l.label, l.text)).join('')}</dl></div>
+    <div class="card"><h2>Timing</h2><dl class="sum">${sum.timing.map((t) => row(`${t.label} · ${t.pillar}`, t.text,
+      `<span class="badge fav-badge ${t.favour}">${FAVOUR_TEXT[t.favour]}</span> `)).join('')}</dl></div>
+    ${sum.stars.length ? `<div class="card"><dl class="sum">${row('Stars', sum.stars.join(', '))}</dl></div>` : ''}
+    <p class="hint sum-more">Want more? <button class="linkish" data-go="reading">Reading</button> · <button class="linkish" data-go="chart">Full chart</button> · <button class="linkish" data-go="luck">Luck</button></p>`;
 }
 
 function currentLuckIndex() {
@@ -678,6 +702,8 @@ document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] sele
   render();
 }));
 $('save').addEventListener('click', saveChart);
+$('to-summary').addEventListener('click', () => switchTab('summary'));
+$('summary').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) switchTab(b.dataset.go); });
 $('share').addEventListener('click', shareChart);
 $('copy').addEventListener('click', () => chart && copyText(chartText(), 'Copied.'));
 $('hours').addEventListener('click', (e) => {
