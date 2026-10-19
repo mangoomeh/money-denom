@@ -1,15 +1,20 @@
 import {
   CHAINS, makeRpc, isAddress, normAddress, tokenInfo, earlyBuyers, groupInToken, walletFlows, formatAmount, percentOf,
 } from '../src/onchain.js';
+import {
+  SOLANA, isSolanaAddress, solRpcFor, solTokenInfo, solEarlyBuyers, solGroupInToken, solWalletFlows,
+} from '../src/solana.js';
+import { searchTokens, money, age } from '../src/tokensearch.js';
 
 const STORAGE_KEY = 'wallets-v1';
 const $ = (id) => document.getElementById(id);
 const chain = CHAINS.robinhood;
+const isSol = () => state.chain === 'solana';
 
 // ---- Saved settings and groups -------------------------------------------------------------
 
 function load() {
-  const defaults = { rpc: chain.rpc, blockscoutKey: '', heliusKey: '', groups: [], inputs: {} };
+  const defaults = { chain: 'robinhood', rpc: chain.rpc, blockscoutKey: '', heliusKey: '', groups: [], inputs: {} };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved) return { ...defaults, ...saved };
@@ -24,7 +29,7 @@ function save() {
 // ---- Small helpers ---------------------------------------------------------------------------------
 
 const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const explorer = (kind, id) => `${chain.explorer}/${kind}/${id}`;
+const explorer = (kind, id) => (isSol() ? `${SOLANA.explorer}/${kind === 'address' ? 'account' : kind}/${id}` : `${chain.explorer}/${kind}/${id}`);
 const timeText = (ts) => (ts == null ? '' : new Date(ts * 1000).toLocaleString('en-SG', {
   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 }));
@@ -45,9 +50,12 @@ function copy(text) {
   navigator.clipboard?.writeText(text).then(() => toast('Copied'), () => toast(text));
 }
 
+// The RPC for the chosen chain. Solana uses Helius when a key is set, else the free public node.
 function rpcFor(signal) {
+  if (isSol()) return solRpcFor({ heliusKey: state.heliusKey, signal });
   return makeRpc(state.rpc || chain.rpc, { signal });
 }
+const solKind = () => (state.heliusKey ? 'helius' : 'public');
 
 // ---- Time windows --------------------------------------------------------------------------------
 // Each search has a from/to pair of datetime inputs (in the phone's time zone) and quick presets.
@@ -140,9 +148,16 @@ async function runSearch(key, task) {
   }
 }
 
+const validAddress = (a) => (isSol() ? isSolanaAddress(a) : isAddress(a));
+const normalise = (a) => (isSol() ? a.trim() : normAddress(a));
+
 function requireAddress(value, what) {
-  if (!isAddress(value)) throw new Error(`That doesn’t look like a ${what} address (0x followed by 40 characters).`);
-  return normAddress(value);
+  if (!validAddress(value)) {
+    throw new Error(isSol()
+      ? `That doesn’t look like a Solana ${what} address (32–44 letters and numbers).`
+      : `That doesn’t look like a ${what} address (0x followed by 40 characters).`);
+  }
+  return normalise(value);
 }
 
 // ---- 1. Early buyers ------------------------------------------------------------------------------------
@@ -151,12 +166,14 @@ let lastBuyers = null;
 
 async function findBuyers() {
   await runSearch('b', async (rpc, step) => {
+    if (!validAddress($('b-token').value)) throw new Error('Pick a token from the search results, or paste its address.');
     const token = requireAddress($('b-token').value, 'token');
     const { start, end } = readWindow('b');
     const minPct = Math.max(0.01, Number($('b-min').value) || 1);
     state.inputs.bToken = token;
     state.inputs.bMin = minPct;
-    const result = await earlyBuyers(rpc, { token, start, end, minPct, countTransfersIn: $('b-transfers').checked, onStep: step });
+    const opts = { token, start, end, minPct, countTransfersIn: $('b-transfers').checked, onStep: step };
+    const result = isSol() ? await solEarlyBuyers(rpc, { ...opts, rpcKind: solKind() }) : await earlyBuyers(rpc, opts);
     lastBuyers = { ...result, token, start, end, minPct };
     renderBuyers();
   });
@@ -175,7 +192,7 @@ function renderBuyers() {
   const rows = r.wallets.map((w, i) => {
     const holdsPct = w.holds != null ? percentOf(w.holds, info.totalSupply) : null;
     const badges = [
-      w.bundledWith.length ? badge(`bundle with ${w.bundledWith.length}`, 'warn') : '',
+      w.bundledWith.length ? badge(isSol() ? `same block as ${w.bundledWith.length} other buyer${w.bundledWith.length === 1 ? '' : 's'}` : `bundle with ${w.bundledWith.length}`, 'warn') : '',
       w.isContract ? badge('contract') : '',
       w.sold > 0n ? badge(`sold ${formatAmount(w.sold, info.decimals)} in window`) : '',
       w.buys >= 20 ? badge(`${w.buys} buys: likely a trading bot`, 'warn') : '',
@@ -221,6 +238,7 @@ function saveGroup() {
   if (!name) return;
   state.groups.unshift({
     id: Date.now().toString(36),
+    chain: state.chain,
     name,
     token: r.token,
     symbol: r.info.symbol,
@@ -255,13 +273,14 @@ function exportCsv() {
 function renderGroups() {
   const sel = $('c-group');
   const current = sel.value;
-  sel.innerHTML = '<option value="">— none —</option>' + state.groups
+  const forChain = state.groups.filter((g) => (g.chain || 'robinhood') === state.chain);
+  sel.innerHTML = '<option value="">— none —</option>' + forChain
     .map((g) => `<option value="${g.id}">${esc(g.name)} (${g.wallets.length})</option>`).join('');
   if (state.groups.some((g) => g.id === current)) sel.value = current;
 
   $('s-groups-empty').hidden = state.groups.length > 0;
   $('s-groups').innerHTML = state.groups.map((g) => `
-    <li><span><b>${esc(g.name)}</b><small>${g.wallets.length} wallets · ${esc(g.symbol)}</small></span>
+    <li><span><b>${esc(g.name)}</b><small>${g.wallets.length} wallets · ${esc(g.symbol)} · ${g.chain === 'solana' ? 'Solana' : 'Robinhood Chain'}</small></span>
       <button type="button" class="icon-btn" data-id="${g.id}" aria-label="Delete group">✕</button></li>`).join('');
   $('s-groups').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     if (!confirm('Delete this group?')) return;
@@ -274,9 +293,9 @@ function renderGroups() {
 function compareWallets() {
   const fromGroup = state.groups.find((g) => g.id === $('c-group').value);
   const pasted = $('c-wallets').value.split(/[\s,]+/).filter(Boolean);
-  const bad = pasted.filter((a) => !isAddress(a));
+  const bad = pasted.filter((a) => !validAddress(a));
   if (bad.length) throw new Error(`Not a wallet address: ${bad[0]}`);
-  const wallets = [...new Set([...(fromGroup?.wallets.map((w) => w.address) || []), ...pasted.map(normAddress)])];
+  const wallets = [...new Set([...(fromGroup?.wallets.map((w) => w.address) || []), ...pasted.map(normalise)])];
   if (!wallets.length) throw new Error('Pick a saved group or paste some wallet addresses.');
   if (wallets.length > 100) throw new Error('Compare up to 100 wallets at a time.');
   return wallets;
@@ -285,10 +304,11 @@ function compareWallets() {
 async function runCompare() {
   await runSearch('c', async (rpc, step) => {
     const wallets = compareWallets();
+    if (!validAddress($('c-token').value)) throw new Error('Pick the other token from the search results, or paste its address.');
     const token = requireAddress($('c-token').value, 'token');
     const { start, end } = readWindow('c');
     state.inputs.cToken = token;
-    const r = await groupInToken(rpc, { token, wallets, start, end, onStep: step });
+    const r = isSol() ? await solGroupInToken(rpc, { token, wallets, start, end, onStep: step }) : await groupInToken(rpc, { token, wallets, start, end, onStep: step });
     const found = r.rows.filter((x) => x.found).sort((a, b) => (a.firstTs ?? Infinity) - (b.firstTs ?? Infinity));
     const missing = r.rows.filter((x) => !x.found);
     const { info } = r;
@@ -327,6 +347,12 @@ async function runWallet() {
     const { start, end } = readWindow('w');
     const direction = document.querySelector('input[name="w-dir"]:checked').value;
     state.inputs.wAddress = wallet;
+    if (isSol()) {
+      // On Solana, SOL transfers come with the transactions, so no extra key is needed.
+      const r = await solWalletFlows(rpc, { wallet, start, end, direction, rpcKind: solKind(), onStep: step });
+      renderWallet(wallet, direction, r, 'included');
+      return;
+    }
     const r = await walletFlows(rpc, { wallet, start, end, direction, onStep: step });
     const native = state.blockscoutKey ? await nativeFlows(wallet, r.fromBlock, r.toBlock, direction).catch((e) => ({ error: e.message })) : null;
     renderWallet(wallet, direction, r, native);
@@ -356,7 +382,7 @@ async function nativeFlows(wallet, fromBlock, toBlock, direction) {
 }
 
 function renderWallet(wallet, direction, r, native) {
-  const verb = direction === 'out' ? 'sent tokens to' : 'received tokens from';
+  const verb = isSol() ? (direction === 'out' ? 'sent SOL or tokens to' : 'received SOL or tokens from') : (direction === 'out' ? 'sent tokens to' : 'received tokens from');
   const people = r.groups.filter((g) => !g.isContract);
   const tokenText = (g) => [...g.byToken.entries()]
     .map(([t, v]) => `${formatAmount(v, r.tokens.get(t)?.decimals ?? 18)} ${r.tokens.get(t)?.symbol ?? '?'}${r.tokens.get(t)?.suspicious ? ' ⚠' : ''}`).join(', ');
@@ -374,7 +400,8 @@ function renderWallet(wallet, direction, r, native) {
       </button>
     </li>`;
   let nativeHtml = '';
-  if (native?.error) nativeHtml = `<p class="progress error">ETH transfers: ${esc(native.error)}</p>`;
+  if (native === 'included') nativeHtml = '';
+  else if (native?.error) nativeHtml = `<p class="progress error">ETH transfers: ${esc(native.error)}</p>`;
   else if (native) {
     nativeHtml = `<h3>ETH ${direction === 'out' ? 'sent to' : 'received from'} ${native.groups.length} address${native.groups.length === 1 ? '' : 'es'}</h3>
       <ol class="wallets">${native.groups.map((g) => `<li><button type="button" class="wallet-row" data-a="${g.address}">
@@ -390,7 +417,9 @@ function renderWallet(wallet, direction, r, native) {
     <p class="summary-line"><b>${verb} ${people.length} wallet${people.length === 1 ? '' : 's'}</b>
       ${r.groups.length > people.length ? `and ${r.groups.length - people.length} contract${r.groups.length - people.length === 1 ? '' : 's'}` : ''}
       (${r.transfers.toLocaleString()} transfers)</p>
-    ${r.groups.length ? `<ol class="wallets">${r.groups.map(row).join('')}</ol>` : '<p class="hint">No token transfers in this window.</p>'}
+    ${people.length ? `<ol class="wallets">${people.map(row).join('')}</ol>` : `<p class="hint">No transfers ${direction === 'out' ? 'to' : 'from'} other wallets in this window.</p>`}
+    ${r.groups.length > people.length ? `<details class="programs"><summary>${r.groups.length - people.length} contract${r.groups.length - people.length === 1 ? '' : 's'} (pools, apps)</summary>
+      <ol class="wallets">${r.groups.filter((g) => g.isContract).map(row).join('')}</ol></details>` : ''}
     ${nativeHtml}`;
   box.querySelectorAll('.wallet-row').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.a)));
 }
@@ -427,10 +456,10 @@ function switchTab(name) {
 async function showTokenInfo() {
   const el = $('b-token-info');
   const value = $('b-token').value.trim();
-  if (!isAddress(value)) { el.textContent = value ? 'Paste the full token address (0x…).' : ''; return; }
+  if (!validAddress(value)) { el.textContent = ''; return; }
   el.textContent = 'Looking up token…';
   try {
-    const info = await tokenInfo(rpcFor(), value);
+    const info = isSol() ? await solTokenInfo(rpcFor(), value.trim()) : await tokenInfo(rpcFor(), value);
     el.textContent = `${info.symbol}${info.name ? ` · ${info.name}` : ''} · supply ${formatAmount(info.totalSupply, info.decimals)}${info.suspicious ? ' · ⚠ name has hidden characters (possible fake)' : ''}`;
   } catch (err) {
     el.textContent = err.message;
@@ -444,15 +473,88 @@ $('w-run').addEventListener('click', runWallet);
 $('b-token').addEventListener('change', showTokenInfo);
 for (const [id, key] of [['s-rpc', 'rpc'], ['s-blockscout', 'blockscoutKey'], ['s-helius', 'heliusKey']]) {
   $(id).value = state[key] || '';
-  $(id).addEventListener('change', () => { state[key] = $(id).value.trim() || (key === 'rpc' ? chain.rpc : ''); $(id).value = state[key]; save(); });
+  $(id).addEventListener('change', () => {
+    state[key] = $(id).value.trim() || (key === 'rpc' ? chain.rpc : '');
+    $(id).value = state[key];
+    save();
+    if (key === 'heliusKey') applyChain();
+  });
 }
 $('b-token').value = state.inputs.bToken || '';
 $('b-min').value = state.inputs.bMin || 1;
 $('c-token').value = state.inputs.cToken || '';
 $('w-address').value = state.inputs.wAddress || '';
 
+// ---- Search by name -------------------------------------------------------------------------------------
+// Typing a name in a token field lists matching tokens on the chosen chain (via DexScreener).
+
+function attachSearch(inputId, boxId, onPick) {
+  const input = $(inputId);
+  const box = $(boxId);
+  let timer, controller;
+  const run = async () => {
+    const q = input.value.trim();
+    if (validAddress(q) || q.length < 2) { box.hidden = true; return; }
+    controller?.abort();
+    controller = new AbortController();
+    box.hidden = false;
+    box.innerHTML = '<p class="hint">Searching…</p>';
+    try {
+      const results = (await searchTokens(q, state.chain, { signal: controller.signal })).slice(0, 8);
+      if (!results.length) {
+        box.innerHTML = `<p class="hint">No ${isSol() ? 'Solana' : 'Robinhood Chain'} tokens found for “${esc(q)}”. Try the exact symbol, or paste the address.</p>`;
+        return;
+      }
+      box.innerHTML = `<ul>${results.map((t, i) => `
+        <li><button type="button" data-i="${i}">
+          <span class="who">
+            <span><b>${esc(t.symbol)}</b> <small>${esc(t.name)}</small></span>
+            <small class="mono">${esc(short(t.address))}</small>
+            ${t.possibleCopycat || t.oddLiquidity ? `<span class="badges">${t.possibleCopycat ? '<span class="badge warn">same name, far less trading: possible copycat</span>' : ''}${t.oddLiquidity ? '<span class="badge warn">big liquidity, almost no trading: suspicious</span>' : ''}</span>` : ''}
+          </span>
+          <span class="nums"><small>liquidity ${money(t.liquidityUsd)}</small><small>24h vol ${money(t.volume24h)}</small><small>${age(t.createdAt)}</small></span>
+        </button></li>`).join('')}</ul>
+        <p class="hint">Search by DexScreener, most traded first: the real token usually has the most trading.</p>`;
+      box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+        input.value = results[Number(b.dataset.i)].address;
+        box.hidden = true;
+        onPick?.();
+      }));
+    } catch (err) {
+      if (err.name !== 'AbortError') box.innerHTML = `<p class="progress error">${esc(err.message || 'Search failed.')}</p>`;
+    }
+  };
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 450); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); run(); } });
+}
+
+function applyChain() {
+  $('chain').value = state.chain;
+  const sol = isSol();
+  document.querySelectorAll('input.mono').forEach((i) => { i.placeholder = i.id.endsWith('-token') ? `e.g. Paper, or ${sol ? 'a Solana address' : '0x…'}` : (sol ? 'Solana address…' : '0x…'); });
+  $('b-search').hidden = true;
+  $('c-search').hidden = true;
+  const note = $('speed-note');
+  note.hidden = !sol;
+  note.innerHTML = sol && !state.heliusKey
+    ? 'Solana uses PublicNode’s free node (no key needed). Busy tokens over long windows can take a few minutes: short windows are quickest.'
+    : sol ? 'Solana uses your Helius key.' : '';
+  $('b-token-info').textContent = '';
+}
+$('chain').addEventListener('change', () => {
+  state.chain = $('chain').value;
+  save();
+  applyChain();
+  renderGroups();
+  if ($('b-token').value) showTokenInfo();
+});
+
+attachSearch('b-token', 'b-search', showTokenInfo);
+attachSearch('c-token', 'c-search');
+
 buildWindows();
 renderGroups();
+applyChain();
 if ($('b-token').value) showTokenInfo();
 
 // Exposed for automated tests.

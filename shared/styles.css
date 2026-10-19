@@ -727,6 +727,7 @@ input.mono, textarea.mono { font-size: .95rem !important; }
   color: var(--text);
 }
 .token-line { margin: .5rem 0 0; min-height: 1.2em; }
+.speed-note { margin: 0 0 1rem; padding: .65rem .85rem; border-radius: 10px; background: var(--card); border: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
 .window-row { display: grid; grid-template-columns: 1fr; gap: 0; }
 .window-row .field { min-width: 0; }
 .window-row .field input { font-size: .95rem; padding: .55rem .5rem; min-width: 0; }
@@ -789,3 +790,15 @@ input.mono, textarea.mono { font-size: .95rem !important; }
 .sheet-title { font-size: .8rem; overflow-wrap: anywhere; color: var(--muted); margin: 0 0 .75rem; }
 .sheet-actions { display: grid; gap: .5rem; margin-bottom: .5rem; }
 .sheet form > button { width: 100%; }
+
+.token-search { margin-top: .5rem; border: 1px solid var(--border); border-radius: 12px; padding: .25rem .6rem; background: var(--card); }
+.token-search ul { list-style: none; margin: 0; padding: 0; }
+.token-search li { border-top: 1px solid var(--border); }
+.token-search li:first-child { border-top: 0; }
+.token-search button { display: flex; gap: .6rem; align-items: center; width: 100%; padding: .55rem 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.token-search .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.token-search .who small { color: var(--muted); }
+.token-search .nums { display: flex; flex-direction: column; text-align: right; flex: none; }
+.token-search .nums small { color: var(--muted); font-size: .78rem; }
+details.programs { margin-top: .75rem; }
+details.programs summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: .3rem 0; }

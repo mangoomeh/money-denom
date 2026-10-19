@@ -18,7 +18,7 @@
       <span class="sr-only">Blockchain</span>
       <select id="chain">
         <option value="robinhood">Robinhood Chain</option>
-        <option value="solana" disabled>Solana (coming next, needs a Helius key)</option>
+        <option value="solana">Solana</option>
       </select>
     </label>
   </header>
@@ -31,14 +31,16 @@
   </nav>
 
   <main>
+    <p class="speed-note" id="speed-note" hidden></p>
     <!-- 1. Early buyers -->
     <section data-panel="buyers">
       <div class="card">
         <h2>Token</h2>
         <label class="field">
-          <span>Token contract address</span>
-          <input id="b-token" class="mono" placeholder="0x…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <span>Token name or contract address</span>
+          <input id="b-token" class="mono" placeholder="e.g. Paper, or 0x…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         </label>
+        <div class="token-search" id="b-search" hidden></div>
         <p class="hint token-line" id="b-token-info"></p>
       </div>
       <div class="card">
@@ -73,9 +75,10 @@
       <div class="card">
         <h2>Other token</h2>
         <label class="field">
-          <span>Token contract address</span>
-          <input id="c-token" class="mono" placeholder="0x…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <span>Token name or contract address</span>
+          <input id="c-token" class="mono" placeholder="e.g. Paper, or 0x…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         </label>
+        <div class="token-search" id="c-search" hidden></div>
         <div class="window" data-window="c"></div>
         <div class="actions">
           <button class="primary" id="c-run" type="button">Compare</button>
@@ -116,7 +119,7 @@
       </div>
       <div class="card">
         <h2>Data sources</h2>
-        <p class="hint">Robinhood Chain works without any key, using its free public node. Keys are stored only on this device.</p>
+        <p class="hint">Everything works without keys, using free public nodes. Keys are optional extras and are stored only on this device.</p>
         <label class="field">
           <span>Robinhood Chain node (RPC)</span>
           <input id="s-rpc" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -126,7 +129,7 @@
           <input id="s-blockscout" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Free at dev.blockscout.com">
         </label>
         <label class="field">
-          <span>Helius API key <small>(for Solana, coming next)</small></span>
+          <span>Helius API key <small>(optional backup for Solana)</small></span>
           <input id="s-helius" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Free at helius.dev">
         </label>
       </div>
@@ -134,7 +137,8 @@
         <h2>About the results</h2>
         <ul class="notes">
           <li><b>Bought</b> means tokens came from a contract such as a trading pool or launchpad. Airdrops from a contract count too.</li>
-          <li><b>Bundle</b> means one transaction gave tokens to several wallets at once, often a sign they belong to one person (or an airdrop).</li>
+          <li><b>Bundle</b> (Robinhood Chain) means one transaction gave tokens to several wallets at once, often a sign they belong to one person (or an airdrop). <b>Same block</b> (Solana) means several wallets bought in the same block, typical of sniper bundles.</li>
+          <li>On Solana, a <b>buy</b> is a wallet that signed a transaction and ended up with more of the token. Trades on old Raydium pools that don’t mention the token’s address can be missed.</li>
           <li><b>Contract</b> wallets are usually smart wallets, sometimes pools.</li>
           <li>A wallet is not a person: one trader can use many wallets. Early windows are often full of bots.</li>
           <li><b>⚠ Hidden characters</b> in a token name and <b>look-alike addresses</b> (same start and end as another) are common scams. Fake tokens can even make it look as if a wallet sent them.</li>

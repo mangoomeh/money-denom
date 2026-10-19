@@ -66,8 +66,12 @@ Instruments software is used.
 
 ### 🔎 Wallet Radar (`wallets/`)
 
-Shows who went into a token, and when, on Robinhood Chain. Solana is planned next and will need a free Helius key.
-It only reads public blockchain data: there's no wallet connection and nothing to sign.
+Shows who went into a token, and when, on **Robinhood Chain** and **Solana**. It needs no keys by default and only
+reads public blockchain data: there's no wallet connection and nothing to sign.
+
+- **Search by name:** type a token's name or symbol (via DexScreener's free search) and pick it from a list of
+  tokens on the chosen chain, most traded first. Copycats and tokens with "big liquidity, almost no trading" (a
+  sign of a fake) are flagged. You can also paste the address directly.
 
 - **Buyers:** the wallets that bought at least X% of a token's supply between two times. Each shows the first buy
   time, number of buys, amount sold in the window, net position, current holding, and flags:
@@ -81,8 +85,16 @@ It only reads public blockchain data: there's no wallet connection and nothing t
   wallet to follow the trail. ETH transfers need a free Blockscout key.
 - **Scam flags:** token names with hidden characters (fake look-alike tokens) and look-alike addresses (address
   poisoning) are flagged.
-- **Data source:** Robinhood Chain's free public RPC. `src/onchain.js` splits requests to fit the node's limits, backs
-  off when rate-limited, and fills in block times the node leaves out.
+- **Robinhood Chain data:** the chain's free public RPC. `src/onchain.js` splits requests to fit the node's limits,
+  backs off when rate-limited, and fills in block times the node leaves out.
+- **Solana data:** PublicNode's free node (`src/solana.js`). Solana's own public node blocks web pages, so it isn't
+  used.
+  - A **buy** is a wallet that signed a transaction and ended up with more of the token.
+  - **Same block** flags wallets that bought in the same block, typical of launch snipers.
+  - SOL transfers are included in the Wallet view.
+  - Token accounts and wallet-vs-program checks are worked out on the device, so the node's restricted "indexed"
+    calls aren't needed.
+  - An optional Helius key can be set as a backup.
 
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/) and
 [Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/).
