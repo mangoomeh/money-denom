@@ -96,8 +96,9 @@ reads public blockchain data: there's no wallet connection and nothing to sign.
     calls aren't needed.
   - An optional Helius key can be set as a backup.
 
-The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/) and
-[Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/).
+The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
+[Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/) and
+[Deliberate](https://mangoomeh.github.io/learn-react/).
 
 ## Running it
 
