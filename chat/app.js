@@ -295,6 +295,11 @@ function renderGuide() {
     <pre>OLLAMA_ORIGINS = ${esc(origin)}
 OLLAMA_HOST    = 0.0.0.0:11434</pre>
     <p>Then quit Ollama from the tray icon (bottom right) and start it again. If Windows Firewall asks, allow <b>Private networks</b> only.</p>
+    <p>Or do it all in <b>PowerShell</b> (no admin needed):</p>
+    <pre>[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "${esc(origin)}", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_HOST", "0.0.0.0:11434", "User")
+Get-Process "ollama*" | Stop-Process -Force
+Start-Process "$env:LOCALAPPDATA\Programs\Ollama\ollama app.exe"</pre>
     <p><b>Mac</b>: in Terminal, then quit and reopen Ollama:</p>
     <pre>launchctl setenv OLLAMA_ORIGINS "${esc(origin)}"
 launchctl setenv OLLAMA_HOST "0.0.0.0:11434"</pre>
