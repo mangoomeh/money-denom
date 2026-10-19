@@ -177,7 +177,7 @@ let renderQueued = false;
 function scheduleStreamRender() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; renderMessages(); });
+  requestAnimationFrame(() => { renderQueued = false; renderStreaming(); });
 }
 
 async function send(text) {
@@ -208,9 +208,46 @@ async function persistChat() {
 
 // ---- Rendering --------------------------------------------------------------------------------------
 
+// Auto-scroll follows the reply until you scroll up yourself; scrolling back to the bottom turns it on
+// again. Only your own gestures turn it off, never the page growing as text streams in.
 let stickToBottom = true;
+let touching = false; // a finger is on the chat: never scroll under it
 const scroller = $('scroller');
-scroller.addEventListener('scroll', () => { stickToBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80; });
+const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+scroller.addEventListener('touchstart', () => { touching = true; }, { passive: true });
+const touchEnd = () => { touching = false; stickToBottom = nearBottom(); renderJump(); };
+scroller.addEventListener('touchend', touchEnd, { passive: true });
+scroller.addEventListener('touchcancel', touchEnd, { passive: true });
+scroller.addEventListener('wheel', (e) => { if (e.deltaY < 0) { stickToBottom = false; renderJump(); } }, { passive: true });
+scroller.addEventListener('scroll', () => {
+  if (touching) return;
+  if (nearBottom()) stickToBottom = true; // scrolled back down: follow again
+  renderJump();
+}, { passive: true });
+function followBottom(force = false) {
+  if (force) stickToBottom = true;
+  if (stickToBottom && !touching) scroller.scrollTop = scroller.scrollHeight;
+  renderJump();
+}
+function renderJump() { $('jump').hidden = stickToBottom || nearBottom(); }
+
+// Reasoning boxes you opened or closed yourself keep that state; the rest open while the model
+// is thinking and fold away once the answer starts.
+const thinkChoice = new Map(); // message index → true (open) / false (closed)
+
+// What a message shows: its reasoning, its answer, and whether it is still coming in.
+function view(m, i, msgs) {
+  const streaming = !!controller && i === msgs.length - 1;
+  const split = splitThinking(m.content);
+  const thinking = (m.thinking || '') + (split.thinking ? `${m.thinking ? '\n' : ''}${split.thinking}` : '');
+  const answer = split.thinking || /^\s*<think>/.test(m.content) ? split.answer : m.content;
+  const stillThinking = streaming && !answer && !!(thinking || /^\s*<think>/.test(m.content));
+  const secs = m.finished && m.started ? Math.max(1, Math.round((m.finished - m.started) / 1000)) : null;
+  return { streaming, thinking, answer, stillThinking, secs };
+}
+const thinkOpen = (i, v) => (thinkChoice.has(i) ? thinkChoice.get(i) : v.stillThinking);
+const thinkLabel = (v) => (v.stillThinking ? 'Thinking…' : `Reasoning${v.secs ? ` · ${v.secs}s` : ''}`);
+const answerHtml = (v) => (v.answer ? renderMarkdown(v.answer) : v.streaming && !v.stillThinking ? '<span class="ch-dots"><i></i><i></i><i></i></span>' : '') + (v.streaming && v.answer ? '<span class="ch-caret">▍</span>' : '');
 
 function renderMessages(forceBottom = false) {
   const msgs = chat?.messages || [];
@@ -219,36 +256,58 @@ function renderMessages(forceBottom = false) {
   const lastUser = msgs.map((m) => m.role).lastIndexOf('user');
   $('messages').innerHTML = msgs.map((m, i) => {
     if (m.role === 'user') {
-      return `<div class="ch-msg user"><div class="ch-bubble">${(m.images || []).map((b) => `<img src="data:image/jpeg;base64,${b}" alt="">`).join('')}${m.content ? `<div class="ch-text">${esc(m.content).replace(/\n/g, '<br>')}</div>` : ''}</div>
+      return `<div class="ch-msg user" data-msg="${i}"><div class="ch-bubble">${(m.images || []).map((b) => `<img src="data:image/jpeg;base64,${b}" alt="">`).join('')}${m.content ? `<div class="ch-text">${esc(m.content).replace(/\n/g, '<br>')}</div>` : ''}</div>
         ${i === lastUser && !controller ? `<div class="ch-actions"><button type="button" data-act="edit" data-i="${i}">Edit</button></div>` : ''}</div>`;
     }
-    const streaming = controller && i === msgs.length - 1;
-    const split = splitThinking(m.content);
-    const thinking = (m.thinking || '') + (split.thinking ? `${m.thinking ? '\n' : ''}${split.thinking}` : '');
-    const answer = split.thinking || /^\s*<think>/.test(m.content) ? split.answer : m.content;
-    const stillThinking = streaming && !answer && (thinking || /^\s*<think>/.test(m.content));
-    const secs = m.finished && m.started ? Math.max(1, Math.round((m.finished - m.started) / 1000)) : null;
+    const v = view(m, i, msgs);
     const speed = m.stats?.tokens && m.stats?.seconds ? `${(m.stats.tokens / m.stats.seconds).toFixed(1)} tokens/s` : '';
-    return `<div class="ch-msg bot">
-      ${thinking ? `<details class="ch-think" ${stillThinking ? 'open' : ''}><summary>${stillThinking ? 'Thinking…' : `Reasoning${secs ? ` · ${secs}s` : ''}`}</summary><div class="ch-think-body">${esc(thinking).replace(/\n/g, '<br>')}</div></details>` : ''}
-      <div class="ch-md" data-i="${i}">${answer ? renderMarkdown(answer) : streaming && !stillThinking ? '<span class="ch-dots"><i></i><i></i><i></i></span>' : ''}${streaming && answer ? '<span class="ch-caret">▍</span>' : ''}</div>
+    return `<div class="ch-msg bot" data-msg="${i}">
+      ${v.thinking ? `<details class="ch-think" data-i="${i}" ${thinkOpen(i, v) ? 'open' : ''}><summary>${thinkLabel(v)}</summary><div class="ch-think-body">${esc(v.thinking)}</div></details>` : ''}
+      <div class="ch-md" data-i="${i}">${answerHtml(v)}</div>
       ${m.error ? `<div class="ch-error">⚠️ ${esc(m.error)}</div>` : ''}
       ${m.stopped ? '<div class="ch-meta">Stopped.</div>' : ''}
-      ${!streaming && !m.error && !m.stopped && (m.cutOff || (!answer && thinking)) ? `<div class="ch-notice">
+      ${!v.streaming && !m.error && !m.stopped && (m.cutOff || (!v.answer && v.thinking)) ? `<div class="ch-notice">
         <p>${m.cutOff
-          ? (answer ? 'The reply was cut off: the model ran out of memory.' : 'The model ran out of memory while reasoning, before it could answer.')
+          ? (v.answer ? 'The reply was cut off: the model ran out of memory.' : 'The model ran out of memory while reasoning, before it could answer.')
           : 'The model reasoned but didn\'t give a final answer.'} ${m.thought ? 'Turning thinking off for this question is usually faster, and works well for things like reading a receipt.' : ''}</p>
         ${i === lastAssistant ? `<div class="ch-btns">
           ${m.thought ? `<button type="button" class="secondary small" data-act="retry-nothink" data-i="${i}">Answer without thinking</button>` : ''}
           ${m.cutOff ? `<button type="button" class="secondary small" data-act="retry-more" data-i="${i}">Try again with more memory</button>` : ''}</div>` : ''}
       </div>` : ''}
-      ${streaming ? '' : `<div class="ch-actions">
-        ${answer ? `<button type="button" data-act="copy" data-i="${i}">Copy</button>` : ''}
+      ${v.streaming ? '' : `<div class="ch-actions">
+        ${v.answer ? `<button type="button" data-act="copy" data-i="${i}">Copy</button>` : ''}
         ${i === lastAssistant ? `<button type="button" data-act="regen" data-i="${i}">↻ Regenerate</button>` : ''}
         <span class="ch-meta">${esc(m.model || '')}${speed ? ` · ${speed}` : ''}</span></div>`}
     </div>`;
   }).join('');
-  if (forceBottom || stickToBottom) scroller.scrollTop = scroller.scrollHeight;
+  followBottom(forceBottom);
+}
+
+
+// While a reply streams in, update only that message in place, so the reasoning box keeps its
+// scroll position and your finger isn't fighting a redraw.
+function renderStreaming() {
+  const msgs = chat?.messages || [];
+  const i = msgs.length - 1;
+  const el = $('messages').lastElementChild;
+  if (!el || el.dataset.msg !== String(i) || msgs[i].role !== 'assistant') { renderMessages(); return; }
+  const v = view(msgs[i], i, msgs);
+  let details = el.querySelector('.ch-think');
+  if (v.thinking && !details) {
+    el.insertAdjacentHTML('afterbegin', `<details class="ch-think" data-i="${i}" ${thinkOpen(i, v) ? 'open' : ''}><summary></summary><div class="ch-think-body"></div></details>`);
+    details = el.querySelector('.ch-think');
+  }
+  if (details) {
+    details.querySelector('summary').textContent = thinkLabel(v);
+    const body = details.querySelector('.ch-think-body');
+    const follow = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+    if (body.textContent !== v.thinking) body.textContent = v.thinking;
+    if (follow) body.scrollTop = body.scrollHeight;
+    const open = thinkOpen(i, v);
+    if (details.open !== open) details.open = open;
+  }
+  el.querySelector('.ch-md').innerHTML = answerHtml(v);
+  followBottom();
 }
 
 function renderStatus() {
@@ -408,6 +467,13 @@ $('attachments').addEventListener('click', (e) => {
   if (b) { attachments.splice(Number(b.dataset.rm), 1); renderAttachments(); }
 });
 
+// Remember reasoning boxes you open or close yourself (a tap on the summary line).
+$('messages').addEventListener('click', (e) => {
+  const d = e.target.closest('summary')?.parentElement;
+  if (!d?.matches('.ch-think')) return;
+  setTimeout(() => thinkChoice.set(Number(d.dataset.i), d.open));
+});
+$('jump').addEventListener('click', () => { scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' }); stickToBottom = true; renderJump(); });
 $('messages').addEventListener('click', async (e) => {
   const copyBtn = e.target.closest('.md-copy');
   if (copyBtn) {
@@ -465,6 +531,7 @@ $('open-settings').addEventListener('click', () => openSheet('settings-sheet'));
 $('new-chat').addEventListener('click', () => {
   if (controller) controller.abort();
   chat = null;
+  thinkChoice.clear();
   settings.lastChat = null;
   persist();
   renderMessages();
@@ -484,6 +551,7 @@ $('chat-list').addEventListener('click', async (e) => {
   if (open) {
     if (controller) controller.abort();
     chat = chats.find((c) => c.id === open.dataset.open);
+    thinkChoice.clear();
     settings.lastChat = chat.id;
     if (chat.model && models.some((m) => m.name === chat.model)) { settings.model = chat.model; loadCaps(chat.model); renderModel(); }
     persist();
