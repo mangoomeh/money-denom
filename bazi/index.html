@@ -21,6 +21,7 @@
     <button role="tab" data-tab="chart" aria-selected="true">Chart</button>
     <button role="tab" data-tab="reading">Reading</button>
     <button role="tab" data-tab="luck">Luck</button>
+    <button role="tab" data-tab="match">Match</button>
     <button role="tab" data-tab="saved">Saved</button>
   </nav>
 
@@ -48,24 +49,25 @@
           <label><input type="radio" name="gender" value="female"> Female</label>
         </div>
         <p class="hint">Gender sets the direction of the luck pillars.</p>
-
-        <details class="programs">
-          <summary>Place and time options</summary>
+        <label class="field">
+          <span>Birthplace</span>
+          <select id="city"></select>
+        </label>
+        <p class="hint tz-line" id="tz-line"></p>
+        <div id="other-fields" hidden>
           <label class="field">
-            <span>Time zone at the birthplace <small>(standard time; subtract an hour if daylight saving was on)</small></span>
+            <span>Time zone at the birthplace <small>(add an hour if daylight saving was on)</small></span>
             <select id="tz"></select>
           </label>
-          <label class="check"><input type="checkbox" id="true-solar"> Use true solar time</label>
-          <div id="solar-fields" hidden>
-            <label class="field">
-              <span>Birthplace</span>
-              <select id="city"></select>
-            </label>
-            <label class="field">
-              <span>Longitude <small>(° east; negative for west)</small></span>
-              <input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal">
-            </label>
-          </div>
+          <label class="field">
+            <span>Longitude <small>(° east; negative for west; for true solar time)</small></span>
+            <input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal">
+          </label>
+        </div>
+
+        <details class="programs">
+          <summary>Time options</summary>
+          <label class="check"><input type="checkbox" id="true-solar"> Use true solar time (from the birthplace's longitude)</label>
           <label class="check"><input type="checkbox" id="zi-day" checked> 23:00 starts the next day (子时换日)</label>
           <p class="hint">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
         </details>
@@ -128,11 +130,23 @@
         <h2>Luck pillars <small>大运</small></h2>
         <p class="hint" id="luck-note">Enter a birth date on the Chart tab.</p>
         <div class="luck-row" id="luck"></div>
+        <p class="hint legend"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding <small>(by your favourable elements; see Reading)</small></p>
       </div>
       <div class="card" id="years-card" hidden>
         <h2 id="years-title">Years</h2>
         <div class="luck-row years" id="years"></div>
       </div>
+    </section>
+
+    <section data-panel="match" hidden>
+      <div class="card">
+        <h2>Compatibility <small>合婚</small></h2>
+        <p class="hint">Compare two charts. Save charts on the Chart tab first; the current chart is always available.</p>
+        <label class="field"><span>First person</span><select id="match-a"></select></label>
+        <label class="field"><span>Second person</span><select id="match-b"></select></label>
+      </div>
+      <div class="card reading" id="match-result" hidden></div>
+      <p class="speed-note">Traditional compatibility looks at how two charts fit. Real relationships depend on the people, so read this for fun and reflection.</p>
     </section>
 
     <section data-panel="saved" hidden>

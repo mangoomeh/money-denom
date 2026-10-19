@@ -134,12 +134,66 @@ test('reading: day master, pillars, themes, balance and timing', async () => {
   const c = computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8, gender: 'male' });
   assert.deepEqual(familyCounts(c), [1, 2, 0, 2, 0]); // 庚 劫财; 癸癸 食神; 丙 and 巳's 丙 正官
   const sections = buildReading(c, new Date(2026, 9, 19));
-  assert.deepEqual(sections.map((s) => s.title), ['You: 辛 Yin Metal', 'What each pillar covers', 'Your main themes', 'Element balance', 'Now']);
+  assert.deepEqual(sections.map((s) => s.title), ['You: 辛 Yin Metal', 'What each pillar covers', 'Your main themes', 'Strength and favourable elements', 'Now']);
   const text = JSON.stringify(sections);
   assert.ok(text.includes('Missing: Wealth'));
-  assert.ok(text.includes('Least: 木 Wood (missing from the eight characters)'));
-  assert.ok(text.includes('This decade: 癸卯 (from 2025)'));
-  assert.ok(text.includes('2026: 丙午'));
+  assert.ok(text.includes('Least: 木 Wood (missing)'));
+  assert.ok(text.includes('Day master: weak'));
+  assert.ok(text.includes('Useful element: 土 Earth'));
+  assert.ok(text.includes('This decade: 癸卯 (from 2025), demanding'));
+  assert.ok(text.includes('2026: 丙午, demanding'));
   assert.ok(text.includes('clashes with your month pillar 子 and year pillar 子'));
   assert.ok(text.includes('Hour pillar: unknown'));
+});
+
+test('time zones follow the birthplace history', async () => {
+  const { zoneOffset } = await import('../src/bazi.js');
+  assert.deepEqual(zoneOffset('Asia/Singapore', 1975, 6, 1, 8, 0), { offset: 7.5, dst: false }); // UTC+7:30 until 1982
+  assert.equal(zoneOffset('Asia/Singapore', 1982, 1, 2).offset, 8);
+  assert.deepEqual(zoneOffset('Asia/Shanghai', 1988, 7, 1, 8, 0), { offset: 9, dst: true }); // China DST 1986–91
+  assert.equal(zoneOffset('Asia/Shanghai', 1988, 12, 1).offset, 8);
+  assert.deepEqual(zoneOffset('Asia/Hong_Kong', 1970, 7, 1), { offset: 9, dst: true });
+  // the same clock time at UTC+7:30 is half an hour later in real time than at UTC+8
+  const real = computeChart({ year: 1975, month: 6, day: 1, hour: 23, minute: 15, tzOffset: 7.5 });
+  const naive = computeChart({ year: 1975, month: 6, day: 1, hour: 23, minute: 15, tzOffset: 8 });
+  assert.equal(real.utcMs - naive.utcMs, 30 * 60000);
+});
+
+test('day master strength and favourable elements', async () => {
+  const { analyseStrength, pillarFavour, ELEMENTS: EL } = await import('../src/bazi.js');
+  // 辛 metal born in the 子 (water) month, no metal or earth support from the season: weak
+  const s = analyseStrength(computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8 }));
+  assert.equal(s.verdict, 'weak');
+  assert.equal(s.checks.season, false);
+  assert.equal(s.checks.root, true); // 巳 holds 庚
+  assert.equal(EL[s.useful].en, 'Earth'); // drained by water (output): the resource helps
+  assert.deepEqual(s.favourable.map((e) => EL[e].en), ['Earth', 'Metal']);
+  assert.equal(pillarFavour(s, 4, 9), 'good'); // 戊酉: earth and metal
+  assert.equal(pillarFavour(s, 2, 6), 'hard'); // 丙午: fire
+  // 26 Dec 1893: 丁 fire in winter, the published reading needs wood
+  const m = analyseStrength(computeChart({ year: 1893, month: 12, day: 26, hour: 8, minute: 0, tzOffset: 8 }));
+  assert.equal(m.lean, 'weak');
+  assert.equal(EL[m.useful].en, 'Wood');
+});
+
+test('compatibility checks day masters, spouse palaces, zodiac and elements', async () => {
+  const { compareCharts } = await import('../src/bazimatch.js');
+  // 甲子 day and 己丑 day: day masters combine (甲己) and day branches combine (子丑)
+  const find = (d) => {
+    for (let t = Date.UTC(1990, 0, 1); ; t += 86400000) {
+      const x = new Date(t);
+      const c = computeChart({ year: x.getUTCFullYear(), month: x.getUTCMonth() + 1, day: x.getUTCDate(), hour: 12, minute: 0, tzOffset: 8, gender: 'female' });
+      if (c.pillars[1].name === d) return c;
+    }
+  };
+  const he = find('甲子'); const she = find('己丑');
+  const r = compareCharts({ ...he, input: { ...he.input, gender: 'male' } }, she, 'He', 'She');
+  const heads = r.factors.map((f) => f.head);
+  assert.ok(heads.includes('Day masters 甲己 combine'));
+  assert.ok(heads.includes('Spouse palaces (day branches): 子丑 combine'));
+  assert.ok(heads.includes("She is He's spouse star")); // 己 is 正财 to 甲
+  assert.ok(['Very supportive', 'Supportive'].includes(r.verdict));
+  const clash = compareCharts(he, find('庚午'), 'X', 'Y');
+  assert.ok(clash.factors.some((f) => f.head === 'Day masters 甲庚 clash'));
+  assert.ok(clash.factors.some((f) => f.head === 'Spouse palaces (day branches): 子午 clash'));
 });

@@ -198,6 +198,26 @@ const TRIOS = [[8, 0, 4, 4], [11, 3, 7, 0], [2, 6, 10, 1], [5, 9, 1, 3]]; // 三
 const MEETINGS = [[2, 3, 4, 0], [5, 6, 7, 1], [8, 9, 10, 3], [11, 0, 1, 4]]; // 三会 + element
 const PUNISH_TRIOS = [[2, 5, 8], [1, 10, 7]];
 
+// How two branches relate: six combination (element), shared three-harmony group (element), clash, harm, punishment.
+export function branchPair(a, b) {
+  const key = a < b ? `${a},${b}` : `${b},${a}`;
+  const trio = TRIOS.find((t) => a !== b && t.slice(0, 3).includes(a) && t.slice(0, 3).includes(b));
+  return {
+    combo: key in BRANCH_SIX ? BRANCH_SIX[key] : null,
+    trio: trio ? trio[3] : null,
+    clash: mod(a - b, 12) === 6,
+    harm: HARMS.includes(key),
+    punish: key === '0,3' || PUNISH_TRIOS.some((t) => a !== b && t.includes(a) && t.includes(b))
+      || (a === b && [4, 6, 9, 11].includes(a)),
+  };
+}
+
+// How two stems relate: five combination (element) or clash.
+export function stemPair(a, b) {
+  const key = a < b ? `${a},${b}` : `${b},${a}`;
+  return { combo: key in STEM_COMBOS ? STEM_COMBOS[key] : null, clash: Math.abs(a - b) === 6 };
+}
+
 // Combinations, clashes, harms and punishments among the pillars.
 export function interactions(pillars) {
   const out = [];
@@ -349,6 +369,82 @@ export function computeChart(input) {
 export function annualPillar(year, dm) {
   const p = pillarOf(year - 4);
   return { ...p, year, name: pillarName(p), stemGod: tenGod(dm, p.stem), branchGod: tenGod(dm, HIDDEN_STEMS[p.branch][0]) };
+}
+
+// ---- Day master strength ---------------------------------------------------------------
+
+// Scores each element across the chart: the day master and other visible stems count 1, hidden stems
+// 1 / 0.5 / 0.3 (main / middle / residual), and the month branch counts double because it sets the season.
+// Support is the day master's own element plus the one that produces it.
+export function analyseStrength(chart) {
+  const e = stemElement(chart.dayMaster);
+  const scores = [0, 0, 0, 0, 0];
+  for (const p of chart.pillars) {
+    if (p.missing) continue;
+    scores[stemElement(p.stem)] += 1;
+    const w = p.key === 'month' ? 2 : 1;
+    HIDDEN_STEMS[p.branch].forEach((h, i) => { scores[stemElement(h)] += w * [1, 0.5, 0.3][i]; });
+  }
+  const at = (k) => scores[(e + k) % 5]; // 0 self, 1 output, 2 wealth, 3 officer, 4 resource
+  const support = at(0) + at(4);
+  const total = scores.reduce((a, b) => a + b, 0);
+  const ratio = support / total;
+  const verdict = ratio >= 0.55 ? 'strong' : ratio <= 0.42 ? 'weak' : 'balanced';
+  const lean = ratio >= 0.485 ? 'strong' : 'weak';
+  const month = chart.pillars.find((p) => p.key === 'month');
+  const supports = (s) => [0, 4].includes(mod(stemElement(s) - e, 5));
+  const checks = {
+    season: supports(HIDDEN_STEMS[month.branch][0]),
+    root: chart.pillars.some((p) => !p.missing && HIDDEN_STEMS[p.branch].some((h) => stemElement(h) === e)),
+    help: chart.pillars.filter((p) => !p.missing && p.key !== 'day' && supports(p.stem)).length,
+  };
+  let useful;
+  let reason;
+  if (lean === 'strong') {
+    if (at(0) >= at(4)) { useful = (e + 3) % 5; reason = 'companions'; } else { useful = (e + 2) % 5; reason = 'resource'; }
+  } else {
+    const drains = [[1, at(1)], [2, at(2)], [3, at(3)]].sort((x, y) => y[1] - x[1]);
+    reason = ['', 'output', 'wealth', 'officer'][drains[0][0]];
+    useful = drains[0][0] === 2 ? e : (e + 4) % 5;
+  }
+  const favourable = (lean === 'strong' ? [1, 2, 3] : [4, 0]).map((k) => (e + k) % 5);
+  const unfavourable = (lean === 'strong' ? [4, 0] : [1, 2, 3]).map((k) => (e + k) % 5);
+  return { scores, support, total, ratio, verdict, lean, checks, useful, reason, favourable, unfavourable };
+}
+
+// How a stem and branch (a luck pillar or year) sit with the favourable elements.
+export function pillarFavour(strength, stem, branch) {
+  const fav = (el) => strength.favourable.includes(el);
+  const n = Number(fav(stemElement(stem))) + Number(fav(BRANCH_ELEMENT[branch]));
+  return n === 2 ? 'good' : n === 1 ? 'mixed' : 'hard';
+}
+
+// ---- Time zones --------------------------------------------------------------------------
+
+// UTC offset in hours of an IANA zone at an instant, from the browser's time zone history.
+function zoneOffsetAt(zone, ms) {
+  const f = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+  });
+  const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  const wall = new Date(0);
+  wall.setUTCFullYear(Number(p.year), Number(p.month) - 1, Number(p.day));
+  wall.setUTCHours(Number(p.hour), Number(p.minute), Number(p.second), 0);
+  return Math.round((wall.getTime() - ms) / 60000) / 60;
+}
+
+// The offset that applied to a local clock time in a zone, and whether it was daylight saving
+// (more than the year's lowest offset).
+export function zoneOffset(zone, year, month, day, hour = 12, minute = 0) {
+  const wall = new Date(0);
+  wall.setUTCFullYear(year, month - 1, day);
+  wall.setUTCHours(hour, minute, 0, 0);
+  let offset = zoneOffsetAt(zone, wall.getTime());
+  offset = zoneOffsetAt(zone, wall.getTime() - offset * 3600000);
+  const jan = new Date(0); jan.setUTCFullYear(year, 0, 15);
+  const jul = new Date(0); jul.setUTCFullYear(year, 6, 15);
+  const standard = Math.min(zoneOffsetAt(zone, jan.getTime()), zoneOffsetAt(zone, jul.getTime()));
+  return { offset, dst: offset > standard };
 }
 
 // Apparent minus mean solar time, in minutes.

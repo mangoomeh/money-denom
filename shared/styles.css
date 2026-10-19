@@ -870,3 +870,15 @@ div.lp { cursor: default; }
 .reading dt:first-child { margin-top: 0; }
 .reading dd { margin: .2rem 0 0; }
 .how-to { margin-top: .5rem; }
+.tz-line { margin: .4rem 0 0; min-height: 1em; }
+.lp { position: relative; overflow: hidden; }
+.lp::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; }
+.lp.fav-good::before, .fav.good { background: var(--ok); }
+.lp.fav-mixed::before, .fav.mixed { background: var(--warn); }
+.lp.fav-hard::before, .fav.hard { background: var(--bad); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .45rem; font-size: .8rem; margin: .5rem 0 0; }
+.fav { display: inline-block; width: .9rem; height: .3rem; border-radius: 2px; }
+.pts { display: inline-block; min-width: 2.2rem; text-align: center; font-size: .8rem; border-radius: 999px; padding: 0 .35rem; margin-right: .25rem; font-variant-numeric: tabular-nums; }
+.pts.plus { background: var(--ok-bg); color: var(--ok); }
+.pts.minus { background: var(--bad-bg); color: var(--bad); }
+.pts.zero { background: var(--bg); color: var(--muted); }

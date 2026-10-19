@@ -107,8 +107,11 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 - **Solar terms:** the year changes at 立春 and each month at its solar term. The terms are worked out from the sun's
   position (abridged VSOP87, in `src/bazi.js`), so the app needs no tables or network and agrees with published
   times to within a minute. The chart shows which term the birth month began with.
-- **True solar time (optional):** pick a city or enter a longitude, and the day and hour pillars use local solar
-  time (longitude plus the equation of time). You can choose whether 23:00 starts the next day.
+- **Birthplace and historical time zones:** pick a city and the app uses the UTC offset that applied there on the
+  birth date, from the browser's time zone history. For example, Singapore and Malaysia were UTC+7:30 until 1982,
+  and China used daylight saving from 1986 to 1991. "Other" lets you set the offset and longitude by hand.
+- **True solar time (optional):** the day and hour pillars use local solar time (the birthplace's longitude plus the
+  equation of time). You can also choose whether 23:00 starts the next day.
 - **Five elements, day master, and interactions:** element counts (with and without hidden stems), stem
   combinations and clashes, branch combinations, clashes, harms, punishments, three-harmony and directional groups,
   and the void branches.
@@ -119,6 +122,11 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   in life, which ten-god themes are strong or missing, element balance, and what the current luck pillar and year
   bring, plus a short guide to reading a chart. The text is in `src/baziread.js` and is framed as traditional
   interpretation, not prediction.
+- **Strength and favourable elements:** scores whether the day master is strong or weak (all stems and hidden
+  stems, with the month counted double), shows the three classic checks (得令, 得地, 得势), and picks the useful
+  element (用神) and the favourable ones. Luck pillars and years are marked favourable, mixed or demanding.
+- **Match:** compares two charts (the current one and any saved one) on day masters, spouse star, spouse
+  palaces (day branches), zodiac signs and whether each brings the other's favourable elements (`src/bazimatch.js`).
 - **Saved charts** are kept on the device.
 
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
@@ -139,7 +147,7 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
 - `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`), with all money in integer cents
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

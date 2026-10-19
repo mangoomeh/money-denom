@@ -3,7 +3,7 @@
 // beyond counting.
 
 import {
-  STEMS, BRANCHES, ELEMENTS, TEN_GODS, stemElement, isYang, annualPillar,
+  STEMS, BRANCHES, ELEMENTS, TEN_GODS, stemElement, isYang, annualPillar, analyseStrength, pillarFavour,
 } from './bazi.js';
 
 export const DM_PROFILES = [
@@ -54,6 +54,8 @@ export const ELEMENT_TRAITS = [
   { traits: 'structure, decisiveness and fairness', boost: 'white and gold, the west, autumn; decluttering, order and clear rules' },
   { traits: 'wisdom, flexibility and communication', boost: 'black and blue, the north, winter; rest, reflection, water and travel' },
 ];
+
+export const FAVOUR_TEXT = { good: 'favourable', mixed: 'mixed', hard: 'demanding' };
 
 const familyOf = (god) => Math.floor(god / 2);
 const godLine = (g) => `${TEN_GODS[g].zh} ${TEN_GODS[g].en}: ${GOD_DETAILS[g].theme}`;
@@ -119,17 +121,31 @@ export function buildReading(chart, now = new Date()) {
     items: famItems,
   });
 
+  const st = analyseStrength(chart);
+  const elName = (i) => `${ELEMENTS[i].zh} ${ELEMENTS[i].en}`;
+  const pct = Math.round(st.ratio * 100);
+  const verdictText = st.verdict === 'balanced' ? `balanced, leaning ${st.lean}` : st.verdict;
+  const yes = (b) => (b ? 'yes' : 'no');
+  const REASONS = {
+    companions: 'Your own element is plentiful, so the element that disciplines it helps most.',
+    resource: 'You are strong mainly through support (Resource), so the element that controls that support helps most.',
+    output: 'Your energy is drained mostly through Output, so the element that feeds you helps most.',
+    officer: 'You are pressed mostly by Officer, so the element that feeds you (and absorbs that pressure) helps most.',
+    wealth: 'You are stretched mostly by Wealth, so companions of your own element help most.',
+  };
   const w = chart.weighted;
   const hi = w.indexOf(Math.max(...w));
   const lo = w.indexOf(Math.min(...w));
-  const elItems = [
-    { head: `Most: ${ELEMENTS[hi].zh} ${ELEMENTS[hi].en}`, body: `Brings ${ELEMENT_TRAITS[hi].traits}. Too much of one element can tip into its excess.` },
-    { head: `Least: ${ELEMENTS[lo].zh} ${ELEMENTS[lo].en}${chart.counts[lo] === 0 ? ' (missing from the eight characters)' : ''}`, body: `Stands for ${ELEMENT_TRAITS[lo].traits}. Traditionally people strengthen a weak element through ${ELEMENT_TRAITS[lo].boost}.` },
-  ];
   sections.push({
-    title: 'Element balance',
-    intro: 'A balanced chart is considered easier to live with. Practitioners also weigh the season and the day master’s strength before choosing a “useful” element, so treat this as a starting point.',
-    items: elItems,
+    title: 'Strength and favourable elements',
+    intro: 'Practitioners first judge whether the day master is strong or weak, then pick the elements that bring it into balance (用神). This uses one common scoring method; others can differ, especially for extreme charts.',
+    items: [
+      { head: `Day master: ${verdictText} (${pct}% support)`, body: `Support is your own element plus the one that produces you, weighted across all the stems and hidden stems, with the month counted double. Born in season (得令): ${yes(st.checks.season)}. Rooted in a branch (得地): ${yes(st.checks.root)}. Supporting stems (得势): ${st.checks.help}.` },
+      { head: `Useful element: ${elName(st.useful)}`, body: `${REASONS[st.reason]} Traditionally you'd bring it in through ${ELEMENT_TRAITS[st.useful].boost}.` },
+      { head: `Favourable: ${st.favourable.map(elName).join(', ')}`, body: `${st.lean === 'strong' ? 'A strong day master does well when its energy is used: expressed, earned and disciplined.' : 'A weaker day master does well with support: learning, mentors and allies.'} Luck pillars and years of these elements tend to feel easier.` },
+      { head: `Less favourable: ${st.unfavourable.map(elName).join(', ')}`, body: 'Periods heavy in these tend to need more effort. They are not “bad”, just more demanding.' },
+      { head: `Most: ${elName(hi)} · Least: ${elName(lo)}${chart.counts[lo] === 0 ? ' (missing)' : ''}`, body: `${ELEMENTS[hi].en} brings ${ELEMENT_TRAITS[hi].traits}; ${ELEMENTS[lo].en} stands for ${ELEMENT_TRAITS[lo].traits}.` },
+    ],
   });
 
   const timing = [];
@@ -138,7 +154,7 @@ export function buildReading(chart, now = new Date()) {
   if (idx >= 0) {
     const lp = chart.luck.pillars[idx];
     timing.push({
-      head: `This decade: ${lp.name} (from ${lp.fromYear})`,
+      head: `This decade: ${lp.name} (from ${lp.fromYear}), ${FAVOUR_TEXT[pillarFavour(st, lp.stem, lp.branch)]}`,
       body: `The stem brings ${godLine(lp.stemGod)}, mostly felt in the first five years. The branch brings ${godLine(lp.branchGod)}, mostly felt in the last five. At its best: ${GOD_DETAILS[lp.stemGod].plus}. Watch for ${GOD_DETAILS[lp.stemGod].minus}.`,
     });
   } else {
@@ -148,7 +164,7 @@ export function buildReading(chart, now = new Date()) {
   const yp = annualPillar(year, dm);
   const clashes = chart.pillars.filter((p) => !p.missing && (p.branch - yp.branch + 12) % 12 === 6);
   timing.push({
-    head: `${year}: ${yp.name}`,
+    head: `${year}: ${yp.name}, ${FAVOUR_TEXT[pillarFavour(st, yp.stem, yp.branch)]}`,
     body: `This year brings ${godLine(yp.stemGod)}. At its best: ${GOD_DETAILS[yp.stemGod].plus}. Watch for ${GOD_DETAILS[yp.stemGod].minus}.${clashes.length
       ? ` Its branch ${BRANCHES[yp.branch]} clashes with your ${clashes.map((p) => `${PILLAR_AREAS[p.key].label.toLowerCase()} ${BRANCHES[p.branch]}`).join(' and ')}, traditionally a sign of movement or change in ${clashes.map((p) => PILLAR_AREAS[p.key].short).join(', and in ')}.`
       : ''}`,

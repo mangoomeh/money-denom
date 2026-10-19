@@ -1,21 +1,29 @@
 import {
   STEMS, STEM_PINYIN, BRANCHES, BRANCH_PINYIN, ANIMALS, ELEMENTS, TEN_GODS, LIFE_STAGES, LIFE_STAGES_EN,
   NAYIN, NAYIN_EN, HIDDEN_STEMS, BRANCH_ELEMENT, stemElement, isYang, computeChart, annualPillar, parseBirth,
+  zoneOffset, analyseStrength, pillarFavour,
 } from '../src/bazi.js';
+import { compareCharts } from '../src/bazimatch.js';
 import { buildReading, GOD_DETAILS, PILLAR_AREAS } from '../src/baziread.js';
 
 const STORAGE_KEY = 'bazi-v1';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+// Birthplaces with their longitude and IANA time zone; the zone's history gives the offset on the birth date.
 const CITIES = [
-  ['Singapore', 103.82, 8], ['Kuala Lumpur', 101.69, 8], ['Penang', 100.33, 8], ['Jakarta', 106.85, 7],
-  ['Bangkok', 100.5, 7], ['Ho Chi Minh City', 106.66, 7], ['Manila', 120.98, 8], ['Hong Kong', 114.17, 8],
-  ['Macau', 113.54, 8], ['Taipei', 121.56, 8], ['Beijing', 116.4, 8], ['Shanghai', 121.47, 8],
-  ['Guangzhou', 113.26, 8], ['Shenzhen', 114.06, 8], ['Xiamen', 118.09, 8], ['Chengdu', 104.07, 8],
-  ['Ürümqi', 87.62, 8], ['Tokyo', 139.69, 9], ['Seoul', 126.98, 9], ['Sydney', 151.21, 10],
-  ['London', -0.13, 0], ['New York', -74.01, -5], ['San Francisco', -122.42, -8],
+  ['Singapore', 103.82, 'Asia/Singapore'], ['Kuala Lumpur', 101.69, 'Asia/Kuala_Lumpur'], ['Penang', 100.33, 'Asia/Kuala_Lumpur'],
+  ['Johor Bahru', 103.76, 'Asia/Kuala_Lumpur'], ['Kuching', 110.34, 'Asia/Kuching'], ['Jakarta', 106.85, 'Asia/Jakarta'],
+  ['Bangkok', 100.5, 'Asia/Bangkok'], ['Ho Chi Minh City', 106.66, 'Asia/Ho_Chi_Minh'], ['Manila', 120.98, 'Asia/Manila'],
+  ['Hong Kong', 114.17, 'Asia/Hong_Kong'], ['Macau', 113.54, 'Asia/Macau'], ['Taipei', 121.56, 'Asia/Taipei'],
+  ['Beijing', 116.4, 'Asia/Shanghai'], ['Shanghai', 121.47, 'Asia/Shanghai'], ['Guangzhou', 113.26, 'Asia/Shanghai'],
+  ['Shenzhen', 114.06, 'Asia/Shanghai'], ['Xiamen', 118.09, 'Asia/Shanghai'], ['Chengdu', 104.07, 'Asia/Shanghai'],
+  ['Ürümqi (Beijing time)', 87.62, 'Asia/Shanghai'], ['Tokyo', 139.69, 'Asia/Tokyo'], ['Seoul', 126.98, 'Asia/Seoul'],
+  ['Sydney', 151.21, 'Australia/Sydney'], ['Melbourne', 144.96, 'Australia/Melbourne'], ['Perth', 115.86, 'Australia/Perth'],
+  ['Auckland', 174.76, 'Pacific/Auckland'], ['London', -0.13, 'Europe/London'], ['New York', -74.01, 'America/New_York'],
+  ['Toronto', -79.38, 'America/Toronto'], ['Vancouver', -123.12, 'America/Vancouver'], ['San Francisco', -122.42, 'America/Los_Angeles'],
 ];
+const cityOf = (name) => CITIES.find(([n]) => n === name);
 
 const DM_NOTES = [
   'a tall tree: upright, growing, principled',
@@ -57,7 +65,7 @@ function fillSelects() {
     tzSel.add(new Option(`UTC${sign}${Math.floor(abs)}${abs % 1 ? ':30' : ''}`, String(h)));
   }
   for (const [name] of CITIES) $('city').add(new Option(name, name));
-  $('city').add(new Option('Other (enter longitude)', ''));
+  $('city').add(new Option('Other (set time zone)', ''));
 }
 
 function writeForm(f) {
@@ -69,8 +77,8 @@ function writeForm(f) {
   document.querySelector(`input[name="gender"][value="${f.gender}"]`).checked = true;
   $('tz').value = String(f.tz);
   $('true-solar').checked = f.trueSolar;
-  $('solar-fields').hidden = !f.trueSolar;
-  $('city').value = f.city;
+  $('city').value = cityOf(f.city) ? f.city : '';
+  $('other-fields').hidden = $('city').value !== '';
   $('lon').value = f.lon;
   $('zi-day').checked = f.ziDay;
 }
@@ -90,15 +98,28 @@ function readForm() {
   };
 }
 
+const fmtOffset = (h) => `UTC${h < 0 ? '−' : '+'}${Math.floor(Math.abs(h))}${Math.abs(h) % 1 ? `:${String(Math.round((Math.abs(h) % 1) * 60)).padStart(2, '0')}` : ''}`;
+
+// The birthplace's UTC offset and longitude for a form; a listed city uses its zone's history.
+function placeFor(f, birth) {
+  const city = cityOf(f.city);
+  if (!city) return { tz: f.tz, lon: f.lon, city: null };
+  const { offset, dst } = zoneOffset(city[2], birth.year, birth.month, birth.day, birth.hour, birth.minute);
+  const today = zoneOffset(city[2], new Date().getFullYear(), 1, 15).offset;
+  return { tz: offset, lon: city[1], city: city[0], dst, changed: offset !== today && !dst, today };
+}
+
 function chartFrom(f) {
   if (!f.date) return { error: null };
   const birth = parseBirth(f.date, f.noTime ? '' : f.time);
   if (!birth) return { error: 'That date isn’t valid. Enter a date between 1800 and 2200.' };
   if (!f.noTime && !f.time) return { error: 'Enter the birth time, or tick “I don’t know the birth time”.' };
+  const place = placeFor(f, birth);
   return {
+    place,
     chart: computeChart({
-      ...birth, tzOffset: f.tz, gender: f.gender, ziStartsDay: f.ziDay,
-      trueSolar: f.trueSolar && Number.isFinite(f.lon), longitude: f.lon,
+      ...birth, tzOffset: place.tz, gender: f.gender, ziStartsDay: f.ziDay,
+      trueSolar: f.trueSolar && Number.isFinite(place.lon), longitude: place.lon,
     }),
   };
 }
@@ -123,7 +144,9 @@ function render() {
   const f = readForm();
   state.form = f;
   persist();
-  const { chart: c, error } = chartFrom(f);
+  if ($('match-a').options.length) renderMatchOptions();
+  const { chart: c, error, place } = chartFrom(f);
+  renderTzLine(place);
   chart = c || null;
   $('error').hidden = !error;
   $('error').textContent = error || '';
@@ -194,6 +217,15 @@ function explain(code) {
   }
 }
 
+function renderTzLine(place) {
+  const line = $('tz-line');
+  if (!place || !place.city) { line.textContent = ''; return; }
+  let text = `Clock time there on that date: ${fmtOffset(place.tz)}`;
+  if (place.dst) text += ', daylight saving (already allowed for)';
+  else if (place.changed) text += ` (it's ${fmtOffset(place.today)} today)`;
+  line.textContent = `${text}.`;
+}
+
 function renderPillars() {
   $('chart-note').textContent = chart.input.timeKnown ? '' : '· hour unknown';
   const btn = (code, html, cls = '') => `<button type="button" class="pv ${cls}" data-x="${code}">${html}</button>`;
@@ -246,10 +278,13 @@ function renderInteractions() {
   $('interactions').innerHTML = items.length ? items.join('') : '<li>No combinations or clashes between these pillars.</li>';
 }
 
+const chartPlaceName = (f) => (cityOf(f.city) ? `, ${cityOf(f.city)[0]}` : '');
+
 function renderDetails(f) {
   const rows = [];
   const { jie, input } = chart;
   rows.push(['Solar year', `${chart.solarYear} (${chart.pillars[3].name}, ${chart.animal})`]);
+  rows.push(['Time zone', `${fmtOffset(input.tzOffset)}${chartPlaceName(f)}`]);
   rows.push(['Month began', `${jie.prev.zh} ${jie.prev.en}, ${fmtLocal(jie.prev.ms, input.tzOffset)}`]);
   rows.push(['Next term', `${jie.next.zh} ${jie.next.en}, ${fmtLocal(jie.next.ms, input.tzOffset)}`]);
   if (chart.solarTime && chart.solarTime.longitudeMinutes != null) {
@@ -302,7 +337,8 @@ function renderLuck() {
   $('luck-note').innerHTML = `${luck.forward ? 'Forward' : 'Backward'} from the month pillar. The first starts at age ${esc(ageText(luck.startYears + luck.startMonthsRem / 12))}`
     + ` (${new Date(luck.startMs).getUTCFullYear()}), from ${luck.gapDays.toFixed(1)} days to the ${luck.forward ? 'next' : 'previous'} solar term.`
     + `${chart.input.timeKnown ? '' : ' Without a birth time the start age is approximate.'} Tap one to see its years.`;
-  $('luck').innerHTML = luck.pillars.map((p, i) => `<button type="button" class="lp${i === now ? ' now' : ''}" data-i="${i}" aria-pressed="${i === selectedLuck}">
+  const strength = analyseStrength(chart);
+  $('luck').innerHTML = luck.pillars.map((p, i) => `<button type="button" class="lp fav-${pillarFavour(strength, p.stem, p.branch)}${i === now ? ' now' : ''}" data-i="${i}" aria-pressed="${i === selectedLuck}">
       ${cell(p, `${Math.floor(p.age)}`, `${p.fromYear}`)}</button>`).join('');
   $('luck').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { selectedLuck = Number(b.dataset.i); renderLuck(); }));
 
@@ -312,7 +348,7 @@ function renderLuck() {
   for (let y = lp.fromYear; y < lp.fromYear + 10; y++) years.push(annualPillar(y, chart.dayMaster));
   $('years-card').hidden = false;
   $('years-title').innerHTML = `Years in ${lp.name} <small>流年 · age ${Math.floor(lp.age)}–${Math.floor(lp.age) + 9}</small>`;
-  $('years').innerHTML = years.map((p) => `<div class="lp${p.year === thisYear ? ' now' : ''}">
+  $('years').innerHTML = years.map((p) => `<div class="lp fav-${pillarFavour(strength, p.stem, p.branch)}${p.year === thisYear ? ' now' : ''}">
       ${cell(p, `${p.year}`, `age ${p.year - birthYear}`)}</div>`).join('');
   for (const row of [$('luck'), $('years')]) {
     const target = row.querySelector('[aria-pressed="true"], .now');
@@ -342,7 +378,44 @@ function renderSaved() {
     state.saved.splice(Number(b.dataset.del), 1);
     persist();
     renderSaved();
+    renderMatchOptions();
   }));
+}
+
+function renderMatchOptions() {
+  for (const [id, def] of [['match-a', 'current'], ['match-b', '0']]) {
+    const sel = $(id);
+    const keep = sel.value || def;
+    sel.innerHTML = '';
+    sel.add(new Option(`Current chart${state.form.name ? ` (${state.form.name})` : ''}`, 'current'));
+    state.saved.forEach((sv, i) => sel.add(new Option(`${sv.form.name || 'Unnamed'} · ${sv.form.date}`, String(i))));
+    sel.value = [...sel.options].some((o) => o.value === keep) ? keep : 'current';
+  }
+  renderMatch();
+}
+
+function matchPerson(value) {
+  const form = value === 'current' ? state.form : state.saved[Number(value)]?.form;
+  if (!form) return null;
+  const c = chartFrom(form).chart;
+  return c ? { chart: c, name: form.name || (value === 'current' ? 'Current chart' : 'Unnamed') } : null;
+}
+
+function renderMatch() {
+  const out = $('match-result');
+  const a = matchPerson($('match-a').value);
+  const b = matchPerson($('match-b').value);
+  if (!a || !b || $('match-a').value === $('match-b').value) {
+    out.hidden = false;
+    out.innerHTML = `<p class="hint">${state.saved.length ? 'Pick two different charts.' : 'Save a chart first: enter someone’s details on the Chart tab and tap “Save chart”.'}</p>`;
+    return;
+  }
+  const r = compareCharts(a.chart, b.chart, a.name, b.name);
+  const sign = (n) => (n > 0 ? 'plus' : n < 0 ? 'minus' : 'zero');
+  out.hidden = false;
+  out.innerHTML = `<h2>${esc(r.verdict)} <small>(${r.total > 0 ? '+' : ''}${r.total} points)</small></h2>
+    <p class="hint">${esc(a.name)}: ${a.chart.pillars.map((p) => (p.missing ? '··' : p.name)).join(' ')}<br>${esc(b.name)}: ${b.chart.pillars.map((p) => (p.missing ? '··' : p.name)).join(' ')}</p>
+    <dl>${r.factors.map((f) => `<dt><span class="pts ${sign(f.score)}">${f.score > 0 ? '+' : ''}${f.score}</span> ${esc(f.head)}</dt><dd>${esc(f.body)}</dd>`).join('')}</dl>`;
 }
 
 function saveChart() {
@@ -353,6 +426,7 @@ function saveChart() {
   else state.saved.unshift({ form });
   persist();
   renderSaved();
+  renderMatchOptions();
   $('save').textContent = 'Saved ✓';
   setTimeout(() => { $('save').textContent = 'Save chart'; }, 1500);
 }
@@ -370,12 +444,11 @@ writeForm(state.form);
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] select').forEach((el) => el.addEventListener('input', () => {
   if (el.id === 'no-time') $('time').disabled = el.checked;
-  if (el.id === 'true-solar') $('solar-fields').hidden = !el.checked;
   if (el.id === 'city') {
-    const city = CITIES.find(([n]) => n === el.value);
-    if (city) { $('lon').value = city[1]; $('tz').value = String(city[2]); }
+    $('other-fields').hidden = el.value !== '';
+    const city = cityOf(el.value);
+    if (city) $('lon').value = city[1];
   }
-  if (el.id === 'lon') $('city').value = '';
   render();
 }));
 $('save').addEventListener('click', saveChart);
@@ -388,3 +461,6 @@ $('pillars').addEventListener('click', (e) => {
 });
 render();
 renderSaved();
+renderMatchOptions();
+$('match-a').addEventListener('input', renderMatch);
+$('match-b').addEventListener('input', renderMatch);
