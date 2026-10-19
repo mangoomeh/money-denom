@@ -56,7 +56,7 @@ const GOD_EN_SHORT = ['Friend', 'Rob', 'Eating', 'Hurting', 'Ind. Wealth', 'Weal
 // ---- State ---------------------------------------------------------------------------------------
 
 function load() {
-  const defaults = { form: { name: '', cal: 'western', date: '', time: '', noTime: false, gender: 'male', tz: 'fixed:8', trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [], lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en' };
+  const defaults = { form: { name: '', cal: 'western', date: '', time: '', noTime: false, gender: '', tz: 'fixed:8', trueSolar: false, city: 'Singapore', lon: 103.82, ziDay: true }, saved: [], lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en' };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && saved.form) return { ...defaults, ...saved, lang: saved.lang === 'zh' ? 'zh' : 'en', form: { ...defaults.form, ...saved.form } };
@@ -110,7 +110,7 @@ function writeForm(f) {
   $('time').value = f.time;
   $('no-time').checked = f.noTime;
   $('time').disabled = f.noTime;
-  document.querySelector(`input[name="gender"][value="${f.gender}"]`).checked = true;
+  document.querySelectorAll('input[name="gender"]').forEach((el) => { el.checked = el.value === f.gender; });
   $('tz').value = typeof f.tz === 'number' ? `fixed:${f.tz}` : f.tz;
   $('true-solar').checked = f.trueSolar;
   $('city').value = cityOf(f.city) ? f.city : '';
@@ -126,7 +126,7 @@ function readForm() {
     date: $('date').value,
     time: $('time').value,
     noTime: $('no-time').checked,
-    gender: document.querySelector('input[name="gender"]:checked').value,
+    gender: document.querySelector('input[name="gender"]:checked')?.value || '',
     tz: $('tz').value,
     trueSolar: $('true-solar').checked,
     city: $('city').value,
@@ -156,6 +156,7 @@ function chartFrom(f) {
   const birth = parseBirth(f.date, f.noTime ? '' : f.time);
   if (!birth) return { error: t('That date isn’t valid. Enter a date between 1800 and 2200.', '日期无效，请输入1800至2200年之间的日期。') };
   if (!f.noTime && !f.time) return { error: t('Enter the birth time, or tick “I don’t know the birth time”.', '请输入出生时间，或勾选“不知道出生时间”。') };
+  if (!f.gender) return { error: t('Choose Male or Female: it sets the direction of the luck pillars.', '请选择男或女：它决定大运的顺逆。') };
   const place = placeFor(f, birth);
   return {
     place,
@@ -240,6 +241,21 @@ function renderLunarLine() {
   $('lunar-line').textContent = lunarText(l);
 }
 
+// ---- Form folding: once a chart exists, the form becomes one line with an Edit button -----------
+
+function setFormOpen(open) {
+  $('form-card').hidden = !open;
+  $('form-compact').hidden = open;
+}
+
+function renderFormLine(f) {
+  const b = parseBirth(f.date, '');
+  if (!b) return;
+  const date = new Date(Date.UTC(b.year, b.month - 1, b.day)).toLocaleDateString(lang() === 'zh' ? 'zh-CN' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const parts = [f.name, date, f.noTime ? t('time unknown', '时辰未知') : f.time, cityOf(f.city) ? cityName(f.city) : '', f.gender === 'female' ? t('Female', '女') : t('Male', '男')];
+  $('form-line').textContent = parts.filter(Boolean).join(' · ');
+}
+
 function render() {
   const f = readForm();
   state.form = f;
@@ -248,12 +264,16 @@ function render() {
   const { chart: c, error, place } = chartFrom(f);
   renderTzLine(place);
   renderLunarLine();
+  renderFormLine(f);
+  $('show-chart').disabled = !c;
   chart = c || null;
   $('error').hidden = !error;
   $('error').textContent = error || '';
   $('result').hidden = !chart;
+  if (!chart) setFormOpen(true);
   if (!chart) {
     $('headline').textContent = t('Enter a birth date', '请输入出生日期');
+    $('headline').classList.remove('cjk');
     $('subline').textContent = t('Year, month, day and hour pillars', '年柱、月柱、日柱、时柱');
     $('reading').innerHTML = `<div class="card"><p class="hint">${t('Enter a birth date on the Chart tab.', '请先在“命盘”页输入出生日期。')}</p></div>`;
     $('summary').innerHTML = $('reading').innerHTML;
@@ -263,6 +283,7 @@ function render() {
   }
   const names = chart.pillars.map((p) => (p.missing ? '··' : p.name));
   $('headline').textContent = names.join(' ');
+  $('headline').classList.add('cjk');
   const dmz = chart.dayMaster;
   $('subline').textContent = `${f.name ? `${f.name} · ` : ''}${t(`${STEMS[dmz]} ${isYang(dmz) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(dmz)].en} day master · Year of the ${chart.animal}`,
     `${STEMS[dmz]}${isYang(dmz) ? '阳' : '阴'}${ELEMENTS[stemElement(dmz)].zh}日主 · 属${ANIMALS_ZH[chart.pillars[3].branch]}`)}`;
@@ -512,7 +533,7 @@ function renderSummary(f) {
     <div class="card"><h2>${t('Timing', '时运')}</h2><dl class="sum">${sum.timing.map((x) => row(`${x.label} · ${x.pillar}`, x.text,
       `<span class="badge fav-badge ${x.favour}">${favourText(x.favour)}</span> `)).join('')}</dl></div>
     ${sum.stars.length ? `<div class="card"><dl class="sum">${row(t('Stars', '神煞'), sum.stars.join(t(', ', '、')))}</dl></div>` : ''}
-    <p class="hint sum-more">${t('Want more?', '想看更多？')} <button class="linkish" data-go="full">${t('Full reading', '完整解读')}</button> · <button class="linkish" data-go="chart">${t('Full chart', '完整命盘')}</button> · <button class="linkish" data-go="luck">${t('Luck', '运势')}</button></p>`;
+    <p class="hint sum-more">${t('Want more?', '想看更多？')} <button class="linkish" data-go="full">${t('Full reading', '完整解读')}</button> · <button class="linkish" data-go="chart">${t('Full chart', '完整命盘')}</button> · <button class="linkish" data-go="luck">${t('Luck', '运势')}</button> · <button class="linkish" data-go="more">${t('Match', '合婚')}</button></p>`;
 }
 
 function currentLuckIndex() {
@@ -521,6 +542,9 @@ function currentLuckIndex() {
   const yearsIn = (now - chart.luck.startMs) / (365.2422 * 86400000);
   return Math.min(Math.floor(yearsIn / 10), chart.luck.pillars.length - 1);
 }
+
+const FAV_MARK = { good: '✓', mixed: '~', hard: '!' };
+const favMark = (k) => `<span class="fav-mark ${k}" aria-label="${favourText(k)}">${FAV_MARK[k]}</span>`;
 
 function cell(p, top, bottom, extra = '') {
   return `<span class="lp-top">${top}</span>
@@ -551,7 +575,7 @@ function renderLuck() {
     + `${chart.input.timeKnown ? '' : '没有出生时间，起运岁数是约数。'}点一步大运查看各年。`);
   const strength = analyseStrength(chart);
   $('luck').innerHTML = luck.pillars.map((p, i) => `<button type="button" class="lp fav-${pillarFavour(strength, p.stem, p.branch)}${i === now ? ' now' : ''}" data-i="${i}" aria-pressed="${i === selectedLuck}">
-      ${cell(p, `${Math.floor(p.age)}`, `${p.fromYear}`)}</button>`).join('');
+      ${cell(p, `${Math.floor(p.age)}`, `${p.fromYear}`, favMark(pillarFavour(strength, p.stem, p.branch)))}</button>`).join('');
   $('luck').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { selectedLuck = Number(b.dataset.i); renderLuck(); }));
 
   const lp = luck.pillars[selectedLuck];
@@ -561,7 +585,7 @@ function renderLuck() {
   $('years-card').hidden = false;
   $('years-title').innerHTML = t(`Years in ${lp.name} <small>流年 · age ${Math.floor(lp.age)}–${Math.floor(lp.age) + 9}</small>`, `${lp.name}大运的流年 <small>${Math.floor(lp.age)}–${Math.floor(lp.age) + 9}岁</small>`);
   $('years').innerHTML = years.map((p) => `<div class="lp fav-${pillarFavour(strength, p.stem, p.branch)}${p.year === thisYear ? ' now' : ''}">
-      ${cell(p, `${p.year}`, t(`age ${p.year - birthYear}`, `${p.year - birthYear}岁`))}</div>`).join('');
+      ${cell(p, `${p.year}`, t(`age ${p.year - birthYear}`, `${p.year - birthYear}岁`), favMark(pillarFavour(strength, p.stem, p.branch)))}</div>`).join('');
   for (const row of [$('luck'), $('years')]) {
     const target = row.querySelector('[aria-pressed="true"], .now');
     if (target) row.scrollLeft = Math.max(0, target.offsetLeft - row.offsetLeft - row.clientWidth / 2 + target.offsetWidth / 2);
@@ -583,7 +607,7 @@ function renderNow() {
   const withGods = (p) => ({ ...p, stemGod: tenGod(dm, p.stem), branchGod: tenGod(dm, HIDDEN_STEMS[p.branch][0]) });
   const [, today, month, year] = nowChart.pillars;
   const nows = [[t('This year', '今年'), year], [t('This month', '本月'), month], [t('Today', '今天'), today]];
-  $('now').innerHTML = nows.map(([label, p]) => `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}">${cell(withGods(p), label, p.name)}</div>`).join('');
+  $('now').innerHTML = nows.map(([label, p]) => `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}">${cell(withGods(p), label, p.name, favMark(pillarFavour(st, p.stem, p.branch)))}</div>`).join('');
 
   const notes = [];
   const natal = chart.pillars.filter((p) => !p.missing);
@@ -604,7 +628,7 @@ function renderNow() {
   $('months-title').innerHTML = t(`Months of ${nowChart.solarYear} <small>流月 · each starts on its solar term</small>`, `${nowChart.solarYear}年的流月 <small>每月从节气开始</small>`);
   $('months').innerHTML = months.map((p, i) => {
     const current = Date.now() >= p.startMs && (i === 11 || Date.now() < months[i + 1].startMs);
-    return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), p.jie.zh, fmtDay(p.startMs))}</div>`;
+    return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), p.jie.zh, fmtDay(p.startMs), favMark(pillarFavour(st, p.stem, p.branch)))}</div>`;
   }).join('');
 
   const y = d.getFullYear(); const m = d.getMonth() + 1;
@@ -617,7 +641,8 @@ function renderNow() {
   const cells = Array.from({ length: daysIn }, (_, i) => {
     const p = dayPillar(y, m, i + 1);
     const clash = branchPair(p.branch, dayBranch).clash;
-    return `<span class="cal-d fav-${pillarFavour(st, p.stem, p.branch)}${i + 1 === d.getDate() ? ' now' : ''}"><b>${i + 1}</b><small>${pillarName(p)}${clash ? ' 冲' : ''}</small></span>`;
+    const fav = pillarFavour(st, p.stem, p.branch);
+    return `<span class="cal-d fav-${fav}${i + 1 === d.getDate() ? ' now' : ''}">${favMark(fav)}<b>${i + 1}</b><small>${pillarName(p)}</small>${clash ? '<small class="clash">冲</small>' : ''}</span>`;
   }).join('');
   $('days').innerHTML = heads + blanks + cells;
   for (const row of [$('months')]) {
@@ -782,7 +807,12 @@ document.querySelectorAll('[data-panel="chart"] input, [data-panel="chart"] sele
   render();
 }));
 $('save').addEventListener('click', saveChart);
-$('to-summary').addEventListener('click', () => switchTab('summary'));
+$('show-chart').addEventListener('click', () => {
+  if (!chart) return;
+  setFormOpen(false);
+  switchTab('summary');
+});
+$('edit-form').addEventListener('click', () => { setFormOpen(true); window.scrollTo(0, 0); });
 $('summary').addEventListener('click', (e) => {
   const b = e.target.closest('[data-go]');
   if (!b) return;
@@ -838,5 +868,6 @@ $('pillars').addEventListener('click', (e) => {
 render();
 renderSaved();
 renderMatchOptions();
+if (chart) { setFormOpen(false); switchTab('summary'); }
 $('match-a').addEventListener('input', renderMatch);
 $('match-b').addEventListener('input', renderMatch);

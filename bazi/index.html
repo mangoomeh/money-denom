@@ -29,8 +29,12 @@
   </nav>
 
   <main>
-    <section data-panel="chart">
-      <div class="card">
+    <section role="tabpanel" data-panel="chart">
+      <div class="card form-compact" id="form-compact" hidden>
+        <p id="form-line"></p>
+        <button class="secondary small" id="edit-form" type="button" data-zh="修改">Edit</button>
+      </div>
+      <div class="card" id="form-card">
         <h2 data-zh="出生资料">Birth details</h2>
         <label class="field">
           <span data-zh="姓名 <small>（可不填）</small>">Name <small>(optional)</small></span>
@@ -58,7 +62,7 @@
         <p class="hint lunar-line" id="lunar-line"></p>
         <label class="check"><input type="checkbox" id="no-time"> <span data-zh="不知道出生时间（只排三柱）">I don't know the birth time (three pillars only)</span></label>
         <div class="seg" role="radiogroup" aria-label="Gender">
-          <label><input type="radio" name="gender" value="male" checked> <span data-zh="男">Male</span></label>
+          <label><input type="radio" name="gender" value="male"> <span data-zh="男">Male</span></label>
           <label><input type="radio" name="gender" value="female"> <span data-zh="女">Female</span></label>
         </div>
         <p class="hint" data-zh="性别决定大运顺排还是逆排。">Gender sets the direction of the luck pillars.</p>
@@ -84,12 +88,12 @@
           <label class="check"><input type="checkbox" id="zi-day" checked> <span data-zh="23:00 起算次日（子时换日）">23:00 starts the next day (子时换日)</span></label>
           <p class="hint" data-zh="不勾选时，23:00–24:00 算作当日的晚子时。">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
         </details>
+        <button class="primary show-chart" id="show-chart" type="button" data-zh="显示命盘 →">Show my chart →</button>
       </div>
 
       <p class="status bad" id="error" hidden></p>
 
       <div id="result" hidden>
-        <button class="primary summary-cta" id="to-summary" type="button" data-zh="看简要摘要 →">See the short summary →</button>
         <div class="card">
           <h2><span data-zh="四柱">Four Pillars</span> <small id="chart-note"></small></h2>
           <div class="pgrid" id="pillars"></div>
@@ -139,7 +143,7 @@
       </div>
     </section>
 
-    <section data-panel="summary" hidden>
+    <section role="tabpanel" data-panel="summary" hidden>
       <div id="summary"><div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div></div>
       <details class="full-reading" id="full-reading">
         <summary class="primary-ish" data-zh="完整解读 ▾">Full reading ▾</summary>
@@ -159,7 +163,7 @@
       </details>
     </section>
 
-    <section data-panel="luck" hidden>
+    <section role="tabpanel" data-panel="luck" hidden>
       <div class="card" id="now-card" hidden>
         <h2 data-zh="当下 <small>流年 · 流月 · 流日</small>">Now <small>流年 · 流月 · 流日</small></h2>
         <div class="luck-row" id="now"></div>
@@ -172,13 +176,13 @@
       <div class="card" id="days-card" hidden>
         <h2 id="days-title">Days</h2>
         <div class="cal" id="days"></div>
-        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;></span> 有利 <span class=&quot;fav mixed&quot;></span> 平 <span class=&quot;fav hard&quot;></span> 吃力 · 冲：冲你的日支"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding · 冲 clashes your day branch</p>
+        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;>✓</span> 有利 <span class=&quot;fav mixed&quot;>~</span> 平 <span class=&quot;fav hard&quot;>!</span> 吃力 · 冲：冲你的日支"><span class="fav good">✓</span> favourable <span class="fav mixed">~</span> mixed <span class="fav hard">!</span> demanding · 冲 clashes your day branch</p>
       </div>
       <div class="card">
         <h2 data-zh="大运">Luck pillars <small>大运</small></h2>
         <p class="hint" id="luck-note">Enter a birth date on the Chart tab.</p>
         <div class="luck-row" id="luck"></div>
-        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;></span> 有利 <span class=&quot;fav mixed&quot;></span> 平 <span class=&quot;fav hard&quot;></span> 吃力 <small>（按你的喜用神，见“解读”）</small>"><span class="fav good"></span> favourable <span class="fav mixed"></span> mixed <span class="fav hard"></span> demanding <small>(by your favourable elements; see Reading)</small></p>
+        <p class="hint legend" data-zh="<span class=&quot;fav good&quot;>✓</span> 有利 <span class=&quot;fav mixed&quot;>~</span> 平 <span class=&quot;fav hard&quot;>!</span> 吃力 <small>（按你的喜用神，见“摘要”里的完整解读）</small>"><span class="fav good">✓</span> favourable <span class="fav mixed">~</span> mixed <span class="fav hard">!</span> demanding <small>(by your favourable elements; see the full reading under Summary)</small></p>
       </div>
       <div class="card" id="years-card" hidden>
         <h2 id="years-title">Years</h2>
@@ -186,14 +190,14 @@
       </div>
     </section>
 
-    <section data-panel="more" hidden>
+    <section role="tabpanel" data-panel="more" hidden>
       <div class="card">
         <h2 data-zh="已保存的命盘">Saved charts</h2>
         <ul class="groups" id="saved"></ul>
         <p class="hint" id="saved-empty" data-zh="还没有保存的命盘。在“命盘”页点“保存命盘”。">No saved charts yet. Use “Save chart” on the Chart tab.</p>
       </div>
     </section>
-    <section data-panel="more" hidden>
+    <section role="tabpanel" data-panel="more" hidden>
       <div class="card">
         <h2 data-zh="合婚">Compatibility <small>合婚</small></h2>
         <p class="hint" data-zh="比较两个命盘。先在“命盘”页保存命盘；当前命盘随时可选。">Compare two charts. Save charts on the Chart tab first; the current chart is always available.</p>

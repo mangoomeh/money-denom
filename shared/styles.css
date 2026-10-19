@@ -816,7 +816,8 @@ details.programs summary { cursor: pointer; color: var(--muted); font-size: .9re
   }
 }
 .theme-bazi .balance { background: linear-gradient(160deg, rgb(255 255 255 / .1), transparent 55%), var(--accent); }
-.bazi-headline { margin: .2rem 0 0; font-size: 1.9rem; font-weight: 700; letter-spacing: .12em; }
+.bazi-headline { margin: .2rem 0 0; font-size: 1.6rem; font-weight: 700; }
+.bazi-headline.cjk { font-size: 1.9rem; letter-spacing: .12em; }
 .el-wood { color: var(--wood); } .el-fire { color: var(--fire); } .el-earth { color: var(--earth); }
 .el-metal { color: var(--metal); } .el-water { color: var(--water); }
 .pgrid { display: grid; grid-template-columns: 3.4rem repeat(4, minmax(0, 1fr)); margin-top: .5rem; }
@@ -830,11 +831,11 @@ details.programs summary { cursor: pointer; color: var(--muted); font-size: .9re
 .pv { border: 0; background: none; font: inherit; padding: .1rem .15rem; border-radius: 6px; cursor: pointer; line-height: 1.2; }
 .pv:hover, .pv.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .pc.rl .pv { display: flex; flex-direction: column; align-items: flex-start; font-size: .82rem; font-weight: 700; }
-.pc.rl small { font-size: .62rem; font-weight: 400; color: var(--muted); }
+.pc.rl small { font-size: .75rem; font-weight: 400; color: var(--muted); }
 .pc:not(.rl) .pv { font-size: .8rem; }
 .pc.hid .pv { display: inline-flex; flex-direction: column; align-items: center; font-weight: 600; font-size: .95rem; }
-.pc.hid small { font-size: .6rem; color: var(--muted); font-weight: 400; }
-.pc.sub .pv { font-size: .72rem; color: var(--muted); }
+.pc.hid small { font-size: .75rem; color: var(--muted); font-weight: 400; }
+.pc.sub .pv { font-size: .78rem; color: var(--muted); }
 .explain { margin: .75rem 0 0; padding: .65rem .8rem; border-radius: 10px; background: var(--bg); font-size: .9rem; color: var(--muted); }
 .explain strong { color: var(--text); }
 .glyph { display: block; font-size: 2.1rem; line-height: 1.15; font-weight: 700; font-family: "Songti SC", "Noto Serif SC", "Noto Serif CJK SC", serif; }
@@ -861,8 +862,8 @@ div.lp { cursor: default; }
 .lp.now { background: var(--bg); }
 .lp.now .lp-bottom { color: var(--accent); font-weight: 700; }
 .lp-top { font-size: .8rem; font-weight: 700; }
-.lp-god { font-size: .7rem; color: var(--muted); }
-.lp-bottom { font-size: .72rem; color: var(--muted); }
+.lp-god { font-size: .75rem; color: var(--muted); }
+.lp-bottom { font-size: .75rem; color: var(--muted); }
 .tile.bazi { background: #7a1f1f; color: #fff8ec; border-color: #7a1f1f; }
 .tile.bazi small { color: rgb(255 248 236 / .85); }
 .reading dl { margin: 0; }
@@ -887,16 +888,17 @@ div.lp { cursor: default; }
 .lunar-row input, .lunar-row select { font-size: 1rem !important; padding: .55rem .5rem !important; min-width: 0; }
 .lunar-line { margin: .4rem 0 0; min-height: 1em; }
 input[type="date"]:disabled { opacity: .7; }
-.pv.glyph .py { display: block; font-size: .6rem; font-weight: 400; font-family: system-ui, sans-serif; color: var(--muted); line-height: 1; }
+.pv.glyph .py { display: block; font-size: .75rem; font-weight: 400; font-family: system-ui, sans-serif; color: var(--muted); line-height: 1; }
 .hour-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
 .hour { display: flex; flex-direction: column; align-items: center; padding: .45rem .1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: inherit; font: inherit; cursor: pointer; }
 .hour > span:nth-child(2), .hour > span:nth-child(3) { font-size: 1.3rem; font-weight: 700; font-family: "Songti SC", "Noto Serif SC", serif; line-height: 1.1; }
 .hour > span:nth-child(2) { margin-top: .15rem; }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; text-align: center; }
-.cal-h { font-size: .7rem; color: var(--muted); font-weight: 700; }
+.cal-h { font-size: .75rem; color: var(--muted); font-weight: 700; }
 .cal-d { display: flex; flex-direction: column; padding: .3rem 0 .25rem; border-radius: 8px; background: var(--bg); border-bottom: 3px solid transparent; min-width: 0; }
 .cal-d b { font-size: .85rem; }
-.cal-d small { font-size: .6rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.cal-d small { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.cal-d small.clash { color: var(--bad); font-weight: 700; }
 .cal-d.fav-good { border-bottom-color: var(--ok); }
 .cal-d.fav-mixed { border-bottom-color: var(--warn); }
 .cal-d.fav-hard { border-bottom-color: var(--bad); }
@@ -939,3 +941,29 @@ input[type="date"]:disabled { opacity: .7; }
   border-radius: 10px; border: 1px solid var(--border); background: var(--card);
 }
 .full-reading > summary::-webkit-details-marker { display: none; }
+
+/* ---- BaZi: tap targets, markers, folded form ---- */
+.theme-bazi .back { padding: .7rem .5rem .7rem 0; top: calc(.1rem + env(safe-area-inset-top)); }
+.lang-switch { top: calc(.35rem + env(safe-area-inset-top)); font-size: .85rem; }
+.lang-switch label { padding: .65rem .85rem; min-width: 2.9rem; text-align: center; }
+.theme-bazi .balance { padding-top: calc(3.3rem + env(safe-area-inset-top)); }
+.theme-bazi .check { min-height: 2.75rem; }
+.theme-bazi .check input { width: 1.25rem; height: 1.25rem; flex: none; }
+.theme-bazi .seg label { padding: .75rem .5rem; }
+.pc .pv { min-height: 2.75rem; min-width: 2.75rem; }
+.pc.rl .pv { width: 100%; justify-content: center; }
+.pc.hid .pv { min-height: 2.75rem; min-width: 2.5rem; justify-content: center; }
+.show-chart { width: 100%; margin-top: 1rem; }
+.form-compact { display: flex; align-items: center; gap: .75rem; padding: .7rem 1rem; }
+.form-compact p { flex: 1; margin: 0; font-weight: 600; font-size: .95rem; min-width: 0; }
+.form-compact button { min-height: 2.75rem; }
+.fav-mark { position: absolute; top: 6px; right: 5px; font-size: .75rem; font-weight: 800; line-height: 1; }
+.fav-mark.good, .fav.good { color: var(--ok); }
+.fav-mark.mixed, .fav.mixed { color: var(--warn); }
+.fav-mark.hard, .fav.hard { color: var(--bad); }
+.fav { width: auto; height: auto; background: none !important; font-weight: 800; }
+.cal-d { position: relative; }
+.cal-d .fav-mark { top: 3px; right: 3px; font-size: .75rem; }
+.luck-row { -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
+#now { -webkit-mask-image: none; mask-image: none; }
+.lp .lp-top { padding: 0 .85rem; }
