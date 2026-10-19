@@ -36,6 +36,7 @@ const currentYear = solarYear(...todayParts());
 let viewYear = currentYear;
 let selectedCell = null;
 let selectedYearCell = null;
+let guideTouched = false;
 
 // ---- Names and wording ---------------------------------------------------------------------------
 
@@ -119,6 +120,7 @@ function renderHome() {
   const chart = facing != null && period ? houseChart(period, facing, state.home.replace) : null;
   $('home-empty').hidden = !!chart;
   $('home-result').hidden = !chart;
+  if (!guideTouched) $('home-guide').open = !chart;
   if (!chart) {
     $('headline').textContent = t('Feng Shui', '风水');
     $('subline').textContent = t('Flying stars for your home, Kua directions for your family', '宅运飞星 · 家人命卦方位');
@@ -605,6 +607,7 @@ $('people').addEventListener('click', (e) => {
   renderAll();
 });
 $('p-add').addEventListener('click', addPerson);
+$('home-guide').querySelector('summary').addEventListener('click', () => { guideTouched = true; });
 $('compass-start').addEventListener('click', startCompass);
 $('manual-deg').addEventListener('input', () => { smoothX = 0; smoothY = 0; showHeading(Number($('manual-deg').value)); });
 $('use-facing').addEventListener('click', () => {

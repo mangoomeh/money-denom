@@ -44,7 +44,10 @@
           </label>
         </div>
         <p class="hint" id="facing-line"></p>
-        <p class="hint" data-zh="朝向：站在大门口向外看的方向，可用“罗盘”页测量。入住日期决定元运；若曾大装修（换屋顶、大门或大规模翻新），用装修完成的日期。">Facing: the direction you look when standing at the main door looking out. Measure it on the Compass tab. The move-in date sets the period; after a major renovation (new roof, main door or a full refit) use the date it finished.</p>
+        <p class="hint" data-zh="<b>朝向：</b>站在大门口，背对屋内，向外看的方向（不是面对大门）。可用“罗盘”页测量。">
+          <b>Facing:</b> stand in the main doorway with your back to the house and look out. That direction is the facing, not the way you look when facing the door. Measure it on the Compass tab.</p>
+        <p class="hint" data-zh="<b>为何要入住日期？</b>飞星盘取决于房子“起运”的二十年元运：2024年2月4日起入住为九运，2004–2024年为八运，1984–2004年为七运。元运星入中宫，决定其他星的位置，所以同一朝向在八运和九运的盘完全不同。只看元运，年份一般就够。若曾大装修（换屋顶、大门或全屋翻新），用完工日期。">
+          <b>Why the move-in date?</b> The chart depends on the 20-year period the home started in: moving in from 4 Feb 2024 makes it Period 9, 2004–2024 Period 8, 1984–2004 Period 7. The period's star goes in the centre and decides where all the others land, so the same door gives a different chart in Period 8 and Period 9. Only the period matters, so the year is usually enough. After a major renovation (new roof, main door or a full refit) use the date it finished.</p>
         <details class="fs-more">
           <summary data-zh="进阶设置">More settings</summary>
           <label class="field">
@@ -83,11 +86,52 @@
         </div>
         <div class="card reading" id="house-summary"></div>
       </div>
+
+      <details class="card fs-guide" id="home-guide">
+        <summary><h2 data-zh="使用说明">How to use this</h2></summary>
+        <ol class="fs-steps">
+          <li data-zh="<b>测量朝向：</b>站在大门口背对屋内向外看，用罗盘页读出度数。">
+            <b>Measure the facing:</b> stand in the main doorway with your back to the house, look out, and read the degrees on the Compass tab.</li>
+          <li data-zh="<b>输入入住年份：</b>决定元运（见上方说明）。">
+            <b>Enter when you moved in:</b> this sets the period (see above).</li>
+          <li data-zh="<b>把九宫格对上平面图：</b>在户型图上画出同样的三乘三格子，中宫在屋子中心，方向按罗盘对齐。用“南上/北上”配合你的图纸。每一格就是屋里对应的那一区。">
+            <b>Lay the grid over your floor plan:</b> draw a 3×3 grid on the plan with the centre square in the middle of the home, lined up with the compass. Use S up or N up to match your plan. Each square is that part of your home.</li>
+          <li data-zh="<b>看数字：</b>左上是山星（人丁、健康、感情），右上是向星（财运、事业），下方是运星，圈内是当年流年星。绿色得令为吉，红色为凶。">
+            <b>Read the numbers:</b> top left is the mountain star (health, people, relationships), top right is the facing star (money, career), the bottom number is the base star, and the circle is this year's star. Green is timely and good; red is harmful.</li>
+          <li data-zh="<b>向星旺的地方宜“动”：</b>大门、客厅、常走动的地方，开灯、保持通风明亮，可放流水摆设。">
+            <b>Where the facing star is good, keep it active:</b> it suits the main door, the living room and busy areas. Keep it bright and uncluttered; a moving water feature is the classic booster.</li>
+          <li data-zh="<b>山星旺的地方宜“静”：</b>适合卧室、书房，或放高柜、实墙。">
+            <b>Where the mountain star is good, keep it calm:</b> it suits bedrooms and studies, or tall solid furniture.</li>
+          <li data-zh="<b>五黄、二黑所在宜“静”且化解：</b>不在此装修动土，少用红色与火，常用金属（铜葫芦、六帝钱）化解；病人、老人不宜睡此方。">
+            <b>Where 5 or 2 sits, keep it quiet and cure it:</b> no renovation or drilling there, avoid red and fire, and use metal (a brass gourd, a six-coin hanger). Avoid it for the bedroom of someone ill or elderly.</li>
+          <li data-zh="<b>每年立春（约2月4日）更新：</b>流年星每年变动，在“流年”页看今年要避开的方位，按需调整摆设。">
+            <b>Refresh every 立春 (about 4 Feb):</b> the annual stars move each year. Check the Year tab for the sectors to leave alone and move your cures to match.</li>
+          <li data-zh="<b>点按格子</b>看该区的详细解释和建议。">
+            <b>Tap a square</b> for what that area is good for and what to watch.</li>
+        </ol>
+      </details>
     </section>
 
     <!-- People: Kua numbers -->
     <section role="tabpanel" data-panel="me" hidden>
       <div id="people"></div>
+      <details class="card fs-guide">
+        <summary><h2 data-zh="使用说明">How to use this</h2></summary>
+        <ol class="fs-steps">
+          <li data-zh="<b>命卦</b>由出生年份（以立春分年）和性别算出，每人有四个吉方、四个凶方，绿色为吉。">
+            Each person's <b>Kua number</b> comes from their birth year (counted from 立春) and gender. It gives four good directions (green) and four bad ones (red).</li>
+          <li data-zh="<b>书桌：</b>坐着时面向生气方（财运、成功）或其他吉方。">
+            <b>Desk:</b> sit so you face your Sheng Qi direction (success) or another good one.</li>
+          <li data-zh="<b>床：</b>床头（头顶指向的方向）朝天医方（健康）或延年方（感情）。">
+            <b>Bed:</b> point the headboard (where your head is) towards Tian Yi (health) or Yan Nian (relationships).</li>
+          <li data-zh="<b>房间：</b>卧室最好落在自己的吉方区；凶方适合放储物间、厕所。">
+            <b>Rooms:</b> a bedroom in one of your good sectors is best; bad sectors suit storage, laundry or toilets.</li>
+          <li data-zh="<b>与房子不同组</b>不必搬家，只要床头和书桌用个人吉方即可。">
+            <b>Different group from the house?</b> No need to move: just use your own good directions for the bed and desk.</li>
+          <li data-zh="家人方位冲突时，以主卧和赚钱的人为先。">
+            When family members' directions clash, the usual priority is the main bedroom and the main earner.</li>
+        </ol>
+      </details>
       <div class="card">
         <h2 data-zh="添加家人">Add a person</h2>
         <label class="field">
@@ -131,6 +175,21 @@
         <h2 data-zh="月飞星">Monthly stars</h2>
         <div id="months" class="fs-months"></div>
       </div>
+      <details class="card fs-guide">
+        <summary><h2 data-zh="使用说明">How to use this</h2></summary>
+        <ol class="fs-steps">
+          <li data-zh="流年从立春（约2月4日）起算，不是元旦或春节。">
+            The feng shui year starts at 立春 (about 4 Feb), not 1 January or Chinese New Year.</li>
+          <li data-zh="<b>装修动土：</b>避免在太岁、岁破、三煞、五黄方开工；若必须动工，先从吉方开始再延伸过去。">
+            <b>Renovation:</b> avoid starting work in the Tai Sui, Year Breaker, Three Killings or 5 Yellow sectors. If you must, start in a good sector and work towards it.</li>
+          <li data-zh="<b>座位：</b>坐时背靠太岁、三煞方，不要面向它们。">
+            <b>Seating:</b> sit with your back to Tai Sui and the Three Killings, never facing them.</li>
+          <li data-zh="<b>化解：</b>五黄、二黑方保持安静，放金属化解；九紫、一白、八白方可多活动、开灯。">
+            <b>Cures:</b> keep the 5 Yellow and 2 Black sectors quiet with metal; use and light up the 9, 1 and 8 sectors.</li>
+          <li data-zh="<b>月飞星</b>每月按节气更换，可微调：月星与年星同为五黄或二黑的月份要特别留意。">
+            <b>Monthly stars</b> change at each solar term. Take extra care in a sector in months when the month's 5 or 2 lands on the year's 5 or 2.</li>
+        </ol>
+      </details>
     </section>
 
     <!-- Compass -->
@@ -153,7 +212,7 @@
       <div class="card">
         <h2 data-zh="如何测量">How to measure</h2>
         <ol class="fs-steps">
-          <li data-zh="站在大门内，面朝屋外，手机平放，顶部指向门外。">Stand just inside the main door, facing out, with the phone flat and its top pointing out the door.</li>
+          <li data-zh="站在大门内，背对屋内、面朝屋外，手机平放，顶部指向门外。">Stand just inside the main door with your back to the house, facing out, with the phone flat and its top pointing out the door.</li>
           <li data-zh="远离铁门、电器和汽车，它们会干扰磁场。在门外几步再量一次，取接近的读数。">Keep away from metal doors, appliances and cars: they pull the needle. Take a second reading a few steps outside and use the one that agrees.</li>
           <li data-zh="公寓以大楼正门或阳台大窗的朝向为准，各派做法不同。">For a flat, schools differ: many use the building's main entrance, others the balcony or largest window.</li>
           <li data-zh="风水用磁北（罗盘指的方向），不用修正磁偏角。">Feng shui uses magnetic north, the way a luopan points, so no declination correction is needed.</li>

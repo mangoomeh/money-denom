@@ -1059,3 +1059,9 @@ input[type="date"]:disabled { opacity: .7; }
 .fs-steps { margin: 0; padding-left: 1.2rem; }
 .fs-steps li { margin: .35rem 0; }
 .fs-disclaimer { text-align: center; font-size: .8rem; }
+.fs-guide > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.fs-guide > summary::-webkit-details-marker { display: none; }
+.fs-guide > summary h2 { margin: 0; }
+.fs-guide > summary::after { content: "+"; font-size: 1.3rem; color: var(--muted); }
+.fs-guide[open] > summary::after { content: "–"; }
+.fs-guide .fs-steps { font-size: .95rem; }
