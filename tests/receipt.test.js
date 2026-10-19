@@ -138,60 +138,20 @@ test('analyseReceipt says whether every item was read', () => {
   assert.equal(partial.subtotalCents - partial.itemsCents, 990);
 });
 
-test('an AI reading becomes the same receipt result, with plates matched and totals checked', async () => {
-  const { analyseAiReceipt } = await import('../src/receipt.js');
-  const red = DEFAULT_PLATES[0];
-  const data = {
-    items: [
-      { category: 'Sushi', name: 'Sushi', unit_price: red.cents / 100, quantity: 10, line_total: red.cents * 10 / 100 },
-      { category: 'Chawanmushi', name: 'Chawanmushi', unit_price: 3.5, quantity: 1, line_total: 3.5 },
-      // The model misread the quantity; the line total corrects it.
-      { category: 'Sushi', name: 'Sushi', unit_price: DEFAULT_PLATES[1].cents / 100, quantity: 3, line_total: DEFAULT_PLATES[1].cents * 2 / 100 },
-    ],
-    subtotal: null, service_charge: null, gst: null, total: null,
-  };
-  const itemsCents = red.cents * 10 + 350 + DEFAULT_PLATES[1].cents * 2;
-  const bill = computeBill([{ cents: itemsCents }], DEFAULT_RATES);
-  data.subtotal = itemsCents / 100;
-  data.total = bill.totalCents / 100;
-  const r = analyseAiReceipt(data, DEFAULT_PLATES, DEFAULT_RATES);
-  assert.equal(r.counts[red.id], 10);
-  assert.equal(r.counts[DEFAULT_PLATES[1].id], 2);
-  assert.equal(r.others.length, 1);
-  assert.equal(r.others[0].name, 'Chawanmushi');
-  assert.equal(r.totalCents, bill.totalCents);
+test('an AI transcript in Markdown reads like OCR text', async () => {
+  const { cleanTranscript, analyseReceipt } = await import('../src/receipt.js');
+  const markdown = [
+    '**SUSHIRO**', 'Bedok Mall', '',
+    '| Price | Item | Qty | Amount |', '|---|---|---|---|',
+    '| $2.3 | Sushi | 20 | $46.00 |', '| $2.9 | Sushi | 6 | $17.40 |', '| $3.9 | Sushi | 2 | $7.80 |', '| $4.9 | Sushi | 3 | $14.70 |',
+    '| $3.5 | Chawanmushi | 2 | $7.00 |', '| $2.8 | Soup | 3 | $8.40 |', '| $3.5 | Dish | 2 | $7.00 |', '| $4.3 | Dish | 1 | $4.30 |',
+    '| $5.0 | Dish | 1 | $5.00 |', '| $9.9 | Dish | 1 | $9.90 |',
+    '- SUB TOTAL $127.50', '- Service Charge (10.00%) $12.75', '- GST Exclusive (9.00%) $12.62', '- **TOTAL(10Qt) $152.87**', '- MASTERCARD $152.87',
+  ].join('\n');
+  const text = cleanTranscript(markdown);
+  assert.match(text, /^\$2\.3 Sushi 20 \$46\.00$/m);
+  const r = analyseReceipt(text, DEFAULT_PLATES, DEFAULT_RATES);
+  assert.deepEqual(r.counts, { red: 20, silver: 6, gold: 2, black: 3 });
+  assert.equal(r.totalCents, 15287);
   assert.equal(r.complete, true);
-  assert.match(r.text, /Total \$/);
-});
-
-test('an AI reading with only a total still works, and junk is ignored', async () => {
-  const { analyseAiReceipt } = await import('../src/receipt.js');
-  const bill = computeBill([{ cents: 5000 }], DEFAULT_RATES);
-  const r = analyseAiReceipt({ items: [{ category: 'Sushi', unit_price: null, quantity: null, line_total: null }], subtotal: null, service_charge: null, gst: null, total: bill.totalCents / 100 }, DEFAULT_PLATES, DEFAULT_RATES);
-  assert.equal(r.totalCents, bill.totalCents);
-  assert.equal(r.subtotalCents, 5000);
-  assert.deepEqual(r.counts, {});
-  assert.equal(analyseAiReceipt(null, DEFAULT_PLATES, DEFAULT_RATES).totalCents, null);
-});
-
-test('the AI prompt carries the plate prices and charges, and checks find what does not add up', async () => {
-  const { aiReceiptPrompt, aiReceiptProblems } = await import('../src/receipt.js');
-  const prompt = aiReceiptPrompt(DEFAULT_PLATES, DEFAULT_RATES);
-  assert.match(prompt, /\$2\.30 \(Red plate\)/);
-  assert.match(prompt, /Service Charge \(10% of the subtotal\)/);
-  assert.match(prompt, /GST \(9% of subtotal plus service charge\)/);
-  // The worked example from a real receipt is consistent.
-  const good = { items: [
-    [2.3, 20, 46], [2.9, 6, 17.4], [3.9, 2, 7.8], [4.9, 3, 14.7], [3.5, 2, 7], [2.8, 3, 8.4], [3.5, 2, 7], [4.3, 1, 4.3], [5, 1, 5], [9.9, 1, 9.9],
-  ].map(([u, q, t]) => ({ category: 'Sushi', name: 'x', unit_price: u, quantity: q, line_total: t })), subtotal: 127.5, service_charge: 12.75, gst: 12.62, total: 152.87 };
-  assert.deepEqual(aiReceiptProblems(good, DEFAULT_RATES), []);
-  // A misread quantity and a dropped line are both caught.
-  const bad = structuredClone(good);
-  bad.items[0].quantity = 2;
-  bad.items.pop();
-  const problems = aiReceiptProblems(bad, DEFAULT_RATES);
-  assert.equal(problems.length, 2);
-  assert.match(problems[0], /Line 1 \(Sushi \$2\.30 × 2\) should be \$4\.60, but you read \$46\.00/);
-  assert.match(problems[1], /add up to \$117\.60, but the subtotal is \$127\.50/);
-  assert.deepEqual(aiReceiptProblems({ items: [] }, DEFAULT_RATES), ['No item lines were found.']);
 });

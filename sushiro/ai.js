@@ -1,20 +1,20 @@
 // Reading a receipt photo with your own AI: a vision model (such as Qwen3-VL) running in Ollama on
-// your PC, the same setup as the Local Chat app. The model returns the receipt as JSON that must
-// match AI_RECEIPT_SCHEMA, so the app gets clean numbers back instead of free text.
+// your PC, the same setup as the Local Chat app. The model only transcribes the text; the app's
+// receipt parser and checks then read it, exactly as they do OCR text.
 
 import { normaliseServer } from '../src/chat.js';
-import { AI_RECEIPT_SCHEMA, aiReceiptPrompt, aiReceiptProblems } from '../src/receipt.js';
+import { AI_TRANSCRIBE_PROMPT, cleanTranscript } from '../src/receipt.js';
 
 const TIMEOUT_MS = 180000; // a cold model load plus a large photo can take a while on a modest PC
 
-// The photo as a base64 JPEG. Receipts need more detail than chat photos, so up to 1600 px.
+// The photo as a base64 JPEG, prepared the same way as in Local Chat.
 function toBase64(bitmap) {
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bitmap.width * scale);
   c.height = Math.round(bitmap.height * scale);
   c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.9).split(',')[1];
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
 }
 
 function explain(server, status) {
@@ -41,34 +41,17 @@ export async function listModels(serverText) {
   return withCaps;
 }
 
-// Reads the receipt, then checks the reading the same way the text reader is checked. If lines
-// don't add up, the model is told exactly what's wrong and asked to look again, once; the reading
-// with fewer problems wins.
-export async function readReceiptWithAi(bitmap, { server: serverText, model }, signal, { plates, rates, onProgress = () => {} }) {
+// The receipt's text as transcribed by the model, cleaned to plain lines for the parser.
+export async function readReceiptWithAi(bitmap, { server: serverText, model }, signal) {
   const server = normaliseServer(serverText);
   if (!server || !model) throw new Error('Set up your AI in Settings first.');
-  const image = toBase64(bitmap);
-  const first = [{ role: 'user', content: aiReceiptPrompt(plates, rates), images: [image] }];
-  const reading = await ask(server, model, first, signal);
-  const problems = aiReceiptProblems(reading, rates);
-  if (!problems.length) return reading;
-  onProgress('Some numbers didn’t add up. Asking your AI to check those lines again…');
-  try {
-    const again = await ask(server, model, [
-      ...first,
-      { role: 'assistant', content: JSON.stringify(reading) },
-      { role: 'user', content: `Some numbers in your reading don't add up:\n- ${problems.join('\n- ')}\nLook at the receipt again, especially those lines, and return the complete corrected JSON.` },
-    ], signal);
-    return aiReceiptProblems(again, rates).length < problems.length ? again : reading;
-  } catch (e) {
-    if (signal?.aborted) throw e;
-    return reading; // the first reading still stands
-  }
+  const messages = [{ role: 'user', content: AI_TRANSCRIBE_PROMPT, images: [toBase64(bitmap)] }];
+  return cleanTranscript(await ask(server, model, messages, signal));
 }
 
-// One request for JSON matching AI_RECEIPT_SCHEMA. Reading a receipt needs no reasoning: thinking
-// off is faster and leaves the model's memory (context) for the photo and the answer. Models that
-// can't think reject the setting, so it is dropped for them.
+// One request for plain text. Copying text needs no reasoning: thinking off is faster and leaves the
+// model's memory (context) for the photo and the answer. Models that can't think reject the setting,
+// so it is dropped for them.
 async function ask(server, model, messages, signal) {
   const timeout = new AbortController();
   const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS);
@@ -81,9 +64,8 @@ async function ask(server, model, messages, signal) {
     body: JSON.stringify({
       model,
       stream: false,
-      format: AI_RECEIPT_SCHEMA,
       ...(think === false ? { think: false } : {}),
-      options: { temperature: 0, num_ctx: 8192 },
+      options: { num_ctx: 8192 },
       messages,
     }),
   });
@@ -110,9 +92,7 @@ async function ask(server, model, messages, signal) {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
   }
-  try {
-    return JSON.parse(body.message?.content || '');
-  } catch {
-    throw new Error('Your AI didn\'t return a readable result. Try again, or use a vision model such as qwen3-vl.');
-  }
+  const text = body.message?.content || '';
+  if (!text.trim()) throw new Error('Your AI returned no text. Try again, or use a vision model such as qwen3-vl.');
+  return text;
 }

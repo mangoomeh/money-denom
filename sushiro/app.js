@@ -2,7 +2,7 @@ import { parseAmount, formatCents } from '../src/cash.js';
 import {
   DEFAULT_PLATES, DEFAULT_RATES, billLines, computeBill, parsePercent, monthSummary,
 } from '../src/sushiro.js';
-import { analyseReceipt, analyseAiReceipt, compareWithReceipt } from '../src/receipt.js';
+import { analyseReceipt, compareWithReceipt } from '../src/receipt.js';
 import { readText } from './ocr.js';
 import { readReceiptWithAi, listModels } from './ai.js';
 import {
@@ -209,14 +209,6 @@ function readReceipt(text) {
   };
 }
 
-function readAiReceipt(data) {
-  const a = analyseAiReceipt(data, state.plates, state.rates);
-  return {
-    text: a.text, totalCents: a.totalCents, subtotalCents: a.subtotalCents,
-    counts: a.counts, others: a.others, itemsCents: a.itemsCents, complete: a.complete,
-  };
-}
-
 function forgetMealPhoto() {
   if (mealPhotoUrl) URL.revokeObjectURL(mealPhotoUrl);
   mealPhotoUrl = null;
@@ -251,9 +243,7 @@ async function scanReceipt(file, useAi = false) {
     try {
       if (useAi) {
         setProgress(`Your AI (${state.ai.model}) is reading the receipt… This can take 10–60 seconds.`, null);
-        Object.assign(state.meal.receipt, readAiReceipt(await readReceiptWithAi(bitmap, state.ai, receiptAbort.signal, {
-          plates: state.plates, rates: state.rates, onProgress: (label) => setProgress(label, null),
-        })));
+        Object.assign(state.meal.receipt, readReceipt(await readReceiptWithAi(bitmap, state.ai, receiptAbort.signal)));
       } else {
         const text = await readText(prepareForOcr(bitmap), setProgress, receiptAbort.signal);
         Object.assign(state.meal.receipt, readReceipt(text));

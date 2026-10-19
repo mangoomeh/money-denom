@@ -40,9 +40,9 @@ Counts plates during a meal and works out the bill.
 - **Receipt photos:** a compressed copy of each photo is kept with its saved visit in the browser's IndexedDB on that
   device.
 - **Read with my AI (optional):** under Settings, point the app at Ollama on your PC (the same address as Local
-  Chat) and pick a vision model such as `qwen3-vl:8b`. "🤖 Read with my AI" then sends the receipt photo to your own
-  PC, gets the items and totals back as JSON (`AI_RECEIPT_SCHEMA` in `src/receipt.js`), and runs the same checks as
-  the built-in reader.
+  Chat) and pick a vision model such as `qwen3-vl:8b`. "🤖 Read with my AI" sends the receipt photo to your own PC,
+  asks the model only to transcribe the text, and runs that text through the same parser and checks as the
+  built-in reader (`cleanTranscript` in `src/receipt.js` flattens any Markdown first).
 
 ### 🧮 GX-84 Calculator (`calc84/`)
 

@@ -189,135 +189,24 @@ export function compareWithReceipt(trackedTotalCents, receiptTotalCents, plates,
   return { status: diffCents > 0 ? 'receipt-higher' : 'receipt-lower', diffCents, suggestions };
 }
 
-// ---- Receipts read by an AI model ------------------------------------------------------------
-// A vision model (e.g. Qwen3-VL in Ollama) returns the receipt as JSON in this shape; the same
-// checks then apply as for text: unit price × quantity, totals rebuilt from the charges, plates
-// matched by price.
+// ---- Receipts transcribed by an AI model --------------------------------------------------
+// A vision model (e.g. Qwen3-VL in Ollama) is asked only to copy the text, which it does well; the
+// text then goes through the same parser and checks as OCR text. Its reply can come as Markdown
+// (tables, bold, bullets), which is flattened back to plain receipt lines first.
 
-export const AI_RECEIPT_SCHEMA = {
-  type: 'object',
-  properties: {
-    items: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          category: { type: 'string', enum: ['Sushi', 'Chawanmushi', 'Soup', 'Dish', 'Other'] },
-          name: { type: 'string' },
-          unit_price: { type: ['number', 'null'] },
-          quantity: { type: ['integer', 'null'] },
-          line_total: { type: ['number', 'null'] },
-        },
-        required: ['category', 'name', 'unit_price', 'quantity', 'line_total'],
-      },
-    },
-    subtotal: { type: ['number', 'null'] },
-    service_charge: { type: ['number', 'null'] },
-    gst: { type: ['number', 'null'] },
-    total: { type: ['number', 'null'] },
-  },
-  required: ['items', 'subtotal', 'service_charge', 'gst', 'total'],
-};
+export const AI_TRANSCRIBE_PROMPT = 'Extract all the text from this receipt exactly as printed, line by line, top to bottom. Keep each item line on one line. Don\'t add anything else.';
 
-const dollars = (c) => (c / 100).toFixed(2);
-const pct = (bp) => `${(bp / 100).toFixed(2).replace(/\.?0+$/, '')}%`;
-
-// The instructions for the model: the same knowledge the text reader has about Sushiro receipts,
-// with this user's plate prices and charges, and a made-up worked example (not a real receipt, so
-// testing on a real one is fair).
-export function aiReceiptPrompt(plates, rates) {
-  const plateList = plates.map((p) => `$${dollars(p.cents)} (${p.name} plate)`).join(', ');
-  return `This is a photo of a receipt from Sushiro, a conveyor-belt sushi restaurant in Singapore. Read it and return JSON.
-
-How these receipts are laid out:
-- Each item line has four columns: unit price, category, quantity, line total. For example "$2.3 Sushi   20   $46.00" means unit_price 2.30, category "Sushi", quantity 20, line_total 46.00.
-- Unit prices are printed with one decimal ("$2.3" is $2.30). The "$" is often faint and can look like S, 5 or 8.
-- Categories are Sushi, Chawanmushi, Soup and Dish. There can be several lines with the same category and different prices: list every line separately, top to bottom.
-- Sushi plate prices at this outlet: ${plateList}. Other prices are possible.
-- Below the items: SUB TOTAL, then Service Charge (${pct(rates.serviceBp)} of the subtotal), then GST (${pct(rates.gstBp)} of subtotal plus service charge), then TOTAL. The number in brackets after TOTAL is not money; ignore it.
-- Ignore the header, the payment lines (MASTERCARD, VISA, NETS, CASH, TOTAL TENDERED, CHANGE) and anything after them.
-
-Check your reading before answering:
-- unit_price × quantity must equal line_total on every line.
-- The line totals must add up to the SUB TOTAL.
-- subtotal + service_charge + gst must equal total.
-If something doesn't add up, look at that line again: a digit is probably misread.
-
-Worked example (a made-up receipt, to show the format). Receipt lines:
-$2.3 Sushi 8 $18.40 | $2.9 Sushi 4 $11.60 | $3.9 Sushi 1 $3.90 | $3.5 Chawanmushi 1 $3.50 | $2.8 Soup 2 $5.60 | $4.3 Dish 1 $4.30 | SUB TOTAL $47.30 | Service Charge (10.00%) $4.73 | GST Exclusive (9.00%) $4.68 | TOTAL(17Qt) $56.71 | VISA $56.71
-JSON: {"items":[{"category":"Sushi","name":"Sushi","unit_price":2.3,"quantity":8,"line_total":18.4},{"category":"Sushi","name":"Sushi","unit_price":2.9,"quantity":4,"line_total":11.6},{"category":"Sushi","name":"Sushi","unit_price":3.9,"quantity":1,"line_total":3.9},{"category":"Chawanmushi","name":"Chawanmushi","unit_price":3.5,"quantity":1,"line_total":3.5},{"category":"Soup","name":"Soup","unit_price":2.8,"quantity":2,"line_total":5.6},{"category":"Dish","name":"Dish","unit_price":4.3,"quantity":1,"line_total":4.3}],"subtotal":47.3,"service_charge":4.73,"gst":4.68,"total":56.71}
-Every line on the receipt is its own entry, even when two lines have the same category: never merge or skip lines.
-
-Money is plain numbers in dollars. If a value truly can't be read, use null; don't guess and don't invent lines.`;
-}
-
-// What doesn't add up in the model's reading, in words it can act on. Empty when it all checks out.
-export function aiReceiptProblems(data, rates) {
-  const problems = [];
-  const items = Array.isArray(data?.items) ? data.items : [];
-  if (!items.length) problems.push('No item lines were found.');
-  let sum = 0;
-  let sumKnown = true;
-  items.forEach((it, i) => {
-    const unit = cents(it.unit_price); const line = cents(it.line_total);
-    const qty = Number.isInteger(it.quantity) ? it.quantity : null;
-    if (line == null) sumKnown = false; else sum += line;
-    if (unit != null && qty != null && line != null && unit * qty !== line) {
-      problems.push(`Line ${i + 1} (${it.category} $${dollars(unit)} × ${qty}) should be $${dollars(unit * qty)}, but you read $${dollars(line)}.`);
-    }
-  });
-  const sub = cents(data?.subtotal); const svc = cents(data?.service_charge); const gst = cents(data?.gst); const total = cents(data?.total);
-  if (sumKnown && items.length && sub != null && sum !== sub) problems.push(`The line totals add up to $${dollars(sum)}, but the subtotal is $${dollars(sub)}: a line may be missing, doubled or misread.`);
-  if (sub != null && svc != null && rates.serviceBp) {
-    const expect = computeBill([{ cents: sub }], rates).serviceCents;
-    if (Math.abs(expect - svc) > 1) problems.push(`The service charge should be about $${dollars(expect)} for a $${dollars(sub)} subtotal, but you read $${dollars(svc)}.`);
-  }
-  if (sub != null && svc != null && gst != null && total != null && sub + svc + gst !== total) problems.push(`Subtotal + service charge + GST is $${dollars(sub + svc + gst)}, but the total you read is $${dollars(total)}.`);
-  return problems;
-}
-
-const cents = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : null);
-
-// The AI's items, made consistent: quantity from the line total when the two disagree.
-export function itemsFromAi(data) {
-  const out = [];
-  for (const it of Array.isArray(data?.items) ? data.items : []) {
-    const unitCents = cents(it.unit_price);
-    const lineCents = cents(it.line_total);
-    let qty = Number.isInteger(it.quantity) && it.quantity > 0 ? it.quantity : null;
-    if (unitCents && lineCents != null && (qty == null || qty * unitCents !== lineCents)) {
-      const q = Math.round(lineCents / unitCents);
-      if (q >= 1 && q * unitCents === lineCents) qty = q;
-    }
-    if (!unitCents && lineCents != null && qty) {
-      out.push({ name: it.category === 'Other' ? it.name || 'Item' : it.category, unitCents: Math.round(lineCents / qty), qty, cents: lineCents, sure: false });
-      continue;
-    }
-    if (!unitCents || !qty) continue;
-    const name = it.category === 'Other' ? (String(it.name || '').trim() || 'Item') : it.category;
-    out.push({ name, unitCents, qty, cents: unitCents * qty, sure: lineCents === unitCents * qty });
-  }
-  return out;
-}
-
-// The same result as analyseReceipt, from an AI reading. `text` is a plain summary for display.
-export function analyseAiReceipt(data, plates, rates) {
-  const found = { subtotalCents: cents(data?.subtotal), serviceCents: cents(data?.service_charge), gstCents: cents(data?.gst), totalCents: cents(data?.total) };
-  if (found.totalCents == null && found.subtotalCents != null) found.totalCents = found.subtotalCents + (found.serviceCents ?? 0) + (found.gstCents ?? 0);
-  const totals = reconcileTotals(found, rates);
-  const items = itemsFromAi(data);
-  const { counts, others, itemsCents } = matchPlates(items, plates);
-  const money = (c) => (c == null ? '?' : `$${(c / 100).toFixed(2)}`);
-  const text = [
-    ...items.map((i) => `${money(i.unitCents)} ${i.name} ${i.qty} ${money(i.cents)}`),
-    `Subtotal ${money(totals.subtotalCents)}`, `Service ${money(totals.serviceCents)}`, `GST ${money(totals.gstCents)}`, `Total ${money(totals.totalCents)}`,
-  ].join('\n');
-  return {
-    ...totals,
-    counts,
-    others,
-    itemsCents,
-    text,
-    complete: items.length > 0 && totals.subtotalCents != null && itemsCents === totals.subtotalCents,
-  };
+export function cleanTranscript(text) {
+  return String(text || '')
+    .replace(/^```.*$/gm, '')
+    .split(/\r?\n/)
+    .filter((l) => !/^\s*\|?\s*:?-{2,}/.test(l)) // Markdown table rules
+    .map((l) => l
+      .replace(/\*\*|__|`/g, '')
+      .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?=\S)/, '') // list bullets (not "$2.3 …")
+      .replace(/\|/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim())
+    .filter(Boolean)
+    .join('\n');
 }
