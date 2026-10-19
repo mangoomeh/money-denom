@@ -1303,3 +1303,6 @@ body.theme-chat { height: 100dvh; display: flex; flex-direction: column; overflo
 .ch-model-row { text-align: left; padding: .7rem .8rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); font: inherit; cursor: pointer; display: flex; flex-direction: column; }
 .ch-model-row.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 .ch-model-row small { color: var(--muted); }
+.ch-notice { margin-top: .5rem; padding: .65rem .8rem; border-radius: 10px; background: var(--warn-bg); color: var(--text); font-size: .9rem; }
+.ch-notice p { margin: 0 0 .4rem; }
+.ch-notice .ch-btns { margin-top: .3rem; }

@@ -105,8 +105,12 @@ async function loadCaps(name) {
 }
 const can = (cap) => (caps.get(settings.model) || []).includes(cap);
 
-// Stream a reply to the open chat into a new assistant message.
-async function reply() {
+// Ollama's default memory is small; a photo plus reasoning can fill it before the answer starts.
+const PHOTO_MIN_CTX = 8192;
+
+// Stream a reply to the open chat into a new assistant message. `opts.think` overrides the
+// thinking setting for this one reply; `opts.numCtx` asks for more memory.
+async function reply(opts = {}) {
   const model = settings.model;
   if (!model) { connection = { ok: false, message: connection.ok ? 'Pick a model first.' : connection.message || 'Not connected yet.' }; renderStatus(); openSheet('settings-sheet'); return; }
   controller = new AbortController(); // busy from here, so a double tap can't send twice
@@ -114,14 +118,17 @@ async function reply() {
   await loadCaps(model);
   const sys = systemPrompt();
   const history = chat.messages.map((m) => ({ role: m.role, content: m.content, ...(m.images?.length ? { images: m.images } : {}) }));
+  const hasPhoto = history.some((m) => m.images);
+  const numCtx = Math.max(opts.numCtx || 0, settings.numCtx || 0, hasPhoto ? PHOTO_MIN_CTX : 0);
+  const think = opts.think ?? !!settings.think;
   const body = {
     model,
     messages: sys ? [{ role: 'system', content: sys }, ...history] : history,
     stream: true,
-    options: { temperature: settings.temperature, ...(settings.numCtx ? { num_ctx: settings.numCtx } : {}) },
-    ...(can('thinking') ? { think: !!settings.think } : {}),
+    options: { temperature: settings.temperature, ...(numCtx ? { num_ctx: numCtx } : {}) },
+    ...(can('thinking') ? { think } : {}),
   };
-  const msg = { role: 'assistant', content: '', thinking: '', model, started: Date.now() };
+  const msg = { role: 'assistant', content: '', thinking: '', model, started: Date.now(), numCtx, thought: can('thinking') && think };
   chat.messages.push(msg);
   chat.model = model;
   renderMessages(true);
@@ -144,7 +151,10 @@ async function reply() {
         if (o.error) throw new Error(o.error);
         if (o.message?.content) msg.content += o.message.content;
         if (o.message?.thinking) msg.thinking += o.message.thinking;
-        if (o.done) msg.stats = { tokens: o.eval_count, seconds: o.eval_duration ? o.eval_duration / 1e9 : null };
+        if (o.done) {
+          msg.stats = { tokens: o.eval_count, seconds: o.eval_duration ? o.eval_duration / 1e9 : null };
+          msg.cutOff = o.done_reason === 'length'; // ran out of memory or hit the length limit
+        }
       }
       scheduleStreamRender();
     }
@@ -224,6 +234,14 @@ function renderMessages(forceBottom = false) {
       <div class="ch-md" data-i="${i}">${answer ? renderMarkdown(answer) : streaming && !stillThinking ? '<span class="ch-dots"><i></i><i></i><i></i></span>' : ''}${streaming && answer ? '<span class="ch-caret">▍</span>' : ''}</div>
       ${m.error ? `<div class="ch-error">⚠️ ${esc(m.error)}</div>` : ''}
       ${m.stopped ? '<div class="ch-meta">Stopped.</div>' : ''}
+      ${!streaming && !m.error && !m.stopped && (m.cutOff || (!answer && thinking)) ? `<div class="ch-notice">
+        <p>${m.cutOff
+          ? (answer ? 'The reply was cut off: the model ran out of memory.' : 'The model ran out of memory while reasoning, before it could answer.')
+          : 'The model reasoned but didn\'t give a final answer.'} ${m.thought ? 'Turning thinking off for this question is usually faster, and works well for things like reading a receipt.' : ''}</p>
+        ${i === lastAssistant ? `<div class="ch-btns">
+          ${m.thought ? `<button type="button" class="secondary small" data-act="retry-nothink" data-i="${i}">Answer without thinking</button>` : ''}
+          ${m.cutOff ? `<button type="button" class="secondary small" data-act="retry-more" data-i="${i}">Try again with more memory</button>` : ''}</div>` : ''}
+      </div>` : ''}
       ${streaming ? '' : `<div class="ch-actions">
         ${answer ? `<button type="button" data-act="copy" data-i="${i}">Copy</button>` : ''}
         ${i === lastAssistant ? `<button type="button" data-act="regen" data-i="${i}">↻ Regenerate</button>` : ''}
@@ -406,6 +424,16 @@ $('messages').addEventListener('click', async (e) => {
   if (b.dataset.act === 'regen') {
     chat.messages.splice(i);
     await reply();
+  }
+  if (b.dataset.act === 'retry-nothink') {
+    chat.messages.splice(i);
+    await reply({ think: false, numCtx: m.numCtx });
+  }
+  if (b.dataset.act === 'retry-more') {
+    // Double the memory used last time, from at least 8K up to 32K.
+    const next = Math.min(32768, Math.max(PHOTO_MIN_CTX, (m.numCtx || 4096) * 2));
+    chat.messages.splice(i);
+    await reply({ numCtx: next, think: m.thought ? true : undefined });
   }
   if (b.dataset.act === 'edit') {
     chat.messages.splice(i);
