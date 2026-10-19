@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3b2a8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Wallet Radar</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-radar">
+  <header class="balance">
+    <a class="back" href="../">‹ Apps</a>
+    <p class="eyebrow">Wallet Radar</p>
+    <p class="radar-title">Who went in, and when</p>
+    <label class="chain-pick">
+      <span class="sr-only">Blockchain</span>
+      <select id="chain">
+        <option value="robinhood">Robinhood Chain</option>
+        <option value="solana" disabled>Solana (coming next, needs a Helius key)</option>
+      </select>
+    </label>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="buyers" aria-selected="true">Buyers</button>
+    <button role="tab" data-tab="compare">Compare</button>
+    <button role="tab" data-tab="wallet">Wallet</button>
+    <button role="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <!-- 1. Early buyers -->
+    <section data-panel="buyers">
+      <div class="card">
+        <h2>Token</h2>
+        <label class="field">
+          <span>Token contract address</span>
+          <input id="b-token" class="mono" placeholder="0x…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="hint token-line" id="b-token-info"></p>
+      </div>
+      <div class="card">
+        <h2>Time window</h2>
+        <div class="window" data-window="b"></div>
+        <label class="field">
+          <span>Show wallets that got at least this % of the supply</span>
+          <input id="b-min" type="number" min="0.01" step="0.1" value="1" inputmode="decimal">
+        </label>
+        <label class="check"><input type="checkbox" id="b-transfers"> Also count tokens received by transfer (not only buys)</label>
+        <div class="actions">
+          <button class="primary" id="b-run" type="button">Find wallets</button>
+        </div>
+        <p class="progress" id="b-progress" hidden></p>
+      </div>
+      <div class="card" id="b-results" hidden></div>
+    </section>
+
+    <!-- 2. Compare a group with another token -->
+    <section data-panel="compare" hidden>
+      <div class="card">
+        <h2>Wallets</h2>
+        <label class="field">
+          <span>Saved group</span>
+          <select id="c-group"></select>
+        </label>
+        <label class="field">
+          <span>…or paste addresses, one per line</span>
+          <textarea id="c-wallets" class="mono" rows="4" placeholder="0x…" autocapitalize="off" spellcheck="false"></textarea>
+        </label>
+      </div>
+      <div class="card">
+        <h2>Other token</h2>
+        <label class="field">
+          <span>Token contract address</span>
+          <input id="c-token" class="mono" placeholder="0x…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <div class="window" data-window="c"></div>
+        <div class="actions">
+          <button class="primary" id="c-run" type="button">Compare</button>
+        </div>
+        <p class="progress" id="c-progress" hidden></p>
+      </div>
+      <div class="card" id="c-results" hidden></div>
+    </section>
+
+    <!-- 3. Who a wallet sent to -->
+    <section data-panel="wallet" hidden>
+      <div class="card">
+        <h2>Wallet</h2>
+        <label class="field">
+          <span>Wallet address</span>
+          <input id="w-address" class="mono" placeholder="0x…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <div class="seg" role="radiogroup" aria-label="Direction">
+          <label><input type="radio" name="w-dir" value="out" checked> Sent to</label>
+          <label><input type="radio" name="w-dir" value="in"> Received from</label>
+        </div>
+        <div class="window" data-window="w"></div>
+        <p class="hint">Longer windows take longer: about 1 request per 50 minutes of chain time.</p>
+        <div class="actions">
+          <button class="primary" id="w-run" type="button">Look up</button>
+        </div>
+        <p class="progress" id="w-progress" hidden></p>
+      </div>
+      <div class="card" id="w-results" hidden></div>
+    </section>
+
+    <!-- Settings -->
+    <section data-panel="settings" hidden>
+      <div class="card">
+        <h2>Saved groups</h2>
+        <ul class="groups" id="s-groups"></ul>
+        <p class="hint" id="s-groups-empty">No groups yet. Save one from the Buyers tab.</p>
+      </div>
+      <div class="card">
+        <h2>Data sources</h2>
+        <p class="hint">Robinhood Chain works without any key, using its free public node. Keys are stored only on this device.</p>
+        <label class="field">
+          <span>Robinhood Chain node (RPC)</span>
+          <input id="s-rpc" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>Blockscout API key <small>(optional, for ETH transfers)</small></span>
+          <input id="s-blockscout" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Free at dev.blockscout.com">
+        </label>
+        <label class="field">
+          <span>Helius API key <small>(for Solana, coming next)</small></span>
+          <input id="s-helius" class="mono" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Free at helius.dev">
+        </label>
+      </div>
+      <div class="card">
+        <h2>About the results</h2>
+        <ul class="notes">
+          <li><b>Bought</b> means tokens came from a contract such as a trading pool or launchpad. Airdrops from a contract count too.</li>
+          <li><b>Bundle</b> means one transaction gave tokens to several wallets at once, often a sign they belong to one person (or an airdrop).</li>
+          <li><b>Contract</b> wallets are usually smart wallets, sometimes pools.</li>
+          <li>A wallet is not a person: one trader can use many wallets. Early windows are often full of bots.</li>
+          <li><b>⚠ Hidden characters</b> in a token name and <b>look-alike addresses</b> (same start and end as another) are common scams. Fake tokens can even make it look as if a wallet sent them.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="sheet" id="sheet">
+    <form method="dialog">
+      <p class="mono sheet-title" id="sheet-title"></p>
+      <div class="sheet-actions" id="sheet-actions"></div>
+      <button class="secondary" value="close">Close</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

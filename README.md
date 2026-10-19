@@ -64,6 +64,26 @@ Instruments software is used.
 - **Not yet:** STAT, lists, MATRIX, programs, APPS and complex numbers. Their keys show a short "not in this version"
   note.
 
+### 🔎 Wallet Radar (`wallets/`)
+
+Shows who went into a token, and when, on Robinhood Chain. Solana is planned next and will need a free Helius key.
+It only reads public blockchain data: there's no wallet connection and nothing to sign.
+
+- **Buyers:** the wallets that bought at least X% of a token's supply between two times. Each shows the first buy
+  time, number of buys, amount sold in the window, net position, current holding, and flags:
+  - **bundle:** one transaction bought for several wallets;
+  - **likely a trading bot:** many buys;
+  - **contract:** usually a smart wallet.
+
+  You can save the list as a group or export it to CSV.
+- **Compare:** which wallets of a saved group (or pasted addresses) bought or received another token in a time window.
+- **Wallet:** which wallets an address sent tokens to (or received them from), with counts and amounts. Tap any
+  wallet to follow the trail. ETH transfers need a free Blockscout key.
+- **Scam flags:** token names with hidden characters (fake look-alike tokens) and look-alike addresses (address
+  poisoning) are flagged.
+- **Data source:** Robinhood Chain's free public RPC. `src/onchain.js` splits requests to fit the node's limits, backs
+  off when rate-limited, and fills in block times the node leaves out.
+
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/) and
 [Morning Pick](https://mangoomeh.github.io/FitnessTrackingApp/).
 
@@ -80,8 +100,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
