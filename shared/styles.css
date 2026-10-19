@@ -865,3 +865,8 @@ div.lp { cursor: default; }
 .lp-bottom { font-size: .72rem; color: var(--muted); }
 .tile.bazi { background: #7a1f1f; color: #fff8ec; border-color: #7a1f1f; }
 .tile.bazi small { color: rgb(255 248 236 / .85); }
+.reading dl { margin: 0; }
+.reading dt { font-weight: 700; margin-top: .75rem; }
+.reading dt:first-child { margin-top: 0; }
+.reading dd { margin: .2rem 0 0; }
+.how-to { margin-top: .5rem; }

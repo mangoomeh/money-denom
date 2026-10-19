@@ -115,6 +115,10 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
 - **Luck pillars (大运):** ten 10-year pillars, forward or backward by gender and year polarity. The start age is
   worked out from the days to the nearest solar term (3 days = 1 year). Tap a pillar to see its ten years (流年);
   the current ones are highlighted.
+- **Reading (plain English):** what the day master says about your strengths and watch-outs, what each pillar covers
+  in life, which ten-god themes are strong or missing, element balance, and what the current luck pillar and year
+  bring, plus a short guide to reading a chart. The text is in `src/baziread.js` and is framed as traditional
+  interpretation, not prediction.
 - **Saved charts** are kept on the device.
 
 The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-monopoly/),
@@ -135,7 +139,7 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
 - `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`), with all money in integer cents
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the

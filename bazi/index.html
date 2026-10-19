@@ -19,6 +19,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="chart" aria-selected="true">Chart</button>
+    <button role="tab" data-tab="reading">Reading</button>
     <button role="tab" data-tab="luck">Luck</button>
     <button role="tab" data-tab="saved">Saved</button>
   </nav>
@@ -104,6 +105,22 @@
           <button class="primary" id="save" type="button">Save chart</button>
         </div>
       </div>
+    </section>
+
+    <section data-panel="reading" hidden>
+      <p class="speed-note">BaZi is a traditional Chinese system. These readings describe tendencies and themes to reflect on.
+        They are not predictions or facts about you, and shouldn't drive big decisions on their own.</p>
+      <div id="reading"><div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div></div>
+      <details class="card">
+        <summary><strong>How to read a BaZi chart</strong></summary>
+        <ol class="notes how-to">
+          <li><strong>Start with the day master</strong> (the Day stem). It stands for you; everything else is read against it.</li>
+          <li><strong>Look at the ten gods.</strong> Each stem is a relationship to you: what supports you (Resource), what you create (Output), what you earn (Wealth), what disciplines you (Officer) and who stands beside you (Companion).</li>
+          <li><strong>Note where they sit.</strong> Year = roots and childhood, Month = parents and work, Day branch = your partner, Hour = children and later life.</li>
+          <li><strong>Check the balance.</strong> Too much or too little of an element or theme shows where life tends to feel easy or effortful.</li>
+          <li><strong>Add timing.</strong> Each 10-year luck pillar and each year brings new ten gods that switch different themes on, and clashes often mark change.</li>
+        </ol>
+      </details>
     </section>
 
     <section data-panel="luck" hidden>

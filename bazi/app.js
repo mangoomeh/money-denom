@@ -2,6 +2,7 @@ import {
   STEMS, STEM_PINYIN, BRANCHES, BRANCH_PINYIN, ANIMALS, ELEMENTS, TEN_GODS, LIFE_STAGES, LIFE_STAGES_EN,
   NAYIN, NAYIN_EN, HIDDEN_STEMS, BRANCH_ELEMENT, stemElement, isYang, computeChart, annualPillar, parseBirth,
 } from '../src/bazi.js';
+import { buildReading, GOD_DETAILS, PILLAR_AREAS } from '../src/baziread.js';
 
 const STORAGE_KEY = 'bazi-v1';
 const $ = (id) => document.getElementById(id);
@@ -130,6 +131,7 @@ function render() {
   if (!chart) {
     $('headline').textContent = 'Enter a birth date';
     $('subline').textContent = 'Year, month, day and hour pillars';
+    $('reading').innerHTML = '<div class="card"><p class="hint">Enter a birth date on the Chart tab.</p></div>';
     renderLuck();
     return;
   }
@@ -142,6 +144,7 @@ function render() {
   renderElements();
   renderInteractions();
   renderDetails(f);
+  renderReading();
   selectedLuck = null;
   renderLuck();
 }
@@ -170,14 +173,18 @@ const STAGE_STRENGTH = ['strong', 'unsettled', 'growing', 'strong', 'strongest',
   'stored away', 'weakest', 'beginning again', 'gathering strength'];
 
 function explain(code) {
-  const [kind, a] = code.split(':');
+  const [kind, a, b] = code.split(':');
   const n = Number(a);
   const dm = chart.dayMaster;
   const dmName = `${STEMS[dm]} (${isYang(dm) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(dm)].en})`;
   switch (kind) {
     case 'row': { const r = ROWS.find((x) => x[0] === a); return `<strong>${r[1]} ${r[2]}</strong>: ${r[3]}`; }
     case 'dm': return `<strong>日主 Day master</strong>: the day stem ${dmName} stands for you. Every ten god is worked out relative to it.`;
-    case 'god': return `<strong>${TEN_GODS[n].zh} ${TEN_GODS[n].en}</strong>: ${GOD_NOTES[n]} (Relative to your day master ${dmName}.)`;
+    case 'god': {
+      const d = GOD_DETAILS[n];
+      const where = b ? ` Here it sits in your ${PILLAR_AREAS[b].label.toLowerCase()}, which covers ${PILLAR_AREAS[b].area}.` : '';
+      return `<strong>${TEN_GODS[n].zh} ${TEN_GODS[n].en}</strong>: ${GOD_NOTES[n]}<br>At its best: ${d.plus}. Watch for ${d.minus}. In life: ${d.area}.${where}`;
+    }
     case 'stem': return `<strong>${STEMS[n]} ${STEM_PINYIN[n]}</strong>: ${isYang(n) ? 'Yang' : 'Yin'} ${ELEMENTS[stemElement(n)].en}.`;
     case 'branch': return `<strong>${BRANCHES[n]} ${BRANCH_PINYIN[n]}</strong>: the ${ANIMALS[n]}, ${ELEMENTS[branchElement(n)].en}. Hidden stems: ${HIDDEN_STEMS[n].map((h) => STEMS[h]).join(' ')}.`;
     case 'nayin': return `<strong>${NAYIN[n]}</strong>: “${NAYIN_EN[n]}”, the 纳音 element of this pillar.`;
@@ -199,10 +206,10 @@ function renderPillars() {
       continue;
     }
     const ni = Math.floor(p.index / 2);
-    cells.god.push(`<div class="pc${day}">${p.key === 'day' ? btn('dm:', '<strong>日主</strong>') : btn(`god:${p.stemGod}`, godShort(p.stemGod))}</div>`);
+    cells.god.push(`<div class="pc${day}">${p.key === 'day' ? btn('dm:', '<strong>日主</strong>') : btn(`god:${p.stemGod}:${p.key}`, godShort(p.stemGod))}</div>`);
     cells.stem.push(`<div class="pc${day}">${btn(`stem:${p.stem}`, STEMS[p.stem], `glyph ${elClass(stemElement(p.stem))}`)}</div>`);
     cells.branch.push(`<div class="pc${day}">${btn(`branch:${p.branch}`, BRANCHES[p.branch], `glyph ${elClass(branchElement(p.branch))}`)}</div>`);
-    cells.hidden.push(`<div class="pc hid${day}">${p.hidden.map((h) => btn(`god:${h.god}`, `<span class="${elClass(stemElement(h.stem))}">${STEMS[h.stem]}</span><small>${godShort(h.god)}</small>`)).join('')}</div>`);
+    cells.hidden.push(`<div class="pc hid${day}">${p.hidden.map((h) => btn(`god:${h.god}:${p.key}`, `<span class="${elClass(stemElement(h.stem))}">${STEMS[h.stem]}</span><small>${godShort(h.god)}</small>`)).join('')}</div>`);
     cells.nayin.push(`<div class="pc sub${day}">${btn(`nayin:${ni}`, NAYIN[ni])}</div>`);
     cells.stage.push(`<div class="pc sub${day}">${btn(`stage:${p.stage}`, LIFE_STAGES[p.stage])}</div>`);
   }
@@ -255,6 +262,14 @@ function renderDetails(f) {
   rows.push(['Void (空亡)', chart.voids.map((b) => BRANCHES[b]).join('')]);
   rows.push(['Luck pillars', `${chart.luck.forward ? 'Forward' : 'Backward'}, from age ${ageText(chart.luck.startYears + chart.luck.startMonthsRem / 12)}`]);
   $('details').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+}
+
+function renderReading() {
+  $('reading').innerHTML = buildReading(chart).map((sec) => `<div class="card reading">
+      <h2>${esc(sec.title)}</h2>
+      ${sec.intro ? `<p class="hint">${esc(sec.intro)}</p>` : ''}
+      <dl>${sec.items.map((i) => `<dt>${esc(i.head)}</dt><dd>${esc(i.body)}</dd>`).join('')}</dl>
+    </div>`).join('');
 }
 
 function currentLuckIndex() {

@@ -128,3 +128,18 @@ test('纳音 and life stages have English names', () => {
   assert.equal(nayinEn(pillarOf(59)), 'Great Sea Water');
   assert.equal(LIFE_STAGES_EN.length, 12);
 });
+
+test('reading: day master, pillars, themes, balance and timing', async () => {
+  const { buildReading, familyCounts } = await import('../src/baziread.js');
+  const c = computeChart({ year: 1996, month: 12, day: 10, timeKnown: false, tzOffset: 8, gender: 'male' });
+  assert.deepEqual(familyCounts(c), [1, 2, 0, 2, 0]); // 庚 劫财; 癸癸 食神; 丙 and 巳's 丙 正官
+  const sections = buildReading(c, new Date(2026, 9, 19));
+  assert.deepEqual(sections.map((s) => s.title), ['You: 辛 Yin Metal', 'What each pillar covers', 'Your main themes', 'Element balance', 'Now']);
+  const text = JSON.stringify(sections);
+  assert.ok(text.includes('Missing: Wealth'));
+  assert.ok(text.includes('Least: 木 Wood (missing from the eight characters)'));
+  assert.ok(text.includes('This decade: 癸卯 (from 2025)'));
+  assert.ok(text.includes('2026: 丙午'));
+  assert.ok(text.includes('clashes with your month pillar 子 and year pillar 子'));
+  assert.ok(text.includes('Hour pillar: unknown'));
+});
