@@ -84,6 +84,49 @@
           <label class="check"><input type="checkbox" id="show-annual" checked> <span id="show-annual-label"></span></label>
           <div class="explain" id="cell-detail"></div>
         </div>
+        <div class="card" id="plan-card">
+          <h2 data-zh="户型图">Floor plan</h2>
+          <div id="plan-empty">
+            <p class="hint" data-zh="上传户型图（照片、截图或PDF），把九宫格对上你的单位，直接看每个房间的飞星。图片只存在你的手机里。">Add your floor plan (a photo, screenshot or PDF) to lay the nine squares over your flat and see the stars on each room. The plan stays on your phone.</p>
+            <label class="primary fs-file"><input type="file" id="plan-file" accept="image/*,application/pdf"><span data-zh="上传户型图">Add floor plan</span></label>
+            <p class="hint" id="plan-status"></p>
+            <details class="fs-more">
+              <summary data-zh="去哪里找HDB户型图？">Where do I get my HDB floor plan?</summary>
+              <ul class="fs-steps">
+                <li data-zh="<b>转售组屋：</b>HDB 网站的“Purchase of Residential Floor Plan”电子服务，约$5，PDF以电邮寄出。">
+                  <b>Resale flat:</b> HDB's Purchase of Residential Floor Plan e-Service, about $5 for a PDF by email.</li>
+                <li data-zh="<b>预购组屋（BTO）：</b>领钥匙前可在 HDB 网站免费下载，或看售屋手册。">
+                  <b>BTO flat:</b> free to download from the HDB portal before you collect your keys, or in the sales brochure.</li>
+                <li data-zh="<b>其他：</b>中介、房屋广告或房产网站上同类型单位的平面图，截图即可。">
+                  <b>Otherwise:</b> your agent, the listing, or the standard plan for your flat type on property sites. A screenshot works.</li>
+              </ul>
+            </details>
+          </div>
+          <div id="plan-view" hidden>
+            <div class="seg" role="radiogroup" aria-label="Mode">
+              <label><input type="radio" name="plan-mode" value="fit"> <span data-zh="对齐格子">Fit grid</span></label>
+              <label><input type="radio" name="plan-mode" value="read" checked> <span data-zh="查看">Read</span></label>
+              <label><input type="radio" name="plan-mode" value="missing"> <span data-zh="标缺角">Missing</span></label>
+            </div>
+            <p class="hint" id="plan-help"></p>
+            <div class="fs-plan"><img id="plan-img" alt=""><svg id="plan-svg" class="fs-plan-svg"></svg></div>
+            <p class="fs-label" data-zh="大门在图的哪一边？">Which side of the plan is the main door on?</p>
+            <div class="seg" role="radiogroup" aria-label="Door side">
+              <label><input type="radio" name="plan-side" value="top"> <span data-zh="上">Top</span></label>
+              <label><input type="radio" name="plan-side" value="right"> <span data-zh="右">Right</span></label>
+              <label><input type="radio" name="plan-side" value="bottom"> <span data-zh="下">Bottom</span></label>
+              <label><input type="radio" name="plan-side" value="left"> <span data-zh="左">Left</span></label>
+            </div>
+            <p class="hint" data-zh="格子跟着墙走，不必把图转到北方：大门那一边的中间格就是“向”，其余按顺时针排。">The grid follows the walls, so there's no need to turn the plan to north: the middle square on the door side is the facing, and the rest follow clockwise.</p>
+            <label class="field" id="plan-layer-field"><span data-zh="显示">Show</span><select id="plan-layer"></select></label>
+            <div class="explain" id="plan-detail"></div>
+            <div class="fs-plan-actions">
+              <button class="secondary small" type="button" id="plan-rotate" data-zh="旋转90°">Rotate 90°</button>
+              <label class="secondary small fs-file"><input type="file" id="plan-replace" accept="image/*,application/pdf"><span data-zh="更换">Replace</span></label>
+              <button class="secondary small" type="button" id="plan-remove" data-zh="删除">Remove</button>
+            </div>
+          </div>
+        </div>
         <div class="card reading" id="house-summary"></div>
       </div>
 
@@ -146,6 +189,8 @@
           <label><input type="radio" name="p-gender" value="male"> <span data-zh="男">Male</span></label>
           <label><input type="radio" name="p-gender" value="female"> <span data-zh="女">Female</span></label>
         </div>
+        <label class="field"><span data-zh="家中角色">Role in the family</span><select id="p-role"></select></label>
+        <p class="hint" data-zh="八卦各代表一位家人（乾父、坤母、震长男、巽长女、坎中男、离中女、艮少男、兑少女）。填了角色，各宫的解读会指出影响到谁。">Each trigram stands for a family member (乾 NW father, 坤 SW mother, 震 E eldest son, 巽 SE eldest daughter, 坎 N middle son, 离 S middle daughter, 艮 NE youngest son, 兑 W youngest daughter). With a role set, sector readings say who they affect.</p>
         <p class="hint" data-zh="命卦按立春（约2月4日）分年，与八字年柱相同。">The Kua year starts at 立春 (about 4 Feb), the same as the BaZi year pillar.</p>
         <p class="fs-error" id="p-error" hidden></p>
         <button class="primary" type="button" id="p-add" data-zh="添加">Add</button>

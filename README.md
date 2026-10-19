@@ -157,6 +157,13 @@ Flying Star (玄空飞星) and Eight Mansions (八宅) feng shui for a home and 
   stars at the facing or sitting), 合十, 父母三般卦, 连珠, 伏吟/反吟 and boundary (空亡) facings, and the house
   trigram. Tap a sector for its stars, combinations (e.g. 2-5, 1-4, 6-8), what it suits, this year's star and
   afflictions there, and how each household member finds it. The grid can be drawn south-up or north-up.
+- **Floor plan:** add a photo, screenshot or PDF of the floor plan (e.g. an HDB plan) and drag the 3×3 grid onto
+  the flat's outer walls. Pick the side the main door is on; the grid follows the walls, with the front middle
+  square as the facing. Each room then shows its stars (or a person's Eight Mansions directions), squares outside
+  an L-shaped flat can be marked as missing corners, and tapping a square gives its reading. The plan is kept in
+  the browser's IndexedDB; PDFs are rendered with pdf.js from the CDN.
+- **Family roles:** each person can be given a role (father, mother, eldest son, …). Each trigram stands for a
+  family member, so sector readings, missing corners and the year's 5 Yellow and 2 Black say who they affect.
 - **People:** each person's Kua number (from the 立春 year and gender) with their four good and four bad directions
   (生气, 天医, 延年, 伏位 / 祸害, 五鬼, 六煞, 绝命), East or West group, and desk and bed tips. Charts saved in the
   BaZi app can be imported, which adds the directions of their favourable elements.

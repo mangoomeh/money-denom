@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mountainOf, palaceOf, mountainOffset, mountainYang, MOUNTAINS, fly, houseChart, annualStar, afflictions, solarYear,
-  periodOf, monthStar, monthOf, kuaOf, mansionPalaces, mansionAt, houseKua, comboFor, timeliness,
+  periodOf, monthStar, monthOf, kuaOf, mansionPalaces, mansionAt, houseKua, comboFor, timeliness, gridPalaces,
 } from '../src/fengshui.js';
 
 test('degrees map to the 24 mountains and 8 palaces', () => {
@@ -130,4 +130,17 @@ test('combinations and timeliness', () => {
   assert.equal(timeliness(8, 9), 'retreating');
   assert.equal(timeliness(5, 9), 'harmful');
   assert.equal(timeliness(6, 9), 'dormant');
+});
+
+test('floor plan grid follows the walls from the door side', () => {
+  // Door at the bottom facing South: a normal north-up map.
+  assert.deepEqual(gridPalaces(4, 'bottom'), [7, 0, 1, 6, 'c', 2, 5, 4, 3]);
+  // Door at the top facing South: the plan is drawn south-up.
+  assert.deepEqual(gridPalaces(4, 'top'), [3, 4, 5, 2, 'c', 6, 1, 0, 7]);
+  // Door on the right facing Southeast: front middle is SE, its clockwise neighbour (below) is S.
+  const g = gridPalaces(3, 'right');
+  assert.equal(g[5], 3);
+  assert.equal(g[8], 4);
+  assert.equal(g[2], 2);
+  assert.equal(g[3], 7); // back middle is NW, opposite SE
 });

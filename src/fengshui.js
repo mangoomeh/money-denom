@@ -244,3 +244,16 @@ export const mansionPalaces = (kua) => MANSION_PALACES[kua];
 export const mansionAt = (kua, palace) => MANSION_PALACES[kua].indexOf(palace);
 // House Kua (宅卦) from its sitting palace.
 export const houseKua = (sittingPalace) => PALACE_STAR[sittingPalace];
+
+// ---- Floor plan grid --------------------------------------------------------------------------------
+
+// The palace in each square of a 3×3 grid laid over a floor plan (row by row from the top left), given the
+// side of the plan the main door is on. The grid follows the walls: the front middle square is the facing
+// palace and the rest follow clockwise, as on a plan seen from above.
+const RING = [1, 2, 5, 8, 7, 6, 3, 0]; // squares clockwise from the top middle
+const SIDE_RING = { top: 0, right: 2, bottom: 4, left: 6 };
+export function gridPalaces(facingPalace, side) {
+  const out = new Array(9).fill('c');
+  RING.forEach((sq, k) => { out[sq] = mod(facingPalace + k - SIDE_RING[side], 8); });
+  return out;
+}

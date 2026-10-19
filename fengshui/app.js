@@ -1,10 +1,11 @@
 import {
   PALACES, PALACES_EN, PALACES_ZH, TRIGRAMS, TRIGRAM_SYMBOLS, MOUNTAINS, MOUNTAIN_PINYIN, STARS, mountainOf, mountainLabel,
   mountainPalace, mountainOffset, houseChart, fly, annualStar, monthStar, monthOf, monthStartMs, afflictions, solarYear,
-  periodOf, periodRange, timeliness, comboFor, kuaOf, isEastGroup, MANSIONS, mansionAt, houseKua, yearBranch,
+  periodOf, periodRange, timeliness, comboFor, kuaOf, isEastGroup, MANSIONS, mansionAt, houseKua, yearBranch, gridPalaces,
 } from '../src/fengshui.js';
 import { BRANCHES, ANIMALS, ANIMALS_ZH, ELEMENTS, STEMS, JIE, computeChart, parseBirth, analyseStrength } from '../src/bazi.js';
 import { placeFor } from '../src/places.js';
+import { getPlan, putPlan, deletePlan, fileToPlan, rotatePlan } from './plan.js';
 
 const STORAGE_KEY = 'fengshui-v1';
 const BAZI_KEY = 'bazi-v1';
@@ -17,12 +18,13 @@ const mod = (n, m) => ((n % m) + m) % m;
 function load() {
   const defaults = {
     home: { facing: '', moveIn: '', period: 'auto', replace: 'auto', orient: 'south', showAnnual: true },
+    plan: { rect: [0.1, 0.1, 0.9, 0.9], side: 'bottom', missing: [], layer: 'stars' },
     people: [],
     lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en',
   };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.home) return { ...defaults, ...saved, home: { ...defaults.home, ...saved.home }, people: saved.people || [] };
+    if (saved && saved.home) return { ...defaults, ...saved, home: { ...defaults.home, ...saved.home }, plan: { ...defaults.plan, ...saved.plan }, people: saved.people || [] };
   } catch { /* ignore */ }
   return defaults;
 }
@@ -91,6 +93,33 @@ const FEATURES = {
 // Palaces of each element: Wood E/SE, Fire S, Earth NE/SW, Metal W/NW, Water N.
 const ELEMENT_PALACES = [[2, 3], [4], [1, 5], [6, 7], [0]];
 
+// Each palace's family member (Later Heaven trigrams) and the body parts it is linked with.
+const PALACE_PEOPLE = [
+  { role: 'middleSon', en: 'middle son', zh: '中男', body: 'ears, kidneys', bodyZh: '耳、肾' },
+  { role: 'youngestSon', en: 'youngest son', zh: '少男', body: 'hands, back', bodyZh: '手、背' },
+  { role: 'eldestSon', en: 'eldest son', zh: '长男', body: 'feet, liver', bodyZh: '足、肝' },
+  { role: 'eldestDaughter', en: 'eldest daughter', zh: '长女', body: 'hips, thighs', bodyZh: '股、胆' },
+  { role: 'middleDaughter', en: 'middle daughter', zh: '中女', body: 'eyes, heart', bodyZh: '目、心' },
+  { role: 'mother', en: 'mother', zh: '母亲', body: 'stomach', bodyZh: '腹、胃' },
+  { role: 'youngestDaughter', en: 'youngest daughter', zh: '少女', body: 'mouth, lungs', bodyZh: '口、肺' },
+  { role: 'father', en: 'father', zh: '父亲', body: 'head, lungs', bodyZh: '头、肺' },
+];
+const ROLE_ORDER = ['father', 'mother', 'eldestSon', 'middleSon', 'youngestSon', 'eldestDaughter', 'middleDaughter', 'youngestDaughter'];
+const rolePalace = (role) => PALACE_PEOPLE.findIndex((x) => x.role === role);
+const roleName = (role) => { const x = PALACE_PEOPLE[rolePalace(role)]; return x ? t(x.en, x.zh) : ''; };
+const roleOptions = (sel) => `<option value="">${t('Role in the family (optional)', '家中角色（可不填）')}</option>${ROLE_ORDER.map((r) => `<option value="${r}" ${r === sel ? 'selected' : ''}>${esc(roleName(r).replace(/^./, (c) => c.toUpperCase()))}</option>`).join('')}`;
+
+// Who a palace stands for in the family, and who in the household has that role.
+function familyLine(p, watch) {
+  if (p === 'c') return '';
+  const x = PALACE_PEOPLE[p];
+  const names = state.people.filter((q) => q.role === x.role).map((q) => esc(q.name || t('Someone', '某人')));
+  const who = names.length ? t(` (${names.join(', ')})`, `（${names.join('、')}）`) : '';
+  return t(`<b>Family:</b> the ${TRIGRAMS[p]} sector stands for the ${x.en}${who}; body: ${x.body}.${watch ? ` With ${watch} here, traditionally the ${x.en} is the one to look after.` : ''}`,
+    `<b>家人：</b>${TRIGRAMS[p]}宫主${x.zh}${who}，身体主${x.bodyZh}。${watch ? `此方有${watch}，传统上要多照顾${x.zh}。` : ''}`);
+}
+const badStars = (list) => [...new Set(list.filter((n) => n === 5 || n === 2))].map((n) => t(STARS[n].en, STARS[n].zh)).join(t(' and ', '、'));
+
 // ---- Grid ----------------------------------------------------------------------------------------
 
 const ORDER = { north: [7, 0, 1, 6, 'c', 2, 5, 4, 3], south: [3, 4, 5, 2, 'c', 6, 1, 0, 7] };
@@ -158,6 +187,7 @@ function renderHome() {
     <span class="ts-good">■</span>${t('timely', '得令')} <span class="ts-mixed">■</span>${t('retreating', '退气')} <span class="ts-hard">■</span>${t('harmful', '煞')}`;
   renderCellDetail(chart, annual, aff);
   renderHouseSummary(chart);
+  renderPlan(chart, annual, aff);
 }
 
 function facingText(deg) {
@@ -176,10 +206,9 @@ function fillPeriods(moveYear) {
   sel.value = state.home.period;
 }
 
-function renderCellDetail(chart, annual, aff) {
-  const box = $('cell-detail');
-  if (selectedCell == null) { box.innerHTML = t('Tap a sector to read it.', '点按任一宫位查看解释。'); return; }
-  const p = selectedCell === 'c' ? 'c' : Number(selectedCell);
+function renderCellDetail(chart, annual, aff, box = $('cell-detail'), sel = selectedCell, extra = '') {
+  if (sel == null) { box.innerHTML = t('Tap a sector to read it.', '点按任一宫位查看解释。'); return; }
+  const p = sel === 'c' ? 'c' : Number(sel);
   const at = (c) => (p === 'c' ? c.center : c.palaces[p]);
   const m = at(chart.mountain); const w = at(chart.water); const a = at(annual);
   const lines = [];
@@ -191,7 +220,7 @@ function renderCellDetail(chart, annual, aff) {
   lines.push(star(m, t('Mountain star (people, health, relationships)', '山星（人丁、健康、人缘）')));
   lines.push(star(w, t('Facing star (money, career)', '向星（财运、事业）')));
   const combo = comboFor(m, w);
-  if (combo) lines.push(`<span class="fs-tone ${combo.tone}">${m}-${w}</span> ${t(combo.en, combo.zh)}.`);
+  if (combo) lines.push(`<span class="fs-tone ${combo.tone}">${m}-${w}</span> ${t(combo.en, combo.zh)}${t('.', '。')}`);
   const advice = [];
   if (m === chart.period || timeliness(m, chart.period) === 'growing') advice.push(t('Good for a bedroom, or a solid wall, tall furniture or a quiet room (the mountain star likes stillness).', '宜作卧室，或放高柜、实墙，宜静（山星喜静）。'));
   if (w === chart.period || timeliness(w, chart.period) === 'growing') advice.push(t('Good for the main door, a living area, or water and movement (the facing star likes activity).', '宜开门、作客厅，或放水、多走动（向星喜动）。'));
@@ -209,12 +238,15 @@ function renderCellDetail(chart, annual, aff) {
       if (aff.threeKillings === p) hits.push(t('Three Killings', '三煞'));
     }
     if (hits.length) ann += t(`. Also ${hits.join(', ')}: avoid renovation and digging here this year.`, `。另逢${hits.join('、')}：今年此方勿动土装修。`);
-    else ann += '.';
+    else ann += t('.', '。');
     if (a === 5 && m !== 5 && w !== 5) ann += ` ${t('Annual 5 Yellow: ', '流年五黄：')}${t(CURES[5].en, CURES[5].zh)}`;
     lines.push(ann);
   }
+  const fam = familyLine(p, badStars(state.home.showAnnual ? [m, a] : [m]));
+  if (fam) lines.push(fam);
   const who = peopleFor(p);
   if (who) lines.push(who);
+  if (extra) lines.push(extra);
   box.innerHTML = lines.map((l) => `<p>${l}</p>`).join('');
 }
 
@@ -274,6 +306,189 @@ function groupMatch(hk) {
   return lines.length ? `<br>${lines.join('<br>')}` : '';
 }
 
+// ---- Floor plan ----------------------------------------------------------------------------------
+
+let planUrl = null;
+let planSize = null; // natural width and height of the image
+let planMode = 'read';
+let planCell = null; // index 0–8 of the tapped square
+let planDrag = null;
+
+async function loadPlanImage() {
+  let blob = null;
+  try { blob = await getPlan(); } catch { /* no IndexedDB: the plan just isn't kept */ }
+  setPlanBlob(blob, false);
+}
+
+function setPlanBlob(blob, save = true) {
+  if (planUrl) URL.revokeObjectURL(planUrl);
+  planUrl = blob ? URL.createObjectURL(blob) : null;
+  planSize = null;
+  if (save) (blob ? putPlan(blob) : deletePlan()).catch(() => {});
+  if (!blob) { renderHome(); return; }
+  const img = $('plan-img');
+  img.onload = () => { planSize = [img.naturalWidth, img.naturalHeight]; renderHome(); };
+  img.src = planUrl;
+}
+
+function renderPlan(chart, annual, aff) {
+  const has = !!planUrl;
+  $('plan-empty').hidden = has;
+  $('plan-view').hidden = !has;
+  if (!has || !planSize) return;
+  const pl = state.plan;
+  document.querySelector(`input[name="plan-side"][value="${pl.side}"]`).checked = true;
+  document.querySelector(`input[name="plan-mode"][value="${planMode}"]`).checked = true;
+  const layers = [['stars', t('Flying stars', '飞星')], ...state.people.flatMap((p, i) => (kuaFor(p) ? [[`p${i}`, `${p.name || t('Someone', '某人')} · ${t('Eight Mansions', '八宅')}`]] : []))];
+  if (!layers.some(([v]) => v === pl.layer)) pl.layer = 'stars';
+  $('plan-layer').innerHTML = layers.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+  $('plan-layer').value = pl.layer;
+  $('plan-layer-field').hidden = layers.length < 2;
+
+  const W = 1000;
+  const H = (W * planSize[1]) / planSize[0];
+  const [x0, y0, x1, y1] = pl.rect.map((v, i) => v * (i % 2 ? H : W));
+  const cw = (x1 - x0) / 3; const ch = (y1 - y0) / 3;
+  const unit = Math.max(14, Math.min(cw, ch));
+  const palaces = gridPalaces(chart.facingPalace, pl.side);
+  const person = pl.layer.startsWith('p') ? state.people[Number(pl.layer.slice(1))] : null;
+  const kua = person ? kuaFor(person) : null;
+  const out = [`<defs><pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="12" class="hatch"/></pattern></defs>`];
+  for (let i = 0; i < 9; i++) {
+    const p = palaces[i];
+    const cx = x0 + (i % 3) * cw; const cy = y0 + Math.floor(i / 3) * ch;
+    const at = (c) => (p === 'c' ? c.center : c.palaces[p]);
+    const missing = pl.missing.includes(i);
+    let tone = '';
+    let main = '';
+    let sub = '';
+    if (kua) {
+      if (p === 'c') { main = String(kua); sub = t('Kua', '命卦'); } else {
+        const mz = MANSIONS[mansionAt(kua, p)];
+        tone = mz.good ? 'good' : 'bad';
+        main = t(mz.en, mz.zh);
+        sub = t(mz.what, mz.whatZh);
+      }
+    } else {
+      const m = at(chart.mountain); const w = at(chart.water);
+      tone = comboFor(m, w)?.tone || '';
+      main = `<tspan class="${starCls(m, chart.period)}">${m}</tspan> <tspan class="${starCls(w, chart.period)}">${w}</tspan>`;
+      sub = state.home.showAnnual ? `${at(chart.base)} · ${t('year', '年')} ${at(annual)}` : String(at(chart.base));
+    }
+    const big = kua && p !== 'c' ? unit * 0.2 : unit * 0.34;
+    out.push(`<g class="pcell ${tone} ${missing ? 'missing' : ''} ${planCell === i ? 'on' : ''}" data-sq="${i}">
+      <rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" class="pfill"/>
+      ${missing ? `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="url(#hatch)"/>` : ''}
+      <text x="${cx + cw / 2}" y="${cy + ch * 0.2}" class="plabel" style="font-size:${unit * 0.13}px">${palaceShort(p)}${p === 'c' ? '' : ` ${TRIGRAMS[p]}`}${p === chart.facingPalace ? ` · ${t('Facing', '向')}` : ''}${missing ? ` · ${t('missing', '缺角')}` : ''}</text>
+      <text x="${cx + cw / 2}" y="${cy + ch * 0.52}" class="pmain" style="font-size:${big}px">${main}</text>
+      <text x="${cx + cw / 2}" y="${cy + ch * 0.78}" class="psub" style="font-size:${unit * 0.12}px">${esc(sub)}</text>
+    </g>`);
+  }
+  for (let k = 1; k < 3; k++) {
+    out.push(`<line x1="${x0 + k * cw}" y1="${y0}" x2="${x0 + k * cw}" y2="${y1}" class="pline"/><line x1="${x0}" y1="${y0 + k * ch}" x2="${x1}" y2="${y0 + k * ch}" class="pline"/>`);
+  }
+  out.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" class="pframe"/>`);
+  // The door side, drawn as a thick edge.
+  const door = { top: [x0, y0, x1, y0], bottom: [x0, y1, x1, y1], left: [x0, y0, x0, y1], right: [x1, y0, x1, y1] }[pl.side];
+  out.push(`<line x1="${door[0]}" y1="${door[1]}" x2="${door[2]}" y2="${door[3]}" class="pdoor"/>`);
+  if (planMode === 'fit') {
+    const r = Math.max(16, W * 0.03);
+    for (const [hx, hy, h] of [[x0, y0, 'tl'], [x1, y0, 'tr'], [x0, y1, 'bl'], [x1, y1, 'br']]) out.push(`<circle cx="${hx}" cy="${hy}" r="${r}" class="phandle" data-h="${h}"/>`);
+  }
+  const svg = $('plan-svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = out.join('');
+  svg.classList.toggle('fitting', planMode === 'fit');
+  $('plan-help').textContent = planMode === 'fit'
+    ? t('Drag the corners to the outer walls of the flat (include the household shelter and service yard, not the common corridor). Drag inside the grid to move it.', '拖动四角对准单位外墙（含防空壕和后阳台，不含公共走廊）。在格内拖动可整体移动。')
+    : planMode === 'missing'
+      ? t('Tap the squares that are mostly outside the flat to mark them as missing corners.', '点按大部分在单位外的格子，标为缺角。')
+      : t('Tap a square to read that part of your home.', '点按格子查看屋内该区的解读。');
+  if (planCell == null) { $('plan-detail').innerHTML = t('Tap a square to read it.', '点按格子查看解释。'); return; }
+  const p = palaces[planCell];
+  const extra = pl.missing.includes(planCell) && p !== 'c'
+    ? t(`<b>Missing corner:</b> traditionally the ${PALACE_PEOPLE[p].en} and the matters of ${PALACES_EN[p]} are weaker. A mirror on that wall, or good light there, is the usual remedy.`, `<b>缺角：</b>传统认为${PALACE_PEOPLE[p].zh}及${PALACES_ZH[p]}方之事较弱。常在该墙挂镜或加强照明以补。`)
+    : '';
+  renderCellDetail(chart, annual, aff, $('plan-detail'), String(p), extra);
+}
+
+function svgPoint(e) {
+  const svg = $('plan-svg');
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const vb = svg.viewBox.baseVal;
+  return [p.x / vb.width, p.y / vb.height];
+}
+
+function planPointerDown(e) {
+  if (planMode !== 'fit') return;
+  const [x, y] = svgPoint(e);
+  const h = e.target.closest('[data-h]')?.dataset.h;
+  const [x0, y0, x1, y1] = state.plan.rect;
+  if (!h && !(x > x0 && x < x1 && y > y0 && y < y1)) return;
+  planDrag = { h: h || 'move', start: [x, y], rect: [...state.plan.rect] };
+  $('plan-svg').setPointerCapture(e.pointerId);
+  e.preventDefault();
+}
+
+function planPointerMove(e) {
+  if (!planDrag) return;
+  const [x, y] = svgPoint(e);
+  const dx = x - planDrag.start[0]; const dy = y - planDrag.start[1];
+  let [x0, y0, x1, y1] = planDrag.rect;
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  const MIN = 0.08;
+  if (planDrag.h === 'move') {
+    const w = x1 - x0; const h = y1 - y0;
+    x0 = Math.min(1 - w, Math.max(0, x0 + dx)); y0 = Math.min(1 - h, Math.max(0, y0 + dy));
+    x1 = x0 + w; y1 = y0 + h;
+  } else {
+    if (planDrag.h.includes('l')) x0 = Math.min(clamp(x0 + dx), x1 - MIN);
+    if (planDrag.h.includes('r')) x1 = Math.max(clamp(x1 + dx), x0 + MIN);
+    if (planDrag.h.includes('t')) y0 = Math.min(clamp(y0 + dy), y1 - MIN);
+    if (planDrag.h.includes('b')) y1 = Math.max(clamp(y1 + dy), y0 + MIN);
+  }
+  state.plan.rect = [x0, y0, x1, y1];
+  renderHome();
+}
+
+function planPointerUp() {
+  if (!planDrag) return;
+  planDrag = null;
+  persist();
+}
+
+function planClick(e) {
+  if (planMode === 'fit') return;
+  const g = e.target.closest('[data-sq]');
+  if (!g) return;
+  const i = Number(g.dataset.sq);
+  if (planMode === 'missing') {
+    const m = state.plan.missing;
+    state.plan.missing = m.includes(i) ? m.filter((x) => x !== i) : [...m, i].filter((x) => x !== 4);
+    persist();
+  }
+  planCell = i;
+  renderHome();
+}
+
+async function pickPlan(file) {
+  if (!file) return;
+  $('plan-status').textContent = t('Loading…', '载入中…');
+  try {
+    const blob = await fileToPlan(file);
+    state.plan = { ...state.plan, rect: [0.1, 0.1, 0.9, 0.9], missing: [] };
+    planMode = 'fit';
+    planCell = null;
+    persist();
+    setPlanBlob(blob);
+    $('plan-status').textContent = '';
+  } catch {
+    $('plan-status').textContent = t('Couldn’t open that file. Try a screenshot or photo of the plan instead.', '无法打开此文件，请改用平面图的截图或照片。');
+  }
+}
+
 // ---- People tab ----------------------------------------------------------------------------------
 
 function kuaFor(person) {
@@ -298,6 +513,8 @@ function baziFavour(form) {
 }
 
 function renderPeople() {
+  const role = $('p-role').value;
+  $('p-role').innerHTML = roleOptions(role);
   if (!state.people.length) {
     $('people').innerHTML = `<div class="card"><p class="hint">${t('Add each person in the home to see their Kua number and good directions.', '添加家中每个人，查看命卦与吉凶方位。')}</p></div>`;
   } else {
@@ -312,7 +529,9 @@ function personCard(person, i) {
   const y = k ? solarYear(...person.date.split('-').map(Number)) : null;
   const animal = y ? t(ANIMALS[yearBranch(y)], ANIMALS_ZH[yearBranch(y)]) : '';
   const head = `<div class="row-head"><h2>${esc(person.name || t('Someone', '某人'))} <small>${m ? m[1] : ''}${animal ? ` · ${animal}` : ''}</small></h2>
-    <button class="secondary small" type="button" data-del="${i}" aria-label="${t('Remove', '删除')}">✕</button></div>`;
+    <button class="secondary small" type="button" data-del="${i}" aria-label="${t('Remove', '删除')}">✕</button></div>
+    <label class="field fs-role"><select data-role="${i}" aria-label="${t('Role in the family', '家中角色')}">${roleOptions(person.role || '')}</select></label>
+    ${person.role ? `<p class="hint">${t(`As the ${roleName(person.role)}, their trigram sector is ${palaceName(rolePalace(person.role))} (${TRIGRAMS[rolePalace(person.role)]}).`, `作为${roleName(person.role)}，对应${palaceName(rolePalace(person.role))}（${TRIGRAMS[rolePalace(person.role)]}宫）。`)}</p>` : ''}`;
   if (!k) return `<div class="card">${head}</div>`;
   const group = isEastGroup(k) ? t('East group', '东四命') : t('West group', '西四命');
   const grid = `<div class="fs-grid fs-grid-small">${gridHtml((p) => {
@@ -369,7 +588,8 @@ function addPerson() {
   $('p-error').hidden = !err;
   $('p-error').textContent = err;
   if (err) return;
-  state.people.push({ name, date, gender });
+  state.people.push({ name, date, gender, role: $('p-role').value });
+  $('p-role').value = '';
   persist();
   $('p-name').value = '';
   $('p-date').value = '';
@@ -415,8 +635,8 @@ function renderYear() {
     <dt>${t('Tai Sui (太岁)', '太岁')}</dt><dd>${mountainsLine(aff.taiSui)}. ${t('The year\'s ruler. Don\'t renovate or dig here, and don\'t sit facing it (sit with your back to it instead).', '值年太岁：勿动土装修，宜坐太岁、勿向太岁。')}</dd>
     <dt>${t('Year Breaker (岁破)', '岁破')}</dt><dd>${mountainsLine(aff.yearBreaker)}. ${t('Opposite Tai Sui. Don\'t renovate here.', '太岁对冲之方，勿动土。')}</dd>
     <dt>${t('Three Killings (三煞)', '三煞')}</dt><dd>${sectors(aff.threeKillings)}. ${t('Don\'t start renovation here; sit with your back to it, never facing it.', '勿在此方开工动土；宜坐三煞，不可向三煞。')}</dd>
-    <dt>${t('5 Yellow (五黄)', '五黄')}</dt><dd>${aff.fiveYellow == null ? t('In the centre this year.', '今年入中宫。') : sectors(aff.fiveYellow)}. ${t(CURES[5].en, CURES[5].zh)}</dd>
-    <dt>${t('2 Black (二黑病符)', '二黑病符')}</dt><dd>${aff.twoBlack == null ? t('In the centre this year.', '今年入中宫。') : sectors(aff.twoBlack)}. ${t(CURES[2].en, CURES[2].zh)}</dd>
+    <dt>${t('5 Yellow (五黄)', '五黄')}</dt><dd>${aff.fiveYellow == null ? t('In the centre this year.', '今年入中宫。') : sectors(aff.fiveYellow)}. ${aff.fiveYellow == null ? '' : affWho(aff.fiveYellow)}${t(CURES[5].en, CURES[5].zh)}</dd>
+    <dt>${t('2 Black (二黑病符)', '二黑病符')}</dt><dd>${aff.twoBlack == null ? t('In the centre this year.', '今年入中宫。') : sectors(aff.twoBlack)}. ${aff.twoBlack == null ? '' : affWho(aff.twoBlack)}${t(CURES[2].en, CURES[2].zh)}</dd>
     <dt>${t('Good stars', '吉星')}</dt><dd>${[9, 1, 8, 4, 6].filter((n) => n !== center).map((n) => `${starName(n)}: ${palaceName(chart.palaces.indexOf(n))}`).join('<br>')}</dd>
   </dl>`;
 
@@ -431,6 +651,13 @@ function renderYear() {
   }).join('');
 }
 
+// The family member a troubled sector traditionally affects, with their name if someone has that role.
+function affWho(p) {
+  const x = PALACE_PEOPLE[p];
+  const names = state.people.filter((q) => q.role === x.role).map((q) => esc(q.name || t('Someone', '某人')));
+  return t(`It sits in the ${x.en}'s sector${names.length ? ` (${names.join(', ')})` : ''}. `, `落在${x.zh}之位${names.length ? `（${names.join('、')}）` : ''}。`);
+}
+
 function renderYearDetail(chart, mStar, aff) {
   const box = $('year-detail');
   if (selectedYearCell == null) { box.innerHTML = t('Tap a sector to read it.', '点按任一宫位查看解释。'); return; }
@@ -442,8 +669,10 @@ function renderYearDetail(chart, mStar, aff) {
   if (mStar) {
     const mo = p === 'c' ? mStar.center : mStar.palaces[p];
     const c = comboFor(a, mo);
-    lines.push(t(`This month: ${starName(mo)}`, `本月：${starName(mo)}`) + (c ? ` — ${t(c.en, c.zh)}` : '') + '.');
+    lines.push(t(`This month: ${starName(mo)}`, `本月：${starName(mo)}`) + (c ? t(` — ${c.en}`, `——${c.zh}`) : '') + t('.', '。'));
   }
+  const fam = familyLine(p, badStars([a]));
+  if (fam) lines.push(fam);
   const who = peopleFor(p);
   if (who) lines.push(who);
   box.innerHTML = lines.map((l) => `<p>${l}</p>`).join('');
@@ -599,6 +828,13 @@ $('year-grid').addEventListener('click', (e) => {
 });
 $('year-prev').addEventListener('click', () => { viewYear--; renderYear(); renderHome(); });
 $('year-next').addEventListener('click', () => { viewYear++; renderYear(); renderHome(); });
+$('people').addEventListener('input', (e) => {
+  const sel = e.target.closest('[data-role]');
+  if (!sel) return;
+  state.people[Number(sel.dataset.role)].role = sel.value;
+  persist();
+  renderAll();
+});
 $('people').addEventListener('click', (e) => {
   const b = e.target.closest('[data-del]');
   if (!b) return;
@@ -619,4 +855,31 @@ $('use-facing').addEventListener('click', () => {
   switchTab('home');
 });
 
+$('plan-file').addEventListener('change', (e) => { pickPlan(e.target.files[0]); e.target.value = ''; });
+$('plan-replace').addEventListener('change', (e) => { pickPlan(e.target.files[0]); e.target.value = ''; });
+$('plan-remove').addEventListener('click', () => {
+  if (!confirm(t('Remove the floor plan?', '删除平面图？'))) return;
+  planCell = null;
+  setPlanBlob(null);
+});
+$('plan-rotate').addEventListener('click', async () => {
+  const blob = await getPlan().catch(() => null);
+  if (!blob) return;
+  const [x0, y0, x1, y1] = state.plan.rect;
+  state.plan.rect = [1 - y1, x0, 1 - y0, x1]; // keep the grid on the same walls
+  state.plan.side = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }[state.plan.side];
+  state.plan.missing = state.plan.missing.map((i) => (i % 3) * 3 + (2 - Math.floor(i / 3)));
+  persist();
+  setPlanBlob(await rotatePlan(blob));
+});
+document.querySelectorAll('input[name="plan-side"]').forEach((el) => el.addEventListener('input', () => { state.plan.side = el.value; persist(); renderHome(); }));
+document.querySelectorAll('input[name="plan-mode"]').forEach((el) => el.addEventListener('input', () => { planMode = el.value; renderHome(); }));
+$('plan-layer').addEventListener('input', () => { state.plan.layer = $('plan-layer').value; persist(); renderHome(); });
+$('plan-svg').addEventListener('pointerdown', planPointerDown);
+$('plan-svg').addEventListener('pointermove', planPointerMove);
+$('plan-svg').addEventListener('pointerup', planPointerUp);
+$('plan-svg').addEventListener('pointercancel', planPointerUp);
+$('plan-svg').addEventListener('click', planClick);
+
 renderAll();
+loadPlanImage();
