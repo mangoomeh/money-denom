@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6d28d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Split</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-split">
+  <header class="balance">
+    <a class="back" id="back" href="../">‹ Apps</a>
+    <p class="eyebrow" id="eyebrow">Split with friends</p>
+    <p class="big" id="headline">Groups</p>
+    <p class="muted" id="subline">Share costs, see who owes whom, settle up</p>
+  </header>
+
+  <!-- Groups list -->
+  <main id="view-groups">
+    <div class="card">
+      <h2>Your groups</h2>
+      <ul class="history" id="group-list"></ul>
+      <p class="hint" id="groups-empty">No groups yet. Make one below, or open a link a friend sent you.</p>
+    </div>
+    <div class="card">
+      <h2>New group</h2>
+      <label class="field">
+        <span>Name</span>
+        <input id="new-name" autocomplete="off" placeholder="e.g. Bangkok trip, Flat 12-34">
+      </label>
+      <label class="field">
+        <span>People <small>(names separated by commas, starting with you)</small></span>
+        <input id="new-members" autocomplete="off" placeholder="e.g. Me, Ann, Ben">
+      </label>
+      <div class="actions"><button class="primary" id="create-group">Create group</button></div>
+    </div>
+  </main>
+
+  <!-- One group -->
+  <div id="view-group" hidden>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="expenses" aria-selected="true">Expenses</button>
+      <button role="tab" data-tab="balances">Balances</button>
+      <button role="tab" data-tab="people">People</button>
+    </nav>
+
+    <main>
+      <section data-panel="expenses">
+        <div class="card" id="expense-form">
+          <h2 id="form-title">Add an expense</h2>
+          <div class="seg" role="radiogroup" aria-label="Type">
+            <label><input type="radio" name="kind" value="expense" checked> Expense</label>
+            <label><input type="radio" name="kind" value="payment"> Payment</label>
+          </div>
+          <label class="field" id="desc-field">
+            <span>What for?</span>
+            <input id="desc" autocomplete="off" placeholder="e.g. Dinner at Jumbo">
+          </label>
+          <label class="field">
+            <span>Amount (SGD)</span>
+            <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+          </label>
+          <label class="check-row" id="charges-row">
+            <input type="checkbox" id="charges">
+            <span>Add 10% service charge + 9% GST <small id="charges-total"></small></span>
+          </label>
+          <label class="field">
+            <span id="paid-by-label">Paid by</span>
+            <select id="paid-by"></select>
+          </label>
+          <label class="field" id="paid-to-field" hidden>
+            <span>Paid to</span>
+            <select id="paid-to"></select>
+          </label>
+          <div id="split-field">
+            <div class="seg" role="radiogroup" aria-label="Split">
+              <label><input type="radio" name="split" value="equal" checked> Equally</label>
+              <label><input type="radio" name="split" value="exact"> Amounts</label>
+              <label><input type="radio" name="split" value="weights"> Shares</label>
+            </div>
+            <ul class="denoms split-rows" id="split-rows"></ul>
+          </div>
+          <p class="status" id="form-status" role="status" aria-live="polite" hidden></p>
+          <div class="actions">
+            <button class="secondary" id="cancel-edit" hidden>Cancel</button>
+            <button class="secondary" id="delete-expense" hidden>Delete</button>
+            <button class="primary" id="save-expense">Add</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Expenses</h2>
+          <ul class="history" id="expense-list"></ul>
+          <p class="hint" id="expenses-empty">Nothing yet. Add the first expense above.</p>
+        </div>
+      </section>
+
+      <section data-panel="balances" hidden>
+        <div class="card">
+          <h2>Balances</h2>
+          <dl class="summary" id="balance-list"></dl>
+        </div>
+        <div class="card">
+          <h2>Settle up</h2>
+          <p class="hint">The fewest payments that square everyone up.</p>
+          <ul class="history" id="settle-list"></ul>
+          <p class="status ok" id="settled" hidden>Everyone is settled up 🎉</p>
+        </div>
+        <div class="card">
+          <h2>Tell the group</h2>
+          <p class="hint">Copies a summary with the link, ready to paste into WhatsApp or Telegram.</p>
+          <div class="actions"><button class="secondary" id="copy-summary">Copy summary</button></div>
+        </div>
+      </section>
+
+      <section data-panel="people" hidden>
+        <div class="card">
+          <h2>Share this group</h2>
+          <p class="hint">Send the link to your friends. Each phone keeps its own copy, so after anyone adds
+            expenses they share the link again. Opening a link merges it into the copy you have, so nothing is lost.</p>
+          <div class="actions"><button class="primary" id="share-link">Share link</button></div>
+          <p class="hint" id="share-note"></p>
+        </div>
+        <div class="card">
+          <h2>Who are you?</h2>
+          <p class="hint">Only saved on this phone. It's used to show what you owe.</p>
+          <label class="field"><select id="me"></select></label>
+        </div>
+        <div class="card">
+          <h2>People</h2>
+          <p class="hint">Add a PayNow mobile number or UEN so others can pay by QR code.</p>
+          <ul class="member-list" id="member-list"></ul>
+          <div class="inline-form">
+            <input class="name" id="add-member-name" autocomplete="off" placeholder="Add a person">
+            <button class="secondary" id="add-member">Add</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Group</h2>
+          <label class="field"><span>Name</span><input id="group-name" autocomplete="off"></label>
+          <div class="actions"><button class="secondary danger" id="delete-group">Remove from this phone</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="qr-dialog" id="qr-dialog">
+    <h2 id="qr-title">PayNow</h2>
+    <div id="qr-code" class="qr-code"></div>
+    <p class="hint" id="qr-hint">Scan with any Singapore banking app. Check the name it shows before paying.</p>
+    <div class="actions">
+      <button class="secondary" id="qr-close">Close</button>
+      <button class="primary" id="qr-paid">Mark as paid</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

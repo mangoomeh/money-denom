@@ -44,6 +44,28 @@ Counts plates during a meal and works out the bill.
   asks the model only to transcribe the text, and runs that text through the same parser and checks as the
   built-in reader (`cleanTranscript` in `src/receipt.js` flattens any Markdown first).
 
+### 💸 Split (`split/`)
+
+Shares costs in a group of friends (a trip, a flat, a dinner) and works out who pays whom.
+
+- **Groups:** name a group and list the people. You can have several groups.
+- **Expenses:** what it was for, the amount, who paid, and how to split it: **equally** among the people you tick,
+  by **exact amounts**, or by **shares** (e.g. 2 shares for someone who had two nights). Each person's part is shown as
+  you type. "Add 10% service charge + 9% GST" works out the nett total from the menu prices. Tap an expense to edit or
+  delete it.
+- **Balances and settle up:** who is owed and who owes, and the fewest payments that square everyone up (at most one
+  fewer than the number of people). "Mark as paid" records a payment; payments can also be added by hand.
+- **PayNow QR:** add a PayNow mobile number or UEN to a person, and each payment to them gets a PayNow QR for the exact
+  amount that any Singapore banking app can scan. The SGQR text and its checksum are built in `src/split.js`; the QR
+  image is drawn by [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), loaded from the CDN when
+  first needed.
+- **Sharing without accounts:** "Share link" puts the whole group, compressed, in the link's `#` part, so it never
+  reaches a server. Each phone keeps its own copy; opening a link adds the group or merges it into the copy already
+  there. Every expense and person has an id and an edit time, so additions, edits and deletions from different phones
+  all survive, and merging in any order gives the same result. "Copy summary" makes a who-pays-whom message with the
+  link for the group chat.
+- **Who are you?** is kept only on your phone and is used for "You owe $12.40" and "you lent" notes.
+
 ### 🧮 GX-84 Calculator (`calc84/`)
 
 A handheld graphing calculator modelled on the TI-84 Plus CE. It's a recreation, not an emulator: no Texas
@@ -224,8 +246,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `split/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
