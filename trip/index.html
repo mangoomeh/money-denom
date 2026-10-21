@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0369a1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Trip Planner</title>
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-trip">
+  <header class="balance">
+    <a class="back" id="back" href="../">‹ Apps</a>
+    <p class="eyebrow" id="eyebrow">Trip Planner</p>
+    <p class="big" id="headline">Trips</p>
+    <p class="muted" id="subline">Plan each day, pack the right things</p>
+  </header>
+
+  <!-- Trips list -->
+  <main id="view-trips">
+    <div class="card">
+      <h2>Your trips</h2>
+      <ul class="history" id="trip-list"></ul>
+      <p class="hint" id="trips-empty">No trips yet. Plan one below, or open a link a friend sent you.</p>
+    </div>
+    <div class="card">
+      <h2>New trip</h2>
+      <label class="field"><span>Where to?</span><input id="new-dest" autocomplete="off" placeholder="e.g. Tokyo"></label>
+      <div class="date-row">
+        <label class="field"><span>From</span><input id="new-start" type="date"></label>
+        <label class="field"><span>To</span><input id="new-end" type="date"></label>
+      </div>
+      <div class="actions"><button class="primary" id="create-trip">Create trip</button></div>
+    </div>
+  </main>
+
+  <!-- One trip -->
+  <div id="view-trip" hidden>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="plan" aria-selected="true">Plan</button>
+      <button role="tab" data-tab="packing">Packing</button>
+      <button role="tab" data-tab="details">Details</button>
+    </nav>
+
+    <main>
+      <section data-panel="plan">
+        <div id="days"></div>
+        <div class="card" id="unscheduled-card" hidden>
+          <h2>Not on a day</h2>
+          <p class="hint">These are outside the trip's dates. Tap one to move it to a day.</p>
+          <ul class="plan-items" id="unscheduled"></ul>
+        </div>
+        <div class="card">
+          <h2>Tell the group</h2>
+          <p class="hint">Copies the day-by-day plan with a link to this trip, ready to paste into a chat.</p>
+          <div class="actions"><button class="secondary" id="copy-plan">Copy itinerary</button></div>
+        </div>
+      </section>
+
+      <section data-panel="packing" hidden>
+        <div class="card">
+          <div class="row-head"><h2>Packed</h2><strong id="pack-count"></strong></div>
+          <div class="progress-bar"><span id="pack-bar"></span></div>
+          <label class="check-row"><input type="checkbox" id="hide-packed"><span>Hide what's packed</span></label>
+          <div class="actions">
+            <button class="secondary small" id="untick-all">Untick all <small>(packing to go home)</small></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Weather</h2>
+          <p class="hint" id="weather-text">Check the weather and the list adds jackets, umbrellas or sunscreen to match.</p>
+          <div class="actions"><button class="secondary" id="check-weather">Check the weather</button></div>
+          <label class="field">
+            <span>Or set it yourself</span>
+            <select id="manual-weather">
+              <option value="">—</option>
+              <option value="hot">Hot (27 °C and up)</option>
+              <option value="mild">Mild (18–26 °C)</option>
+              <option value="cool">Cool (5–15 °C)</option>
+              <option value="cold">Cold (below 5 °C)</option>
+            </select>
+          </label>
+          <label class="check-row"><input type="checkbox" id="manual-rain"><span>Rain expected</span></label>
+        </div>
+
+        <div id="pack-cats"></div>
+
+        <div class="card">
+          <h2>Add your own</h2>
+          <div class="inline-form">
+            <input class="name" id="own-name" autocomplete="off" placeholder="e.g. Camera">
+            <select id="own-cat" class="cat-select"></select>
+            <button class="secondary" id="own-add">Add</button>
+          </div>
+          <div class="actions"><button class="secondary small" id="restore-removed" hidden></button></div>
+        </div>
+      </section>
+
+      <section data-panel="details" hidden>
+        <div class="card">
+          <h2>Share this trip</h2>
+          <p class="hint">Friends who open the link get the plan. Each phone keeps its own copy, so share again after
+            changes. Opening a link merges it into the copy you have. Packing ticks stay on your phone.</p>
+          <div class="actions"><button class="primary" id="share-link">Share link</button></div>
+          <p class="hint" id="share-note"></p>
+        </div>
+        <div class="card">
+          <h2>Trip</h2>
+          <label class="field"><span>Name</span><input id="d-name" autocomplete="off"></label>
+          <label class="field"><span>Destination</span><input id="d-dest" autocomplete="off"></label>
+          <div class="date-row">
+            <label class="field"><span>From</span><input id="d-start" type="date"></label>
+            <label class="field"><span>To</span><input id="d-end" type="date"></label>
+          </div>
+          <label class="check-row"><input type="checkbox" id="d-abroad"><span>Going overseas</span></label>
+          <label class="check-row"><input type="checkbox" id="d-laundry"><span>Can do laundry there</span></label>
+          <div class="seg" role="radiogroup" aria-label="Luggage">
+            <label><input type="radio" name="luggage" value="carry-on"> Carry-on only</label>
+            <label><input type="radio" name="luggage" value="checked"> Checked bag</label>
+          </div>
+          <p class="field-label">What you'll be doing</p>
+          <div class="chips" id="d-tags"></div>
+        </div>
+        <div class="card">
+          <div class="actions"><button class="secondary danger" id="delete-trip">Remove from this phone</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="sheet" id="item-dialog">
+    <h2 id="item-title">Add to the plan</h2>
+    <div class="seg" role="radiogroup" aria-label="Kind" id="item-kinds"></div>
+    <label class="field"><span>What</span><input id="i-title" autocomplete="off" placeholder="e.g. Senso-ji temple"></label>
+    <div class="date-row">
+      <label class="field"><span>Day</span><select id="i-date"></select></label>
+      <label class="field"><span>Time <small>(optional)</small></span><input id="i-time" type="time"></label>
+    </div>
+    <label class="field"><span>Place <small>(for the map link)</small></span><input id="i-place" autocomplete="off" placeholder="e.g. Asakusa"></label>
+    <label class="field"><span>Notes</span><textarea id="i-notes" rows="2" placeholder="Booking ref, tips…"></textarea></label>
+    <div class="actions">
+      <button class="secondary" id="i-delete" hidden>Delete</button>
+      <button class="secondary" id="i-cancel">Cancel</button>
+      <button class="primary" id="i-save">Save</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

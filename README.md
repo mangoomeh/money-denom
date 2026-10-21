@@ -66,6 +66,25 @@ Shares costs in a group of friends (a trip, a flat, a dinner) and works out who 
   link for the group chat.
 - **Who are you?** is kept only on your phone and is used for "You owe $12.40" and "you lent" notes.
 
+### 🧳 Trip Planner (`trip/`)
+
+A day-by-day itinerary and a packing list for each trip.
+
+- **Plan:** one card per day of the trip. Add activities, food, transport and stays with an optional time, a place
+  (which links to Google Maps, with the destination added) and notes such as booking references. Timed items are
+  listed in time order. Today is highlighted during the trip, and the header counts down ("12 days to go") and then
+  counts days ("Day 3 of 7"). If the dates change, items left outside them are kept under "Not on a day".
+- **Packing:** a list worked out from the trip. Clothes scale with the number of nights (capped at 4 days' worth if
+  you can do laundry); going overseas adds passport, adaptor and eSIM; carry-on only marks liquids "under 100 ml"; and
+  activities (beach, hiking, work, snow, nice dinners) add their own items. Tick things off, hide what's packed,
+  remove suggestions you don't need, add your own, and "Untick all" to pack for the trip home.
+- **Weather:** "Check the weather" looks up the destination on [Open-Meteo](https://open-meteo.com) (free, no key)
+  and uses the forecast when the trip is within about two weeks, otherwise the same dates last year. Cold, rain or
+  heat add a coat, an umbrella or sunscreen to the list. You can also set the weather yourself.
+- **Sharing:** the same no-server links as Split (`src/sync.js`). The link carries the plan and trip details and
+  merges into a friend's copy; packing ticks stay on each phone, since everyone packs their own bag. "Copy itinerary"
+  gives a text version for the group chat.
+
 ### 🧮 GX-84 Calculator (`calc84/`)
 
 A handheld graphing calculator modelled on the TI-84 Plus CE. It's a recreation, not an emulator: no Texas
@@ -246,8 +265,8 @@ Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.
 
 - `index.html`: the home screen with a tile for each app
 - `shared/styles.css`: shared styles, including the Sushiro theme
-- `petty-cash/`, `sushiro/`, `split/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `split/`, `trip/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `sync.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`
 
 To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
