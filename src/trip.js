@@ -76,6 +76,44 @@ export function itineraryText(trip, url) {
   return lines.join('\n');
 }
 
+// ---- Calendar ------------------------------------------------------------------------
+
+const icsText = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsDate = (iso) => iso.replace(/-/g, '');
+const nextDay = (iso) => toIso(toMs(iso) + DAY);
+
+// Long lines are folded at 75 characters, as the calendar format requires.
+// Splits by whole characters so an emoji is never cut in half.
+function fold(line) {
+  const chars = [...line];
+  const out = [chars.splice(0, 75).join('')];
+  while (chars.length) out.push(` ${chars.splice(0, 74).join('')}`);
+  return out.join('\r\n');
+}
+
+// The itinerary as an .ics file for Google or Apple Calendar: the trip as an all-day event,
+// timed items as one-hour events and untimed ones as all-day events. Times have no time
+// zone, so they show at that clock time wherever the phone is (i.e. local time on the trip).
+export function itineraryIcs(trip, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pocket Apps//Trip Planner//EN', 'CALSCALE:GREGORIAN'];
+  const event = (uid, fields) => lines.push('BEGIN:VEVENT', `UID:${uid}@pocket-apps`, `DTSTAMP:${stamp}`, ...fields, 'END:VEVENT');
+  if (isIsoDate(trip.start)) {
+    const end = isIsoDate(trip.end) ? trip.end : trip.start;
+    event(trip.id, [`DTSTART;VALUE=DATE:${icsDate(trip.start)}`, `DTEND;VALUE=DATE:${icsDate(nextDay(end))}`, `SUMMARY:${icsText(`🧳 ${trip.name}`)}`,
+      ...(trip.destination ? [`LOCATION:${icsText(trip.destination)}`] : [])]);
+  }
+  for (const i of trip.items.filter((x) => !x.deleted && isIsoDate(x.date))) {
+    const when = i.time
+      ? [`DTSTART:${icsDate(i.date)}T${i.time.replace(':', '')}00`, 'DURATION:PT1H']
+      : [`DTSTART;VALUE=DATE:${icsDate(i.date)}`, `DTEND;VALUE=DATE:${icsDate(nextDay(i.date))}`];
+    event(`${trip.id}-${i.id}`, [...when, `SUMMARY:${icsText(`${KINDS[i.kind]?.icon ?? ''} ${i.title}`.trim())}`,
+      ...(i.place ? [`LOCATION:${icsText(i.place)}`] : []), ...(i.notes ? [`DESCRIPTION:${icsText(i.notes)}`] : [])]);
+  }
+  lines.push('END:VCALENDAR');
+  return `${lines.map(fold).join('\r\n')}\r\n`;
+}
+
 // ---- Weather -------------------------------------------------------------------------
 
 // Summarises daily highs, lows and rain into the conditions packing cares about.

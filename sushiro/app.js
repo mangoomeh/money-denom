@@ -8,9 +8,9 @@ import { readReceiptWithAi, listModels } from './ai.js';
 import {
   getPhoto, putPhoto, deletePhoto, movePhoto, loadImage, compressForStorage, prepareForOcr,
 } from './photos.js';
+import { $, switchTab, toast } from '../shared/ui.js';
 
 const STORAGE_KEY = 'sushiro-v1';
-const $ = (id) => document.getElementById(id);
 
 // ---- Persistent state -------------------------------------------------------
 
@@ -103,6 +103,7 @@ function renderMeal() {
   $('bill-gst').textContent = formatCents(bill.gstCents);
   $('bill-total').textContent = formatCents(bill.totalCents);
   $('save-visit').disabled = lines.length === 0;
+  $('split-bill').disabled = lines.length === 0;
   renderReceipt();
 }
 
@@ -556,21 +557,6 @@ function updateRate(input, key) {
   render();
 }
 
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
-  window.scrollTo(0, 0);
-}
-
-let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2500);
-}
-
 // ---- Wiring -----------------------------------------------------------------
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -578,6 +564,11 @@ $('special-form').addEventListener('submit', addSpecial);
 $('outlet').addEventListener('input', (e) => { state.meal.outlet = e.target.value; save(); });
 $('clear-meal').addEventListener('click', clearMeal);
 $('save-visit').addEventListener('click', saveVisit);
+$('split-bill').addEventListener('click', () => {
+  // Hands the nett total to Split, which asks which group to add it to.
+  const desc = `Sushiro${state.meal.outlet ? ` ${state.meal.outlet}` : ''}`;
+  location.href = `../split/#add=${encodeURIComponent(JSON.stringify({ desc, cents: currentBill().bill.totalCents }))}`;
+});
 $('receipt-file').addEventListener('change', (e) => scanReceipt(e.target.files[0]));
 $('receipt-file-ai').addEventListener('change', (e) => scanReceipt(e.target.files[0], true));
 $('ai-enabled').addEventListener('input', () => { state.ai.enabled = $('ai-enabled').checked; save(); renderAiSettings(); renderReceipt(); });

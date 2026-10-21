@@ -1,13 +1,11 @@
 import { newId } from '../src/sync.js';
 import {
-  tripDays, tripStatus, itemsOn, unscheduled, mapsUrl, formatDay, itineraryText, localIso, isIsoDate, nights,
+  tripDays, tripStatus, itemsOn, unscheduled, mapsUrl, formatDay, itineraryText, itineraryIcs, localIso, isIsoDate, nights,
   summariseWeather, KINDS, ACTIVITIES, CATEGORIES, fullPackingList, packingProgress, encodeTrip, decodeTrip, mergeTrips,
 } from '../src/trip.js';
+import { $, esc, switchTab, toast } from '../shared/ui.js';
 
 const STORAGE_KEY = 'trip-v1';
-const $ = (id) => document.getElementById(id);
-// Titles, places and notes arrive in links from other phones, so always escape them.
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const MANUAL_WEATHER = {
   hot: { maxC: 32, minC: 25 },
@@ -368,6 +366,23 @@ async function copyPlan() {
   }
 }
 
+// Downloads the plan as an .ics file; phones offer to add the events to the calendar.
+function addToCalendar() {
+  const t = trip();
+  const blob = new Blob([itineraryIcs(t)], { type: 'text/calendar' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${t.name.replace(/[^\w\- ]+/g, '').trim() || 'trip'}.ics`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// Split opens this trip's group, or starts one named after the trip.
+function openSplit() {
+  const t = trip();
+  location.href = `../split/#trip=${encodeURIComponent(JSON.stringify({ id: t.id, name: t.name }))}`;
+}
+
 // Opening a share link adds the trip, or merges it into the copy already here.
 async function importFromHash() {
   const m = location.hash.match(/^#t=([A-Za-z0-9_-]+)/);
@@ -386,23 +401,6 @@ async function importFromHash() {
   }
   save();
   openTrip(incoming.id);
-}
-
-// ---- Shell ------------------------------------------------------------------------------------
-
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
-  window.scrollTo(0, 0);
-}
-
-let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2800);
 }
 
 // ---- Wiring -------------------------------------------------------------------------------------
@@ -439,6 +437,8 @@ $('i-save').addEventListener('click', saveItem);
 $('i-cancel').addEventListener('click', () => $('item-dialog').close());
 $('i-delete').addEventListener('click', deleteItem);
 $('copy-plan').addEventListener('click', copyPlan);
+$('add-calendar').addEventListener('click', addToCalendar);
+$('open-split').addEventListener('click', openSplit);
 
 // Packing
 $('pack-cats').addEventListener('change', (ev) => {

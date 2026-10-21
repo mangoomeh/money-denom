@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#0369a1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Trip Planner</title>
-  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icons/trip-apple.png">
+  <link rel="icon" href="../icons/trip-192.png">
+  <script type="module" src="../shared/pwa.js"></script>
   <link rel="stylesheet" href="../shared/styles.css">
 </head>
 <body class="theme-trip">
@@ -52,9 +55,13 @@
           <ul class="plan-items" id="unscheduled"></ul>
         </div>
         <div class="card">
-          <h2>Tell the group</h2>
-          <p class="hint">Copies the day-by-day plan with a link to this trip, ready to paste into a chat.</p>
-          <div class="actions"><button class="secondary" id="copy-plan">Copy itinerary</button></div>
+          <h2>Take the plan with you</h2>
+          <p class="hint">Add every item to Google or Apple Calendar, or copy the day-by-day plan with a link to this
+            trip for the group chat.</p>
+          <div class="actions">
+            <button class="secondary" id="add-calendar">Add to calendar</button>
+            <button class="secondary" id="copy-plan">Copy itinerary</button>
+          </div>
         </div>
       </section>
 
@@ -122,6 +129,11 @@
           </div>
           <p class="field-label">What you'll be doing</p>
           <div class="chips" id="d-tags"></div>
+        </div>
+        <div class="card">
+          <h2>Shared costs</h2>
+          <p class="hint">Keep track of who paid for what on this trip in Split, with the same group every time.</p>
+          <div class="actions"><button class="secondary" id="open-split">💸 Expenses in Split</button></div>
         </div>
         <div class="card">
           <div class="actions"><button class="secondary danger" id="delete-trip">Remove from this phone</button></div>

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyCounts, totalCents, parseAmount, formatCents, checkTransaction, applyDelta, lowDenominations,
-} from '../src/cash.js';
+historyCsv } from '../src/cash.js';
 
 const counts = (o) => ({ ...emptyCounts(), ...o });
 
@@ -61,4 +61,19 @@ test('cannot pay with notes you do not have', () => {
 test('lowDenominations', () => {
   assert.deepEqual(lowDenominations(counts({}), 0), []);
   assert.equal(lowDenominations(counts({ n10: 5 }), 2).some((d) => d.id === 'n10'), false);
+});
+
+test('history CSV is oldest first, escaped, and safe to open in a spreadsheet', () => {
+  const counts = (n10) => ({ ...emptyCounts(), n10 });
+  const history = [
+    { type: 'purchase', at: '2026-10-20T15:30:00', amountCents: 1230, note: 'Snacks, "big" pack', paid: counts(2), change: emptyCounts() },
+    { type: 'purchase', at: '2026-10-20T12:00:00', amountCents: 500, note: '=HYPERLINK("x")', paid: counts(1), change: emptyCounts(), undone: true },
+    { type: 'adjust', at: '2026-10-19T09:05:00', before: emptyCounts(), after: counts(10), wasSetUp: false },
+  ];
+  assert.equal(historyCsv(history), [
+    'Date,Time,Type,Description,Amount (SGD),Undone',
+    '2026-10-19,09:05,Opening balance,Opening balance,100.00,',
+    '2026-10-20,12:00,Purchase,"\'=HYPERLINK(""x"")",-5.00,yes',
+    '2026-10-20,15:30,Purchase,"Snacks, ""big"" pack",-12.30,',
+  ].join('\r\n') + '\r\n');
 });

@@ -1,7 +1,15 @@
 # Pocket Apps
 
-A set of small, mobile-friendly money tools. They need no installation or build step and run in any browser.
+A set of small, mobile-friendly everyday apps: money, travel, tools and a few for fun. They need no installation or build step and run in any browser.
 Live at https://mangoomeh.github.io/pocket-apps/
+
+- **Works offline:** after the first visit, every app opens without a connection (handy abroad or in a basement
+  restaurant). A service worker (`sw.js`) keeps a copy of every page and file; online, pages still come fresh from the
+  network.
+- **Add to Home Screen:** each app has its own icon and opens straight into that app, full screen.
+- **Your data stays on your phone,** and the browser is asked to keep it. **Backup** on the home screen saves
+  everything (including receipt photos, chats and the floor plan) to one file you can keep in Files, iCloud Drive or
+  Google Drive, and restores it on a new phone.
 
 ## Apps
 
@@ -12,7 +20,8 @@ A cash denomination counter with a transaction checker.
 - **Opening balance setup:** enter how many of each note and coin you have (SGD, $100 down to 5¢).
 - **Transaction checker:** enter the purchase amount, tap + for each note or coin you take out, and add any change you
   received. *Confirm* only deducts from your cash on hand when the cash you selected equals the purchase amount.
-- **History with undo, and low cash warnings.**
+- **History with undo, and low cash warnings.** "Export to spreadsheet" saves the history as a CSV file, e.g. for a
+  reimbursement claim.
 - **Two themes:** modern, or retro Windows 95 (title bar, bevelled buttons, LCD balance, taskbar). The 🖥️ button in
   the header switches between them, and the choice is remembered on that device.
 
@@ -65,6 +74,12 @@ Shares costs in a group of friends (a trip, a flat, a dinner) and works out who 
   all survive, and merging in any order gives the same result. "Copy summary" makes a who-pays-whom message with the
   link for the group chat.
 - **Who are you?** is kept only on your phone and is used for "You owe $12.40" and "you lent" notes.
+- **Other currencies:** pick the currency next to the amount (THB, JPY, MYR…). Today's rate is filled in from
+  [open.er-api.com](https://www.exchangerate-api.com) (free, no key) and can be changed to match your card or money
+  changer. The rate is saved with the expense, so balances don't move later. Balances, settling up and PayNow are in
+  the group's home currency (SGD unless you pick another before adding expenses).
+- **From other apps:** Sushiro's "Split this bill" and Trip Planner's "Expenses in Split" open Split with the bill
+  or the trip's group ready (`#add=` and `#trip=` links).
 
 ### 🧳 Trip Planner (`trip/`)
 
@@ -84,6 +99,9 @@ A day-by-day itinerary and a packing list for each trip.
 - **Sharing:** the same no-server links as Split (`src/sync.js`). The link carries the plan and trip details and
   merges into a friend's copy; packing ticks stay on each phone, since everyone packs their own bag. "Copy itinerary"
   gives a text version for the group chat.
+- **Add to calendar:** saves the plan as an `.ics` file that Google or Apple Calendar can import: the trip as an
+  all-day event, timed items as one-hour events and untimed ones as all-day events.
+- **Expenses in Split:** opens this trip's group in Split, or starts one named after the trip.
 
 ### 🧮 GX-84 Calculator (`calc84/`)
 
@@ -257,17 +275,28 @@ The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-mon
 ```sh
 npm start        # serves the apps at http://localhost:8000
 npm test         # runs the unit tests (Node 18+)
+npm run sw       # updates the offline file list in sw.js; run after adding or changing files
+npm run icons    # redraws the icons and manifests (Python 3 + Pillow + Noto Color Emoji); run after adding an app
 ```
 
-Every push to the deploy branch runs the tests and publishes to GitHub Pages (`.github/workflows/pages.yml`).
+The tests fail if `sw.js` is out of date, so a forgotten `npm run sw` stops the deploy rather than shipping an old
+offline copy.
+
+Every push to `main` runs the tests and publishes to GitHub Pages (`.github/workflows/pages.yml`).
 
 ## Layout
 
-- `index.html`: the home screen with a tile for each app
+- `index.html`: the home screen with a tile for each app, and Backup
+- `sw.js`, `shared/pwa.js`: offline use (every page loads `pwa.js`, which registers the service worker)
+- `manifest.webmanifest` in each folder, and `icons/`: what a phone uses when an app is added to the home screen
 - `shared/styles.css`: shared styles, including the Sushiro theme
+- `shared/ui.js`: helpers every app uses (`$`, `esc`, `toast`, `switchTab`); `shared/backup.js`: the Backup card
 - `petty-cash/`, `sushiro/`, `split/`, `trip/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `sync.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
-- `tests/`: unit tests for `src/`
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `sync.js` (share links and merging), `backup.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
+- `tests/`: unit tests for `src/`, plus checks that the offline and install files are complete
+- `tools/`: `build-sw.js` (offline file list) and `build-pwa.py` (icons and manifests)
 
-To add an app, create a folder with an `index.html`, add a tile to the root `index.html`, and add the folder to the
-`cp` line in the Pages workflow.
+To add an app: create a folder with an `index.html` (copy the `<head>` of another app, which links its manifest,
+icon and `pwa.js`), add a tile to the root `index.html`, add the folder to `APPS` in `tools/build-sw.js` and
+`tools/build-pwa.py` and to the `cp` line in the Pages workflow, add its storage key to `STORAGE_KEYS` in
+`src/backup.js`, then run `npm run icons` and `npm run sw`.

@@ -7,13 +7,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Pocket Apps</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/home-apple.png">
+  <link rel="icon" href="icons/home-192.png">
+  <script type="module" src="shared/pwa.js"></script>
   <link rel="stylesheet" href="shared/styles.css">
 </head>
 <body>
   <main class="hub">
     <h1>Pocket Apps</h1>
     <p>Small everyday apps.</p>
-    <h2 class="section-title">In this app</h2>
+    <h2 class="section-title">Money</h2>
     <nav class="tiles">
       <a class="tile" href="petty-cash/">
         <span class="icon" aria-hidden="true">💵</span>
@@ -25,25 +28,44 @@
         <strong>Sushiro Tracker</strong>
         <small>Count plates and work out the bill</small>
       </a>
-      <a class="tile radar" href="wallets/">
-        <span class="icon" aria-hidden="true">🔎</span>
-        <strong>Wallet Radar</strong>
-        <small>Early buyers, overlaps and fund flows</small>
-      </a>
       <a class="tile split" href="split/">
         <span class="icon" aria-hidden="true">💸</span>
         <strong>Split</strong>
         <small>Share costs with friends, settle up by PayNow</small>
       </a>
+    </nav>
+    <h2 class="section-title">Travel</h2>
+    <nav class="tiles">
       <a class="tile trip" href="trip/">
         <span class="icon" aria-hidden="true">🧳</span>
         <strong>Trip Planner</strong>
         <small>Day-by-day plan and a packing list for the weather</small>
       </a>
+    </nav>
+    <h2 class="section-title">Tools</h2>
+    <nav class="tiles">
       <a class="tile" href="calc84/">
         <span class="icon" aria-hidden="true">🧮</span>
         <strong>GX-84 Calculator</strong>
         <small>Handheld-style graphing calculator</small>
+      </a>
+      <a class="tile radar" href="wallets/">
+        <span class="icon" aria-hidden="true">🔎</span>
+        <strong>Wallet Radar</strong>
+        <small>Early buyers, overlaps and fund flows</small>
+      </a>
+      <a class="tile chat" href="chat/">
+        <span class="icon" aria-hidden="true">🦙</span>
+        <strong>Local Chat</strong>
+        <small>Chat with your own AI running on your PC (Ollama)</small>
+      </a>
+    </nav>
+    <h2 class="section-title">Learn &amp; explore</h2>
+    <nav class="tiles">
+      <a class="tile learnai" href="learnai/">
+        <span class="icon" aria-hidden="true">🤖</span>
+        <strong>AI for Beginners</strong>
+        <small>Short lessons, hands-on demos and quizzes</small>
       </a>
       <a class="tile bazi" href="bazi/">
         <span class="icon" aria-hidden="true">☯️</span>
@@ -54,16 +76,6 @@
         <span class="icon" aria-hidden="true">🧭</span>
         <strong>Feng Shui</strong>
         <small>Flying stars, Kua directions and the year's stars</small>
-      </a>
-      <a class="tile learnai" href="learnai/">
-        <span class="icon" aria-hidden="true">🤖</span>
-        <strong>AI for Beginners</strong>
-        <small>Short lessons, hands-on demos and quizzes</small>
-      </a>
-      <a class="tile chat" href="chat/">
-        <span class="icon" aria-hidden="true">🦙</span>
-        <strong>Local Chat</strong>
-        <small>Chat with your own AI running on your PC (Ollama)</small>
       </a>
     </nav>
 
@@ -97,6 +109,19 @@
         <span class="ext" aria-label="Opens in a new tab">↗</span>
       </a>
     </nav>
+
+    <h2 class="section-title">Backup</h2>
+    <div class="card">
+      <p class="hint">Everything you save in these apps stays on this phone. Save a backup file now and then
+        (to Files, iCloud Drive or Google Drive), so you can restore it on a new phone or if the browser clears its data.</p>
+      <div class="actions">
+        <button class="primary" id="backup-save">Save a backup</button>
+        <button class="secondary" id="backup-restore">Restore</button>
+      </div>
+      <input type="file" id="backup-file" accept="application/json,.json" hidden>
+      <p class="status" id="backup-status" role="status" aria-live="polite" hidden></p>
+    </div>
   </main>
+  <script type="module" src="shared/backup.js"></script>
 </body>
 </html>

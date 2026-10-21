@@ -1,8 +1,58 @@
 // Pure group-expense logic. Money is in integer cents. A group is shared between
 // friends' phones by link, so every record carries an id and an updatedAt and two
-// copies of a group can be merged in any order and end up the same.
+// copies of a group can be merged in any order and end up the same (src/sync.js).
+//
+// A group has a home currency (SGD unless chosen otherwise) that balances are kept in.
+// An expense can be in another currency: its amount is in that currency's cents, and it
+// stores the rate used (home currency per 1 unit), so balances don't move later.
 
-export const newId = () => Math.random().toString(36).slice(2, 10);
+import { formatCents } from './cash.js';
+import { newId, newer, mergeList, countChanged, encodeData, decodeData } from './sync.js';
+
+export { newId };
+
+export const CURRENCIES = ['SGD', 'MYR', 'THB', 'IDR', 'VND', 'PHP', 'JPY', 'KRW', 'TWD', 'HKD', 'CNY', 'AUD', 'NZD', 'USD', 'EUR', 'GBP', 'CHF'];
+export const homeOf = (group) => group.currency || 'SGD';
+
+// An amount in cents of `currency`, e.g. $12.50 for SGD, or "THB 1,200.00" / "JPY 1,500".
+export function formatAmount(cents, currency = 'SGD') {
+  if (currency === 'SGD') return formatCents(cents);
+  try {
+    return new Intl.NumberFormat('en-SG', { style: 'currency', currency, currencyDisplay: 'code' }).format(cents / 100).replace(/\u00a0/g, ' ');
+  } catch {
+    return `${currency} ${(cents / 100).toFixed(2)}`;
+  }
+}
+
+// Splits `total` in proportion to `parts` ({ id: n }), handing leftover cents to the
+// largest remainders (ties in key order), so the pieces always add up to `total`.
+function proportional(total, parts, order) {
+  const ids = order.filter((id) => parts[id] > 0);
+  const sum = ids.reduce((s, id) => s + parts[id], 0);
+  if (!sum) return {};
+  const out = {};
+  const rems = ids.map((id) => {
+    const exact = (total * parts[id]) / sum;
+    out[id] = Math.floor(exact);
+    return { id, frac: exact - out[id] };
+  });
+  let left = total - ids.reduce((s, id) => s + out[id], 0);
+  for (const r of [...rems].sort((a, b) => b.frac - a.frac)) {
+    if (left-- <= 0) break;
+    out[r.id] += 1;
+  }
+  return out;
+}
+
+// The expense with its amounts converted to the group's home currency.
+export function inHome(expense, home) {
+  if (!expense.currency || expense.currency === home) return expense;
+  const cents = Math.round(expense.cents * expense.rate);
+  const split = expense.split.type === 'exact'
+    ? { type: 'exact', shares: proportional(cents, expense.split.shares, Object.keys(expense.split.shares)) }
+    : expense.split;
+  return { ...expense, cents, split, currency: home };
+}
 
 // Amount each member owes for one expense, as { memberId: cents }, summing exactly
 // to the expense total. Leftover cents from rounding go to the first people in
@@ -11,23 +61,7 @@ export function sharesOf(expense, memberIds) {
   const { cents, split } = expense;
   const order = (ids) => memberIds.filter((id) => ids.includes(id));
   if (split.type === 'exact') return { ...split.shares };
-  if (split.type === 'weights') {
-    const ids = order(Object.keys(split.weights).filter((id) => split.weights[id] > 0));
-    const total = ids.reduce((s, id) => s + split.weights[id], 0);
-    if (!total) return {};
-    const out = {};
-    const parts = ids.map((id) => {
-      const exact = (cents * split.weights[id]) / total;
-      out[id] = Math.floor(exact);
-      return { id, frac: exact - out[id] };
-    });
-    let left = cents - ids.reduce((s, id) => s + out[id], 0);
-    for (const p of [...parts].sort((a, b) => b.frac - a.frac)) {
-      if (left-- <= 0) break;
-      out[p.id] += 1;
-    }
-    return out;
-  }
+  if (split.type === 'weights') return proportional(cents, split.weights, order(Object.keys(split.weights)));
   const ids = order(split.among);
   if (!ids.length) return {};
   const base = Math.floor(cents / ids.length);
@@ -39,6 +73,7 @@ export function sharesOf(expense, memberIds) {
 export function expenseProblem(expense) {
   if (!(expense.cents > 0)) return 'Enter an amount.';
   if (!expense.paidBy) return 'Choose who paid.';
+  if (expense.currency && !(expense.rate > 0)) return `Enter the exchange rate for ${expense.currency}.`;
   const { split } = expense;
   if (split.type === 'equal' && !split.among.length) return 'Pick at least one person to split with.';
   if (split.type === 'weights' && !Object.values(split.weights).some((w) => w > 0)) return 'Give at least one person a share.';
@@ -46,7 +81,8 @@ export function expenseProblem(expense) {
     const sum = Object.values(split.shares).reduce((s, c) => s + c, 0);
     if (sum !== expense.cents) {
       const diff = expense.cents - sum;
-      return `The amounts add up to ${formatMoney(sum)}: ${formatMoney(Math.abs(diff))} ${diff > 0 ? 'left to assign' : 'too much'}.`;
+      const fmt = (c) => formatAmount(c, expense.currency || 'SGD');
+      return `The amounts add up to ${fmt(sum)}: ${fmt(Math.abs(diff))} ${diff > 0 ? 'left to assign' : 'too much'}.`;
     }
   }
   return null;
@@ -60,7 +96,8 @@ export function balances(group) {
   const ids = live(group.members).map((m) => m.id);
   const allIds = group.members.map((m) => m.id);
   const net = Object.fromEntries(ids.map((id) => [id, 0]));
-  for (const e of live(group.expenses)) {
+  for (const raw of live(group.expenses)) {
+    const e = inHome(raw, homeOf(group));
     net[e.paidBy] = (net[e.paidBy] || 0) + e.cents;
     for (const [id, c] of Object.entries(sharesOf(e, allIds))) net[id] = (net[id] || 0) - c;
   }
@@ -92,81 +129,47 @@ export function settleUp(net, memberIds = Object.keys(net)) {
 }
 
 export function totalSpent(group) {
-  return live(group.expenses).filter((e) => e.kind !== 'payment').reduce((s, e) => s + e.cents, 0);
+  return live(group.expenses).filter((e) => e.kind !== 'payment').reduce((s, e) => s + inHome(e, homeOf(group)).cents, 0);
 }
 
 // ---- Merging copies of a group -------------------------------------------------------
 
-// The newer record wins. On a tie, the one whose JSON sorts later wins, so both
-// phones pick the same one whichever way round they merge.
-function newer(a, b) {
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
-  return JSON.stringify(a) >= JSON.stringify(b) ? a : b;
-}
-
-function mergeList(mine, theirs) {
-  const out = mine.map((x) => {
-    const other = theirs.find((y) => y.id === x.id);
-    return other ? newer(x, other) : x;
-  });
-  for (const y of theirs) if (!mine.some((x) => x.id === y.id)) out.push(y);
-  return out;
-}
+const SHARED = ['id', 'name', 'currency', 'tripId', 'updatedAt'];
+const head = (g) => Object.fromEntries(SHARED.map((k) => [k, g[k]]));
 
 // Merges a received copy of a group into ours. Returns the merged group and how
 // many expenses were new or changed, for the "updated" message.
 export function mergeGroups(mine, theirs) {
-  const head = newer({ updatedAt: mine.updatedAt, name: mine.name }, { updatedAt: theirs.updatedAt, name: theirs.name });
   const expenses = mergeList(mine.expenses, theirs.expenses);
-  const changed = expenses.filter((e) => {
-    const old = mine.expenses.find((x) => x.id === e.id);
-    return !old || JSON.stringify(old) !== JSON.stringify(e);
-  }).length;
   return {
-    group: { ...mine, name: head.name, updatedAt: head.updatedAt, members: mergeList(mine.members, theirs.members), expenses },
-    changed,
+    group: { ...mine, ...newer(head(mine), head(theirs)), members: mergeList(mine.members, theirs.members), expenses },
+    changed: countChanged(mine.expenses, expenses),
   };
 }
 
 // ---- Share links ---------------------------------------------------------------------
 
-function toB64(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-const fromB64 = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-
-async function pipe(bytes, stream) {
-  const out = new Response(new Blob([bytes]).stream().pipeThrough(stream));
-  return new Uint8Array(await out.arrayBuffer());
-}
-
 // The group as a compact string for the link's #hash. Only the shared fields are
 // included (not who "me" is on this phone).
-export async function encodeGroup(group) {
-  const { id, name, updatedAt, members, expenses } = group;
-  const json = new TextEncoder().encode(JSON.stringify({ v: 1, id, name, updatedAt, members, expenses }));
-  return toB64(await pipe(json, new CompressionStream('deflate-raw')));
+export function encodeGroup(group) {
+  return encodeData({ v: 1, ...head(group), members: group.members, expenses: group.expenses });
 }
 
 export async function decodeGroup(text) {
-  try {
-    const json = await pipe(fromB64(text), new DecompressionStream('deflate-raw'));
-    const g = JSON.parse(new TextDecoder().decode(json));
-    if (g.v !== 1 || !g.id || !Array.isArray(g.members) || !Array.isArray(g.expenses)) return null;
-    return { id: g.id, name: String(g.name || 'Group'), updatedAt: g.updatedAt || 0, members: g.members, expenses: g.expenses };
-  } catch {
-    return null;
-  }
+  const g = await decodeData(text);
+  if (!g || g.v !== 1 || !g.id || !Array.isArray(g.members) || !Array.isArray(g.expenses)) return null;
+  const group = { ...head(g), name: String(g.name || 'Group'), updatedAt: g.updatedAt || 0, members: g.members, expenses: g.expenses };
+  if (!CURRENCIES.includes(group.currency)) delete group.currency;
+  return group;
 }
 
 // ---- Text and money ------------------------------------------------------------------
 
-export function formatMoney(cents) {
-  const abs = Math.abs(cents);
-  const str = `$${Math.floor(abs / 100).toLocaleString('en-SG')}.${String(abs % 100).padStart(2, '0')}`;
-  return cents < 0 ? `-${str}` : str;
+// The rate (home currency per 1 unit of `currency`) from an exchange-rate table based on
+// the home currency, as open.er-api.com returns: { rates: { THB: 25.1, ... } }.
+export function rateFromTable(table, currency) {
+  const perHome = table?.rates?.[currency];
+  return perHome > 0 ? Number((1 / perHome).toPrecision(6)) : null;
 }
 
 // Adds Singapore service charge then GST on top (rates in basis points, 1000 = 10%).
@@ -179,9 +182,10 @@ export function withCharges(cents, { serviceBp = 1000, gstBp = 900 } = {}) {
 export function summaryText(group, url) {
   const name = (id) => group.members.find((m) => m.id === id)?.name ?? '?';
   const transfers = settleUp(balances(group), group.members.map((m) => m.id));
-  const lines = [`💸 ${group.name}: ${formatMoney(totalSpent(group))} spent`];
+  const money = (c) => formatAmount(c, homeOf(group));
+  const lines = [`💸 ${group.name}: ${money(totalSpent(group))} spent`];
   if (!transfers.length) lines.push('Everyone is settled up 🎉');
-  for (const t of transfers) lines.push(`• ${name(t.from)} pays ${name(t.to)} ${formatMoney(t.cents)}`);
+  for (const t of transfers) lines.push(`• ${name(t.from)} pays ${name(t.to)} ${money(t.cents)}`);
   if (url) lines.push('', `Open the group: ${url}`);
   return lines.join('\n');
 }

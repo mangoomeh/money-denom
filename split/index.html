@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#6d28d9">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Split</title>
-  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icons/split-apple.png">
+  <link rel="icon" href="../icons/split-192.png">
+  <script type="module" src="../shared/pwa.js"></script>
   <link rel="stylesheet" href="../shared/styles.css">
 </head>
 <body class="theme-split">
@@ -19,6 +22,7 @@
 
   <!-- Groups list -->
   <main id="view-groups">
+    <p class="status neutral" id="pending-banner" hidden></p>
     <div class="card">
       <h2>Your groups</h2>
       <ul class="history" id="group-list"></ul>
@@ -28,7 +32,7 @@
       <h2>New group</h2>
       <label class="field">
         <span>Name</span>
-        <input id="new-name" autocomplete="off" placeholder="e.g. Bangkok trip, Flat 12-34">
+        <input id="new-name" autocomplete="off" placeholder="e.g. Bangkok trip">
       </label>
       <label class="field">
         <span>People <small>(names separated by commas, starting with you)</small></span>
@@ -58,10 +62,19 @@
             <span>What for?</span>
             <input id="desc" autocomplete="off" placeholder="e.g. Dinner at Jumbo">
           </label>
-          <label class="field">
-            <span>Amount (SGD)</span>
-            <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.00">
-          </label>
+          <div class="field">
+            <label for="amount"><span>Amount</span></label>
+            <div class="amount-row">
+              <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+              <select id="currency" aria-label="Currency"></select>
+            </div>
+          </div>
+          <div class="fx-row" id="fx-row" hidden>
+            <label for="rate">1 <span id="fx-from"></span> =</label>
+            <input id="rate" inputmode="decimal" autocomplete="off">
+            <span id="fx-to"></span>
+            <small id="fx-note"></small>
+          </div>
           <label class="check-row" id="charges-row">
             <input type="checkbox" id="charges">
             <span>Add 10% service charge + 9% GST <small id="charges-total"></small></span>
@@ -140,6 +153,11 @@
         <div class="card">
           <h2>Group</h2>
           <label class="field"><span>Name</span><input id="group-name" autocomplete="off"></label>
+          <label class="field">
+            <span>Home currency <small>(balances and settling up are in this)</small></span>
+            <select id="home-currency"></select>
+          </label>
+          <p class="hint" id="home-currency-hint" hidden>Can't be changed once there are expenses.</p>
           <div class="actions"><button class="secondary danger" id="delete-group">Remove from this phone</button></div>
         </div>
       </section>

@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#0f766e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Petty Cash</title>
-  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icons/petty-cash-apple.png">
+  <link rel="icon" href="../icons/petty-cash-192.png">
+  <script type="module" src="../shared/pwa.js"></script>
   <link rel="stylesheet" href="../shared/styles.css">
   <script>
     // Apply the saved theme before first paint to avoid a flash of the wrong theme.
@@ -104,6 +107,7 @@
         <h2>Transaction history</h2>
         <ol class="history" id="history-list"></ol>
         <p class="hint" id="history-empty">No transactions yet.</p>
+        <div class="actions"><button class="secondary" id="export-csv">Export to spreadsheet (CSV)</button></div>
       </div>
     </section>
   </main>

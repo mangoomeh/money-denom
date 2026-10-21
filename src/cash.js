@@ -68,3 +68,27 @@ export function lowDenominations(stash, threshold) {
   if (!threshold) return [];
   return DENOMINATIONS.filter((d) => (stash[d.id] || 0) < threshold);
 }
+
+// The history as CSV for a spreadsheet or a reimbursement claim, oldest first. Text that
+// starts like a formula is prefixed with ' so spreadsheets don't run it.
+export function historyCsv(history) {
+  const cell = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+\-@]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`;
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const amount = (cents) => (cents / 100).toFixed(2);
+  const rows = [['Date', 'Time', 'Type', 'Description', 'Amount (SGD)', 'Undone']];
+  for (const e of [...history].sort((a, b) => new Date(a.at) - new Date(b.at))) {
+    const d = new Date(e.at);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (e.type === 'adjust') {
+      rows.push([date, time, e.wasSetUp ? 'Adjustment' : 'Opening balance', e.wasSetUp ? 'Counts adjusted' : 'Opening balance',
+        amount(totalCents(e.after) - totalCents(e.before)), e.undone ? 'yes' : '']);
+    } else {
+      rows.push([date, time, 'Purchase', e.note || 'Purchase', amount(-e.amountCents), e.undone ? 'yes' : '']);
+    }
+  }
+  return `${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`;
+}

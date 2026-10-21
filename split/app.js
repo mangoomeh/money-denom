@@ -1,14 +1,14 @@
 import { parseAmount } from '../src/cash.js';
 import {
   newId, sharesOf, expenseProblem, balances, settleUp, totalSpent, mergeGroups, encodeGroup, decodeGroup,
-  formatMoney, withCharges, summaryText, parsePayNow, payNowPayload,
+  formatAmount, homeOf, inHome, CURRENCIES, rateFromTable, withCharges, summaryText, parsePayNow, payNowPayload,
 } from '../src/split.js';
+import { $, esc, switchTab, toast } from '../shared/ui.js';
 
 const STORAGE_KEY = 'split-v1';
+const RATES_KEY = 'split-rates'; // today's exchange rates, so they're fetched once a day
+const RATES_URL = 'https://open.er-api.com/v6/latest/';
 const QR_LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
-const $ = (id) => document.getElementById(id);
-// Names and descriptions arrive in links from other phones, so always escape them.
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 // ---- Persistent state -----------------------------------------------------------------
 
@@ -33,6 +33,7 @@ const group = () => state.groups.find((g) => g.id === state.current) || null;
 const liveMembers = (g) => g.members.filter((m) => !m.deleted);
 const memberName = (g, id) => g.members.find((m) => m.id === id)?.name ?? '?';
 const touch = (record) => { record.updatedAt = Date.now(); return record; };
+const money = (cents, g = group()) => formatAmount(cents, homeOf(g));
 
 // ---- Form draft -------------------------------------------------------------------------
 
@@ -49,11 +50,19 @@ function resetDraft() {
   $('charges').checked = false;
   $('paid-by').innerHTML = '';
   $('paid-to').innerHTML = '';
+  if (g) {
+    // A trip abroad is usually one currency, so start with the last one used.
+    $('currency').innerHTML = CURRENCIES.map((c) => `<option ${c === (g.lastCurrency || homeOf(g)) ? 'selected' : ''}>${c}</option>`).join('');
+    $('rate').value = cachedRate(homeOf(g), $('currency').value) ?? '';
+  }
   document.querySelector('input[name="kind"][value="expense"]').checked = true;
   document.querySelector('input[name="split"][value="equal"]').checked = true;
+  if (g && isForeign() && !$('rate').value) fetchRate();
 }
 
 const formKind = () => document.querySelector('input[name="kind"]:checked').value;
+const formCurrency = () => (formKind() === 'payment' ? homeOf(group()) : $('currency').value || homeOf(group()));
+const isForeign = () => formCurrency() !== homeOf(group());
 
 function formCents() {
   const typed = parseAmount($('amount').value);
@@ -79,7 +88,7 @@ function formExpense() {
     split = { type: 'exact', shares };
   }
   const old = g.expenses.find((e) => e.id === editingId);
-  return {
+  const e = {
     id: editingId || newId(),
     kind,
     desc: kind === 'payment' ? 'Payment' : $('desc').value.trim() || 'Expense',
@@ -89,6 +98,44 @@ function formExpense() {
     at: old?.at ?? Date.now(),
     updatedAt: Date.now(),
   };
+  if (isForeign()) {
+    e.currency = formCurrency();
+    e.rate = Number($('rate').value.replace(/,/g, '')) || 0;
+  }
+  return e;
+}
+
+// ---- Exchange rates -----------------------------------------------------------------------
+
+function cachedRate(home, currency) {
+  if (home === currency) return null;
+  try {
+    const c = JSON.parse(localStorage.getItem(RATES_KEY));
+    if (c?.base === home && c.date === new Date().toDateString()) return rateFromTable(c, currency);
+  } catch { /* no cache */ }
+  return null;
+}
+
+// Fills in today's rate for the chosen currency, unless one is already typed in.
+async function fetchRate() {
+  const g = group();
+  const home = homeOf(g);
+  const currency = formCurrency();
+  if (home === currency) return;
+  const cached = cachedRate(home, currency);
+  if (cached) { $('rate').value = cached; return renderForm(); }
+  $('fx-note').textContent = 'Getting today\'s rate…';
+  try {
+    const res = await fetch(RATES_URL + home);
+    const table = await res.json();
+    if (table.result !== 'success') throw new Error();
+    try { localStorage.setItem(RATES_KEY, JSON.stringify({ base: home, date: new Date().toDateString(), rates: table.rates })); } catch { /* not cached */ }
+    if (formCurrency() === currency) $('rate').value = rateFromTable(table, currency) ?? '';
+  } catch {
+    $('fx-note').textContent = 'Couldn\'t get the rate (offline?). Type it in.';
+    return;
+  }
+  renderForm();
 }
 
 function formProblem(e) {
@@ -114,19 +161,25 @@ function render() {
 function myLine(g) {
   if (!g.me) return null;
   const c = balances(g)[g.me] ?? 0;
-  if (c > 0) return `You're owed ${formatMoney(c)}`;
-  if (c < 0) return `You owe ${formatMoney(-c)}`;
+  if (c > 0) return `You're owed ${money(c, g)}`;
+  if (c < 0) return `You owe ${money(-c, g)}`;
   return "You're settled up";
 }
 
 function renderGroups() {
+  $('pending-banner').hidden = !pendingAdd;
+  if (pendingAdd) {
+    $('pending-banner').textContent = state.groups.length
+      ? `Pick a group to add "${pendingAdd.desc}" (${formatAmount(pendingAdd.cents)}) to.`
+      : `Make a group below, then "${pendingAdd.desc}" (${formatAmount(pendingAdd.cents)}) is added to it.`;
+  }
   $('eyebrow').textContent = 'Split with friends';
   $('headline').textContent = 'Groups';
   $('subline').textContent = 'Share costs, see who owes whom, settle up';
   $('groups-empty').hidden = state.groups.length > 0;
   $('group-list').innerHTML = state.groups.map((g) => `
     <li class="tap" data-group="${esc(g.id)}">
-      <div class="top"><strong>${esc(g.name)}</strong><span class="amt">${formatMoney(totalSpent(g))}</span></div>
+      <div class="top"><strong>${esc(g.name)}</strong><span class="amt">${money(totalSpent(g), g)}</span></div>
       <div class="meta">${liveMembers(g).length} people${myLine(g) ? ` · ${esc(myLine(g))}` : ''}</div>
     </li>`).join('');
 }
@@ -134,7 +187,7 @@ function renderGroups() {
 function renderHeader() {
   const g = group();
   $('eyebrow').textContent = g.name;
-  $('headline').textContent = formatMoney(totalSpent(g));
+  $('headline').textContent = money(totalSpent(g));
   $('subline').textContent = myLine(g) ?? `spent by ${liveMembers(g).length} people · set "Who are you?" under People`;
 }
 
@@ -160,9 +213,19 @@ function renderForm() {
   $('split-field').hidden = isPayment;
   $('paid-to-field').hidden = !isPayment;
   $('paid-by-label').textContent = isPayment ? 'Who paid' : 'Paid by';
+  $('currency').hidden = isPayment;
 
   const typed = parseAmount($('amount').value);
-  $('charges-total').textContent = $('charges').checked && typed ? `= ${formatMoney(withCharges(typed))}` : '';
+  const cur = formCurrency();
+  $('charges-total').textContent = $('charges').checked && typed ? `= ${formatAmount(withCharges(typed), cur)}` : '';
+  $('fx-row').hidden = !isForeign();
+  if (isForeign()) {
+    $('fx-from').textContent = cur;
+    $('fx-to').textContent = homeOf(g);
+    const e = formExpense();
+    if (e.rate > 0 && e.cents) $('fx-note').textContent = `≈ ${money(inHome(e, homeOf(g)).cents)}`;
+    else if (e.rate > 0) $('fx-note').textContent = 'Today\'s rate; change it to match your card or money changer.';
+  }
   renderSplitRows();
 
   const e = formExpense();
@@ -179,7 +242,7 @@ function renderSplitRows() {
   const e = formExpense();
   const shares = e.kind === 'expense' ? sharesOf(e, ids) : {};
   $('split-rows').innerHTML = liveMembers(g).map((m) => {
-    const share = shares[m.id] ? formatMoney(shares[m.id]) : '—';
+    const share = shares[m.id] ? formatAmount(shares[m.id], formCurrency()) : '—';
     let control;
     if (draft.split === 'equal') {
       control = `<input type="checkbox" class="big-check" data-among="${esc(m.id)}" ${draft.among.has(m.id) ? 'checked' : ''} aria-label="Include ${esc(m.name)}">`;
@@ -205,6 +268,7 @@ function fmtDate(t) {
 function renderExpenses() {
   const g = group();
   const ids = g.members.map((m) => m.id);
+  const home = homeOf(g);
   const list = g.expenses.filter((e) => !e.deleted).sort((a, b) => b.at - a.at);
   $('expenses-empty').hidden = list.length > 0;
   $('expense-list').innerHTML = list.map((e) => {
@@ -217,16 +281,18 @@ function renderExpenses() {
       meta = fmtDate(e.at);
     } else {
       const n = Object.values(shares).filter((c) => c > 0).length;
+      const h = inHome(e, home);
       title = esc(e.desc);
       meta = `${esc(memberName(g, e.paidBy))} paid · split ${n} way${n === 1 ? '' : 's'} · ${fmtDate(e.at)}`;
+      if (h !== e) meta += ` · ≈ ${money(h.cents)}`;
       if (g.me) {
-        const mine = (e.paidBy === g.me ? e.cents : 0) - (shares[g.me] || 0);
-        if (mine > 0) meta += ` · <span class="pos">you lent ${formatMoney(mine)}</span>`;
-        if (mine < 0) meta += ` · <span class="neg">you owe ${formatMoney(-mine)}</span>`;
+        const mine = (h.paidBy === g.me ? h.cents : 0) - (sharesOf(h, ids)[g.me] || 0);
+        if (mine > 0) meta += ` · <span class="pos">you lent ${money(mine)}</span>`;
+        if (mine < 0) meta += ` · <span class="neg">you owe ${money(-mine)}</span>`;
       }
     }
     return `<li class="tap ${e.id === editingId ? 'editing' : ''}" data-expense="${esc(e.id)}">
-      <div class="top"><span>${title}</span><span class="amt">${formatMoney(e.cents)}</span></div>
+      <div class="top"><span>${title}</span><span class="amt">${formatAmount(e.cents, e.currency || home)}</span></div>
       <div class="meta">${meta}</div>
     </li>`;
   }).join('');
@@ -238,7 +304,7 @@ function renderBalances() {
   const ids = liveMembers(g).map((m) => m.id);
   $('balance-list').innerHTML = liveMembers(g).map((m) => {
     const c = net[m.id] ?? 0;
-    const label = c > 0 ? `gets back ${formatMoney(c)}` : c < 0 ? `owes ${formatMoney(-c)}` : 'settled';
+    const label = c > 0 ? `gets back ${money(c)}` : c < 0 ? `owes ${money(-c)}` : 'settled';
     return `<div><dt>${esc(m.name)}${m.id === g.me ? ' (you)' : ''}</dt><dd class="${c > 0 ? 'pos' : c < 0 ? 'neg' : ''}">${label}</dd></div>`;
   }).join('');
 
@@ -247,9 +313,9 @@ function renderBalances() {
   $('settle-list').innerHTML = transfers.map((t, i) => {
     const to = g.members.find((m) => m.id === t.to);
     return `<li>
-      <div class="top"><span>${esc(memberName(g, t.from))} → ${esc(to?.name ?? '?')}</span><span class="amt">${formatMoney(t.cents)}</span></div>
+      <div class="top"><span>${esc(memberName(g, t.from))} → ${esc(to?.name ?? '?')}</span><span class="amt">${money(t.cents)}</span></div>
       <div class="row-btns">
-        ${parsePayNow(to?.paynow) ? `<button class="secondary small" data-qr="${i}">PayNow QR</button>` : ''}
+        ${homeOf(g) === 'SGD' && parsePayNow(to?.paynow) ? `<button class="secondary small" data-qr="${i}">PayNow QR</button>` : ''}
         <button class="secondary small" data-paid="${i}">Mark as paid</button>
       </div>
     </li>`;
@@ -260,6 +326,10 @@ function renderPeople() {
   const g = group();
   $('me').innerHTML = `<option value="">Choose…</option>${options(g, g.me)}`;
   if (document.activeElement !== $('group-name')) $('group-name').value = g.name;
+  const hasExpenses = g.expenses.some((e) => !e.deleted);
+  $('home-currency').innerHTML = CURRENCIES.map((c) => `<option ${c === homeOf(g) ? 'selected' : ''}>${c}</option>`).join('');
+  $('home-currency').disabled = hasExpenses;
+  $('home-currency-hint').hidden = !hasExpenses;
   const used = new Set(g.expenses.filter((e) => !e.deleted).flatMap((e) => [e.paidBy, ...Object.keys(sharesOf(e, g.members.map((m) => m.id)))]));
   $('member-list').innerHTML = liveMembers(g).map((m) => `
     <li>
@@ -276,6 +346,14 @@ function openGroup(id) {
   save();
   resetDraft();
   switchTab('expenses');
+  if (pendingAdd) {
+    // A bill handed over from another app (e.g. Sushiro): already nett, in SGD.
+    $('desc').value = pendingAdd.desc;
+    $('amount').value = (pendingAdd.cents / 100).toFixed(2);
+    $('currency').value = homeOf(group());
+    pendingAdd = null;
+    toast('Check who to split it with, then tap Add.');
+  }
   render();
 }
 
@@ -286,6 +364,8 @@ function createGroup() {
   const now = Date.now();
   const members = names.map((n) => ({ id: newId(), name: n, updatedAt: now }));
   const g = { id: newId(), name, updatedAt: now, members, expenses: [], me: members[0].id };
+  if (pendingTripId) g.tripId = pendingTripId;
+  pendingTripId = null;
   state.groups.unshift(g);
   $('new-name').value = '';
   $('new-members').value = '';
@@ -298,8 +378,9 @@ function saveExpense() {
   if (formProblem(e)) return;
   const i = g.expenses.findIndex((x) => x.id === e.id);
   if (i >= 0) g.expenses[i] = e; else g.expenses.push(e);
+  if (e.kind !== 'payment') g.lastCurrency = e.currency || homeOf(g);
   save();
-  toast(editingId ? 'Saved.' : `${e.kind === 'payment' ? 'Payment' : formatMoney(e.cents)} added.`);
+  toast(editingId ? 'Saved.' : `${e.kind === 'payment' ? 'Payment' : formatAmount(e.cents, e.currency || homeOf(g))} added.`);
   resetDraft();
   render();
 }
@@ -314,6 +395,8 @@ function editExpense(id) {
   $('desc').value = e.kind === 'payment' ? '' : e.desc;
   $('amount').value = (e.cents / 100).toFixed(2);
   $('paid-by').innerHTML = options(g, e.paidBy);
+  $('currency').value = e.currency || homeOf(g);
+  $('rate').value = e.rate ?? '';
   if (e.kind === 'payment') {
     $('paid-to').innerHTML = options(g, Object.keys(e.split.shares)[0]);
   } else {
@@ -343,7 +426,7 @@ function recordPayment(t) {
   const g = group();
   g.expenses.push({ id: newId(), kind: 'payment', desc: 'Payment', cents: t.cents, paidBy: t.from, split: { type: 'exact', shares: { [t.to]: t.cents } }, at: Date.now(), updatedAt: Date.now() });
   save();
-  toast(`${memberName(g, t.from)} paid ${memberName(g, t.to)} ${formatMoney(t.cents)}.`);
+  toast(`${memberName(g, t.from)} paid ${memberName(g, t.to)} ${money(t.cents)}.`);
   render();
 }
 
@@ -369,7 +452,7 @@ async function showQr(t) {
   const g = group();
   const to = g.members.find((m) => m.id === t.to);
   qrTransfer = t;
-  $('qr-title').textContent = `${memberName(g, t.from)} pays ${to.name} ${formatMoney(t.cents)}`;
+  $('qr-title').textContent = `${memberName(g, t.from)} pays ${to.name} ${money(t.cents)}`;
   $('qr-code').textContent = 'Loading…';
   $('qr-dialog').showModal();
   try {
@@ -445,8 +528,43 @@ function deleteGroup() {
   render();
 }
 
+let pendingAdd = null; // { desc, cents } from Sushiro's "Split this bill"
+let pendingTripId = null; // the trip a new group is for, from Trip Planner
+
+function readJsonHash(text) {
+  try { return JSON.parse(decodeURIComponent(text)); } catch { return null; }
+}
+
+// Links from other apps: #add={"desc","cents"} adds a bill to a group you pick, and
+// #trip={"id","name"} opens the trip's group, or starts one for it.
+function handOff(hash) {
+  const add = hash.match(/^#add=(.+)/);
+  const trip = hash.match(/^#trip=(.+)/);
+  history.replaceState(null, '', location.pathname);
+  if (add) {
+    const a = readJsonHash(add[1]);
+    if (!(a?.cents > 0)) return;
+    pendingAdd = { desc: String(a.desc || 'Bill').slice(0, 80), cents: Math.round(a.cents) };
+    state.current = null;
+    render();
+  }
+  if (trip) {
+    const t = readJsonHash(trip[1]);
+    if (!t?.id) return;
+    const existing = state.groups.find((g) => g.tripId === t.id);
+    if (existing) return openGroup(existing.id);
+    pendingTripId = String(t.id);
+    state.current = null;
+    render();
+    $('new-name').value = String(t.name || '').slice(0, 80);
+    $('new-members').focus();
+    toast(`Add who's going on ${t.name || 'the trip'}.`);
+  }
+}
+
 // Opening a share link adds the group, or merges it into the copy already here.
 async function importFromHash() {
+  if (/^#(add|trip)=/.test(location.hash)) return handOff(location.hash);
   const m = location.hash.match(/^#g=([A-Za-z0-9_-]+)/);
   if (!m) return;
   history.replaceState(null, '', location.pathname);
@@ -464,21 +582,6 @@ async function importFromHash() {
   save();
   openGroup(incoming.id);
   if (!state.groups.find((g) => g.id === incoming.id).me) switchTab('people');
-}
-
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
-  window.scrollTo(0, 0);
-}
-
-let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2500);
 }
 
 // ---- Wiring -----------------------------------------------------------------------------
@@ -499,6 +602,17 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 
 for (const id of ['desc', 'amount']) $(id).addEventListener('input', renderForm);
 for (const id of ['charges', 'paid-by', 'paid-to']) $(id).addEventListener('change', renderForm);
+$('currency').addEventListener('change', () => { $('rate').value = ''; renderForm(); fetchRate(); });
+$('rate').addEventListener('input', renderForm);
+$('home-currency').addEventListener('change', () => {
+  const g = group();
+  g.currency = $('home-currency').value;
+  g.lastCurrency = g.currency;
+  touch(g);
+  save();
+  resetDraft();
+  render();
+});
 document.querySelectorAll('input[name="kind"]').forEach((r) => r.addEventListener('change', renderForm));
 document.querySelectorAll('input[name="split"]').forEach((r) => r.addEventListener('change', () => { draft.split = r.value; renderForm(); }));
 $('split-rows').addEventListener('change', (ev) => {

@@ -5,9 +5,9 @@ import {
   SOLANA, isSolanaAddress, solRpcFor, solTokenInfo, solEarlyBuyers, solGroupInToken, solWalletFlows,
 } from '../src/solana.js';
 import { searchTokens, money, age } from '../src/tokensearch.js';
+import { $, esc, switchTab, toast } from '../shared/ui.js';
 
 const STORAGE_KEY = 'wallets-v1';
-const $ = (id) => document.getElementById(id);
 const chain = CHAINS.robinhood;
 const isSol = () => state.chain === 'solana';
 
@@ -35,16 +35,6 @@ const timeText = (ts) => (ts == null ? '' : new Date(ts * 1000).toLocaleString('
 }));
 const pctText = (p) => (p >= 0.01 ? `${p.toLocaleString('en-US', { maximumFractionDigits: 2 })}%` : p > 0 ? '<0.01%' : '0%');
 const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
-}
 
 function copy(text) {
   navigator.clipboard?.writeText(text).then(() => toast('Copied'), () => toast(text));
@@ -446,12 +436,6 @@ function openSheet(address) {
 }
 
 // ---- Tabs, settings and start-up -------------------------------------------------------------------------
-
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
-  window.scrollTo(0, 0);
-}
 
 async function showTokenInfo() {
   const el = $('b-token-info');

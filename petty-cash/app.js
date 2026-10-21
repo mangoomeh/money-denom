@@ -1,10 +1,10 @@
 import {
   DENOMINATIONS, emptyCounts, totalCents, parseAmount, formatCents,
-  checkTransaction, applyDelta, lowDenominations,
+  checkTransaction, applyDelta, lowDenominations, historyCsv,
 } from '../src/cash.js';
+import { $, switchTab, toast } from '../shared/ui.js';
 
 const STORAGE_KEY = 'petty-cash-v1';
-const $ = (id) => document.getElementById(id);
 
 // ---- Persistent state -------------------------------------------------------
 
@@ -270,24 +270,17 @@ function saveStash() {
   toast(changed ? 'Counts saved.' : 'No changes.');
 }
 
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-  document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== name; });
-  window.scrollTo(0, 0);
-}
-
-let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2500);
-}
-
 // ---- Wiring -----------------------------------------------------------------
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('export-csv').addEventListener('click', () => {
+  if (!state.history.length) return toast('No transactions to export yet.');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([historyCsv(state.history)], { type: 'text/csv' }));
+  a.download = `petty-cash-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+});
 $('amount').addEventListener('input', renderSpend);
 $('reset-tx').addEventListener('click', () => { resetDraft(); renderSpend(); });
 $('confirm-tx').addEventListener('click', confirmPurchase);

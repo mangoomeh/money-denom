@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   nights, tripDays, tripStatus, itemsOn, unscheduled, mapsUrl, itineraryText, summariseWeather, weatherTags,
-  packingList, fullPackingList, packingProgress, encodeTrip, decodeTrip, mergeTrips, isIsoDate, MAX_DAYS,
+  packingList, fullPackingList, packingProgress, encodeTrip, decodeTrip, mergeTrips, isIsoDate, MAX_DAYS, itineraryIcs,
 } from '../src/trip.js';
 import { mergeList } from '../src/sync.js';
 
@@ -117,4 +117,25 @@ test('mergeList breaks ties the same way on both phones', () => {
   const x = [{ id: '1', updatedAt: 1, v: 'x' }];
   const y = [{ id: '1', updatedAt: 1, v: 'y' }];
   assert.deepEqual(mergeList(x, y), mergeList(y, x));
+});
+
+test('calendar export has the trip, timed and all-day items, escaped and folded', () => {
+  const t = trip({ end: '2026-11-29', items: [
+    item('fly', '2026-11-28', '08:05', { kind: 'transport', title: 'SQ 638', place: 'Changi T3', notes: 'Ref ABC; seat 32A, aisle' }),
+    item('free', '2026-11-29', '', { title: 'Shopping' }),
+    item('gone', '2026-11-29', '10:00', { deleted: true }),
+    item('long', '2026-11-29', '20:00', { title: '🍜'.repeat(80) }),
+  ] });
+  const ics = itineraryIcs(t, new Date('2026-10-21T08:00:00Z'));
+  const lines = ics.split('\r\n');
+  assert.equal(lines[0], 'BEGIN:VCALENDAR');
+  assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
+  assert.equal(lines.filter((l) => l === 'BEGIN:VEVENT').length, 4, 'trip + 3 live items');
+  assert.ok(lines.includes('DTSTART;VALUE=DATE:20261128') && lines.includes('DTEND;VALUE=DATE:20261130'), 'trip spans both days');
+  assert.ok(lines.includes('DTSTART:20261128T080500') && lines.includes('DURATION:PT1H'));
+  assert.ok(lines.includes('DESCRIPTION:Ref ABC\\; seat 32A\\, aisle'));
+  assert.ok(lines.includes('DTSTAMP:20261021T080000Z'));
+  assert.ok(lines.every((l) => [...l].length <= 75), 'folded');
+  assert.ok(lines.some((l) => l.startsWith(' ')), 'the long title was folded');
+  assert.ok(lines.every((l) => !/[\uD800-\uDBFF]$|^ ?[\uDC00-\uDFFF]/.test(l)), 'no emoji cut in half');
 });

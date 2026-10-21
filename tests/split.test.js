@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   sharesOf, expenseProblem, balances, settleUp, totalSpent, mergeGroups, encodeGroup, decodeGroup,
-  withCharges, summaryText, crc16, parsePayNow, payNowPayload,
+  withCharges, summaryText, crc16, parsePayNow, payNowPayload, formatAmount, inHome, rateFromTable,
 } from '../src/split.js';
 
 const IDS = ['a', 'b', 'c'];
@@ -125,4 +125,34 @@ test('PayNow payload is well-formed SGQR with a valid checksum', () => {
     i += 4 + len;
   }
   assert.equal(i, p.length);
+});
+
+test('expenses in another currency count in the home currency at their saved rate', () => {
+  const g = group([
+    exp('hotel', 'a', 300000, equal(), { currency: 'THB', rate: 0.0385 }), // THB 3,000.00 = $115.50
+    exp('massage', 'b', 120000, { type: 'exact', shares: { a: 60000, c: 60000 } }, { currency: 'THB', rate: 0.0385 }),
+  ]);
+  assert.equal(totalSpent(g), 11550 + 4620);
+  assert.deepEqual(balances(g), { a: 11550 - 3850 - 2310, b: -3850 + 4620, c: -3850 - 2310 });
+  const conv = inHome(g.expenses[1], 'SGD');
+  assert.equal(Object.values(conv.split.shares).reduce((s, c) => s + c, 0), conv.cents, 'converted shares still add up');
+  assert.match(expenseProblem({ ...g.expenses[0], rate: 0 }), /exchange rate for THB/);
+  assert.match(expenseProblem({ ...g.expenses[1], split: { type: 'exact', shares: { a: 1000 } } }), /THB 10\.00 left|THB 1,190\.00 left/);
+});
+
+test('amounts are shown in their own currency', () => {
+  assert.equal(formatAmount(123456, 'SGD'), '$1,234.56');
+  assert.equal(formatAmount(123456, 'THB'), 'THB 1,234.56');
+  assert.equal(formatAmount(150000, 'JPY'), 'JPY 1,500');
+  assert.equal(formatAmount(-500, 'SGD'), '-$5.00');
+});
+
+test('rates come from a table based on the home currency', () => {
+  assert.equal(rateFromTable({ rates: { SGD: 1, THB: 25.97 } }, 'THB'), 0.038506);
+  assert.equal(rateFromTable({ rates: {} }, 'THB'), null);
+});
+
+test('the home currency travels in the link', async () => {
+  const back = await decodeGroup(await encodeGroup({ ...group([]), currency: 'MYR' }));
+  assert.equal(back.currency, 'MYR');
 });

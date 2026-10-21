@@ -6,10 +6,11 @@
   <meta name="theme-color" content="#d7001b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Sushiro Tracker</title>
-  <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icons/sushiro-apple.png">
+  <link rel="icon" href="../icons/sushiro-192.png">
+  <script type="module" src="../shared/pwa.js"></script>
+  <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="../shared/styles.css">
 </head>
 <body class="theme-sushiro">
@@ -98,6 +99,9 @@
         <div class="actions">
           <button class="secondary" id="clear-meal">Start over</button>
           <button class="primary" id="save-visit" disabled>Save visit</button>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="split-bill" disabled>💸 Split this bill with friends</button>
         </div>
       </div>
     </section>
