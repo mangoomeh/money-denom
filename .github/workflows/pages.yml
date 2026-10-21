@@ -2,8 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    # main is the branch to work on; the old session branch also deploys until the repo's default branch is main.
-    branches: [main, ccr-491f8a0c-svplkf]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
