@@ -1,9 +1,9 @@
 // Keeps every app working offline. Pages and files come from the network when it answers
 // within a few seconds (so updates show up straight away) and from the saved copy otherwise.
-// The file list and VERSION are written by tools/build-pwa.py; don't edit them by hand.
+// The file list and VERSION are written by tools/build-sw.js (`npm run sw`); don't edit them by hand.
 
 // <files>
-const VERSION = "7cc8196bdd3a";
+const VERSION = "5d4c2a620632";
 const FILES = [
   "./",
   "petty-cash/",

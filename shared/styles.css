@@ -68,7 +68,7 @@ h2 small, .field small { font-weight: 400; color: var(--muted); }
   border-bottom: 1px solid var(--border);
 }
 .tabs button {
-  flex: 1;
+  flex: 1 1 auto;
   border: 0;
   background: none;
   color: var(--muted);
@@ -738,7 +738,7 @@ input.mono, textarea.mono { font-size: .95rem !important; }
 .window-row .field input { font-size: .95rem; padding: .55rem .5rem; min-width: 0; }
 @media (min-width: 560px) { .window-row { grid-template-columns: 1fr 1fr; gap: .6rem; } }
 .presets { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
-.check { display: flex; gap: .5rem; align-items: center; margin-top: .75rem; font-size: .92rem; }
+label.check { display: flex; gap: .5rem; align-items: center; margin-top: .75rem; font-size: .92rem; }
 .seg { display: flex; gap: .4rem; margin-top: .75rem; }
 .seg label { flex: 1; text-align: center; padding: .5rem; border: 1px solid var(--border); border-radius: 10px; font-weight: 600; font-size: .92rem; }
 .seg label:has(input:checked) { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
