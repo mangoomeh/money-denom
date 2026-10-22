@@ -7,10 +7,11 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url));
-export const APPS = ['petty-cash', 'sushiro', 'split', 'trip', 'calc84', 'wallets', 'bazi', 'fengshui', 'learnai', 'chat'];
+export const APPS = ['petty-cash', 'sushiro', 'split', 'trip', 'calc84', 'wallets', 'security', 'bazi', 'fengshui', 'learnai', 'chat'];
 export const SHARED = ['index.html', 'manifest.webmanifest', 'shared', 'src', 'icons'];
 // Big icons are only fetched when an app is installed, so they aren't stored for offline use.
-const SKIP = /(^|\/)\.DS_Store$|-(512|maskable)\.png$/;
+// security/data.json is made at deploy time (tools/build-feeds.js) and fetched fresh.
+const SKIP = /(^|\/)\.DS_Store$|-(512|maskable)\.png$|^security\/data\.json$/;
 
 function walk(dir) {
   return readdirSync(dir).sort().flatMap((f) => {

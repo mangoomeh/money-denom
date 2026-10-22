@@ -4,11 +4,11 @@
 
 export const STORAGE_KEYS = [
   'petty-cash-v1', 'petty-cash-theme', 'sushiro-v1', 'split-v1', 'trip-v1', 'calc84-v1',
-  'wallets-v1', 'bazi-v1', 'fengshui-v1', 'learnai-v1', 'local-chat-v1',
+  'wallets-v1', 'security-v1', 'bazi-v1', 'fengshui-v1', 'learnai-v1', 'local-chat-v1',
 ];
 
 // Saved by apps but not worth backing up: they're refetched when missing.
-export const CACHE_KEYS = ['split-rates'];
+export const CACHE_KEYS = ['split-rates', 'security-cache'];
 
 // Each database exactly as its app opens it, so restoring never creates a mismatched one.
 export const DATABASES = [

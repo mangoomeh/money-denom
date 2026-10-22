@@ -3,7 +3,7 @@
 // The file list and VERSION are written by tools/build-sw.js (`npm run sw`); don't edit them by hand.
 
 // <files>
-const VERSION = "5d4c2a620632";
+const VERSION = "61a056bdfc27";
 const FILES = [
   "./",
   "petty-cash/",
@@ -12,6 +12,7 @@ const FILES = [
   "trip/",
   "calc84/",
   "wallets/",
+  "security/",
   "bazi/",
   "fengshui/",
   "learnai/",
@@ -35,6 +36,7 @@ const FILES = [
   "src/places.js",
   "src/plangrid.js",
   "src/receipt.js",
+  "src/security.js",
   "src/solana.js",
   "src/split.js",
   "src/sushiro.js",
@@ -56,6 +58,8 @@ const FILES = [
   "icons/learnai-apple.png",
   "icons/petty-cash-192.png",
   "icons/petty-cash-apple.png",
+  "icons/security-192.png",
+  "icons/security-apple.png",
   "icons/split-192.png",
   "icons/split-apple.png",
   "icons/sushiro-192.png",
@@ -84,6 +88,8 @@ const FILES = [
   "calc84/manifest.webmanifest",
   "wallets/app.js",
   "wallets/manifest.webmanifest",
+  "security/app.js",
+  "security/manifest.webmanifest",
   "bazi/app.js",
   "bazi/manifest.webmanifest",
   "fengshui/app.js",

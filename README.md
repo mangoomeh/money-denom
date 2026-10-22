@@ -103,6 +103,28 @@ A day-by-day itinerary and a packing list for each trip.
   all-day event, timed items as one-hour events and untimed ones as all-day events.
 - **Expenses in Split:** opens this trip's group in Split, or starts one named after the trip.
 
+### 🛡️ Security Watch (`security/`)
+
+The latest security vulnerabilities and news in one place, with a watch list for the things you use.
+
+- **Exploited:** vulnerabilities [CISA](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) has confirmed
+  attackers are using, added in the last 7, 30 or 90 days. Each shows the vendor and product, whether it's used in
+  ransomware, its [EPSS](https://www.first.org/epss/) score (the chance it's exploited in the next 30 days), what to do,
+  and links to the NVD and CVE.org.
+- **New CVEs:** critical or high vulnerabilities published in the last 24 hours or 7 days, from the
+  [NVD](https://nvd.nist.gov), highest score first (CVSS 4.0, then 3.1, 3.0, 2.0), with EPSS scores.
+- **News:** BleepingComputer, The Hacker News, SecurityWeek, Krebs on Security, Schneier on Security, the UK NCSC and
+  CISA advisories, plus security stories from Hacker News, newest first with duplicates removed. CVE numbers in a story
+  link to the NVD.
+- **Watch list:** vendors and products you use (e.g. "Fortinet, Chrome, iOS"). Matches are marked on every tab, can
+  be filtered to, and are counted in the header.
+- **Package check:** paste `lodash@4.17.15`, `requests==2.19.0` or `go github.com/x/y 1.2.3` lines and see known
+  vulnerabilities from [OSV](https://osv.dev), with the versions that fix them.
+- **Where the data comes from:** news sites don't let web pages read their feeds, and CISA's full list is 1.8 MB, so
+  the Pages workflow runs `tools/build-feeds.js` on every deploy and every 3 hours, and publishes the news and the last
+  90 days of CISA's list as `security/data.json` (about 140 KB). The NVD, EPSS, OSV and Hacker News are asked directly
+  by the page. Nothing needs a key. If `data.json` is missing, the page reads CISA's list itself.
+
 ### 🧮 GX-84 Calculator (`calc84/`)
 
 A handheld graphing calculator modelled on the TI-84 Plus CE. It's a recreation, not an emulator: no Texas
@@ -276,6 +298,7 @@ The home screen also links to [Web Monopoly](https://mangoomeh.github.io/web-mon
 npm start        # serves the apps at http://localhost:8000
 npm test         # runs the unit tests (Node 18+)
 npm run sw       # updates the offline file list in sw.js; run after adding or changing files
+npm run feeds    # makes security/data.json (news and CISA's list) for trying Security Watch locally
 npm run icons    # redraws the icons and manifests (Python 3 + Pillow + Noto Color Emoji); run after adding an app
 ```
 
@@ -291,10 +314,10 @@ Every push to `main` runs the tests and publishes to GitHub Pages (`.github/work
 - `manifest.webmanifest` in each folder, and `icons/`: what a phone uses when an app is added to the home screen
 - `shared/styles.css`: shared styles, including the Sushiro theme
 - `shared/ui.js`: helpers every app uses (`$`, `esc`, `toast`, `switchTab`); `shared/backup.js`: the Backup card
-- `petty-cash/`, `sushiro/`, `split/`, `trip/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
-- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `sync.js` (share links and merging), `backup.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
+- `petty-cash/`, `sushiro/`, `split/`, `trip/`, `security/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `security.js`, `sync.js` (share links and merging), `backup.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`, plus checks that the offline and install files are complete
-- `tools/`: `build-sw.js` (offline file list) and `build-pwa.py` (icons and manifests)
+- `tools/`: `build-sw.js` (offline file list), `build-pwa.py` (icons and manifests) and `build-feeds.js` (Security Watch's data)
 
 To add an app: create a folder with an `index.html` (copy the `<head>` of another app, which links its manifest,
 icon and `pwa.js`), add a tile to the root `index.html`, add the folder to `APPS` in `tools/build-sw.js` and
