@@ -22,7 +22,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="exploited" aria-selected="true">Exploited</button>
-    <button role="tab" data-tab="cves">New CVEs</button>
+    <button role="tab" data-tab="cves">New</button>
     <button role="tab" data-tab="news">News</button>
     <button role="tab" data-tab="watch">Watch</button>
   </nav>
@@ -47,10 +47,12 @@
 
     <section data-panel="cves" hidden>
       <div class="card">
-        <h2>New CVEs</h2>
-        <p class="hint">Newly published vulnerabilities from the <a href="https://nvd.nist.gov" target="_blank" rel="noopener">NVD</a>,
-          highest score first. Most are never exploited; the % is the
-          <a href="https://www.first.org/epss/" target="_blank" rel="noopener">EPSS</a> chance it will be in the next 30 days.</p>
+        <h2>New vulnerabilities</h2>
+        <div class="seg" role="radiogroup" aria-label="Kind">
+          <label><input type="radio" name="new-kind" value="cves" checked> All CVEs</label>
+          <label><input type="radio" name="new-kind" value="oss"> Open-source packages</label>
+        </div>
+        <p class="hint" id="new-hint"></p>
         <div class="seg" role="radiogroup" aria-label="Severity">
           <label><input type="radio" name="nvd-sev" value="CRITICAL" checked> Critical</label>
           <label><input type="radio" name="nvd-sev" value="HIGH"> High</label>
@@ -63,6 +65,7 @@
       </div>
       <p class="status" id="nvd-status" hidden></p>
       <ul class="vuln-list" id="nvd-list"></ul>
+      <ul class="vuln-list" id="oss-list" hidden></ul>
     </section>
 
     <section data-panel="news" hidden>
@@ -86,6 +89,13 @@
         <label class="field"><textarea id="keywords" rows="3" placeholder="e.g. Fortinet, Chrome, iOS, WordPress, Cisco, Microsoft Exchange"></textarea></label>
         <div class="actions"><button class="primary" id="save-keywords">Save watch list</button></div>
         <dl class="summary" id="match-summary"></dl>
+      </div>
+
+      <div class="card" id="watch-adv-card" hidden>
+        <h2>Package advisories for your watch list</h2>
+        <p class="hint">New advisories from the last 30 days for PyPI and npm packages named like a word on your watch list,
+          and any malware found in their releases.</p>
+        <ul class="vuln-list" id="watch-adv"></ul>
       </div>
 
       <div class="card">

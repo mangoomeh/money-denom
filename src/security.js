@@ -135,14 +135,16 @@ export function severityOf(score) {
   return score > 0 ? 'low' : 'none';
 }
 
-// The headline score for a CVE: CVSS 4.0, then 3.1, 3.0, 2.0, preferring the NVD's own
-// ("Primary") rating over the reporter's.
+// The headline score for a CVE: the NVD's own ("Primary") rating if it has one, else the
+// reporter's, newest CVSS version first in each case. Reporters' CVSS 4.0 scores often run
+// higher than the NVD's 3.1 analysis, so the NVD's is trusted first.
+const VERSIONS = ['cvssMetricV40', 'cvssMetricV31', 'cvssMetricV30', 'cvssMetricV2'];
 function bestMetric(metrics = {}) {
-  for (const k of ['cvssMetricV40', 'cvssMetricV31', 'cvssMetricV30', 'cvssMetricV2']) {
-    const list = metrics[k];
-    if (!list?.length) continue;
-    const m = list.find((x) => x.type === 'Primary') || list[0];
-    return { score: m.cvssData?.baseScore ?? null, version: m.cvssData?.version ?? k.replace('cvssMetricV', '').replace(/(\d)(\d)/, '$1.$2') };
+  for (const primaryOnly of [true, false]) {
+    for (const k of VERSIONS) {
+      const m = (metrics[k] || []).find((x) => !primaryOnly || x.type === 'Primary');
+      if (m) return { score: m.cvssData?.baseScore ?? null, version: m.cvssData?.version ?? k.replace('cvssMetricV', '').replace(/(\d)(\d)/, '$1.$2') };
+    }
   }
   return { score: null, version: null };
 }
@@ -251,3 +253,76 @@ export function ago(iso, now = new Date()) {
   }
   return t.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
 }
+
+// ---- Open-source advisories (OSV) ----------------------------------------------------------
+
+// The ids OSV changed since `since`, from an ecosystem's modified_id.csv ("timestamp,id"
+// lines, newest first).
+export function recentOsvIds(csv, since) {
+  const out = [];
+  for (const line of String(csv).split('\n')) {
+    const [when, id] = line.trim().split(',');
+    if (!id) continue;
+    if (when < since) break;
+    out.push(id.split('/').pop());
+  }
+  return out;
+}
+
+// One OSV record as an advisory for the app. A malicious package (MAL-…) is a published
+// release with malware in it, like a hijacked maintainer account; the rest are bugs.
+export function advisoryItem(v, since = '') {
+  const a = v.affected?.[0] || {};
+  const malicious = v.id.startsWith('MAL-');
+  const severity = malicious ? 'critical' : (v.database_specific?.severity || a.database_specific?.severity || '').toLowerCase().replace('moderate', 'medium') || null;
+  const fixed = (a.ranges || []).flatMap((r) => (r.events || []).map((e) => e.fixed).filter(Boolean));
+  return {
+    id: v.id,
+    cves: (v.aliases || []).filter((x) => x.startsWith('CVE-')),
+    ecosystem: a.package?.ecosystem || '',
+    package: a.package?.name || '',
+    malicious,
+    severity,
+    summary: plainText(malicious ? v.details || v.summary : v.summary || v.details, 260),
+    versions: malicious ? (a.versions || []).slice(-3) : [],
+    fixed: [...new Set(fixed)].slice(0, 3),
+    published: v.published || null,
+    modified: v.modified || null,
+    // Published before the window but changed in it, e.g. a newly hijacked version added.
+    updated: Boolean(since && v.published && v.published < since),
+    // A copy (e.g. PYSEC) of a GitHub advisory, which is the one to go by.
+    copyOf: v.id.startsWith('GHSA-') ? null : (v.aliases || []).find((x) => x.startsWith('GHSA-')) || null,
+  };
+}
+
+// New in the window, or a malware report that changed in it (that's how a newly hijacked
+// version shows up). Older bug reports change all the time for small edits, and copies of
+// GitHub advisories are re-published under new ids (often months later), which isn't news.
+export const isFresh = (item) => item.malicious || (!item.updated && !item.copyOf);
+
+// Real vulnerabilities rated high or critical, and malware only in packages people use
+// (`popular`: a Set of "ecosystem:name"), since most malicious uploads are typosquats nobody installs.
+export function keepAdvisory(item, popular) {
+  if (!isFresh(item)) return false;
+  if (item.malicious) return popular.has(`${item.ecosystem}:${item.package.toLowerCase()}`);
+  return item.severity === 'critical' || item.severity === 'high';
+}
+
+// One entry per vulnerability (GHSA and PYSEC often describe the same CVE), keeping the
+// record that has a severity, newest first.
+export function dedupeAdvisories(items) {
+  const seen = new Set();
+  const byModified = (a, b) => (b.modified || '').localeCompare(a.modified || '');
+  return [...items]
+    .sort((a, b) => Number(Boolean(b.severity)) - Number(Boolean(a.severity)) || byModified(a, b))
+    .filter((it) => {
+      const keys = [it.id, ...it.cves.map((c) => `${c}:${it.package}`)];
+      if (keys.some((k) => seen.has(k))) return false;
+      keys.forEach((k) => seen.add(k));
+      return true;
+    })
+    .sort(byModified);
+}
+
+// Watch keywords that could be package names, for asking OSV about them directly.
+export const packageLike = (keywords) => keywords.filter((k) => /^[@a-z0-9][a-z0-9@/._-]*$/.test(k));

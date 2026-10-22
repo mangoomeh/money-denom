@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   plainText, cvesIn, parseFeed, hnItems, mergeNews, kevRecent, nvdItems, nvdUrl, severityOf, epssMap, epssUrls,
   formatEpss, parseKeywords, matchKeywords, parsePackages, osvBatchBody, osvResults, osvSummary, ago,
+  recentOsvIds, advisoryItem, keepAdvisory, dedupeAdvisories, packageLike, isFresh,
 } from '../src/security.js';
 
 const RSS = `<?xml version="1.0"?><rss version="2.0"><channel><title>Example</title>
@@ -82,10 +83,12 @@ test('NVD: best available score, highest first', () => {
   const cve = (id, metrics, published = '2026-10-15T07:17:57.890') => ({ cve: { id, published, metrics, descriptions: [{ lang: 'en', value: `${id} desc` }] } });
   const items = nvdItems({ vulnerabilities: [
     cve('CVE-A', { cvssMetricV31: [{ type: 'Secondary', cvssData: { baseScore: 7.5, version: '3.1' } }, { type: 'Primary', cvssData: { baseScore: 8.1, version: '3.1' } }] }),
-    cve('CVE-B', { cvssMetricV40: [{ type: 'Secondary', cvssData: { baseScore: 9.3, version: '4.0' } }], cvssMetricV31: [{ type: 'Primary', cvssData: { baseScore: 6 } }] }),
+    cve('CVE-B', { cvssMetricV40: [{ type: 'Secondary', cvssData: { baseScore: 9.3, version: '4.0' } }], cvssMetricV31: [{ type: 'Primary', cvssData: { baseScore: 6, version: '3.1' } }] }),
+    cve('CVE-D', { cvssMetricV40: [{ type: 'Secondary', cvssData: { baseScore: 9.8, version: '4.0' } }] }),
     cve('CVE-C', {}),
   ] });
-  assert.deepEqual(items.map((i) => [i.cve, i.score, i.severity]), [['CVE-B', 9.3, 'critical'], ['CVE-A', 8.1, 'high'], ['CVE-C', null, 'none']]);
+  // The NVD's own 6.0 beats the reporter's 9.3; with only a reporter's CVSS 4.0, that's used.
+  assert.deepEqual(items.map((i) => [i.cve, i.score, i.severity]), [['CVE-D', 9.8, 'critical'], ['CVE-A', 8.1, 'high'], ['CVE-B', 6, 'medium'], ['CVE-C', null, 'none']]);
   assert.equal(items[0].published, '2026-10-15T07:17:57Z');
   assert.equal(severityOf(4), 'medium');
 });
@@ -140,4 +143,63 @@ test('ago', () => {
   assert.equal(ago('2026-10-22', now), 'today');
   assert.equal(ago('2026-10-21', now), 'yesterday');
   assert.equal(ago('2026-10-18', now), '4 days ago');
+});
+
+// Shaped like OSV's record for the hijacked LiteLLM release: an old malware report that was
+// changed when a new bad version (1.107.0) was found.
+const HIJACKED = {
+  id: 'MAL-2026-2144', published: '2026-03-24T11:15:14Z', modified: '2026-10-21T22:01:01.88Z', aliases: ['PYSEC-2026-2'],
+  summary: 'Malicious code in litellm (PyPI)',
+  details: 'litellm 1.107.0, uploaded to PyPI on 2026-10-21, contains a credential stealer and a backdoor.',
+  affected: [{ package: { ecosystem: 'PyPI', name: 'litellm' }, versions: ['1.82.7', '1.82.8', '1.107.0'] }],
+};
+const BUG = {
+  id: 'GHSA-332p-7hrc-92wf', published: '2026-10-21T21:28:09Z', modified: '2026-10-21T21:45:08Z', aliases: ['CVE-2026-112393'],
+  summary: 'Pillow: Heap buffer overflow when saving TIFF', database_specific: { severity: 'CRITICAL' },
+  affected: [{ package: { ecosystem: 'PyPI', name: 'pillow' }, ranges: [{ type: 'ECOSYSTEM', events: [{ introduced: '2.0.0' }, { fixed: '13.0.0' }] }] }],
+};
+
+test('OSV change index: ids changed since a time, stopping at older ones', () => {
+  const csv = '2026-10-22T01:30:07Z,MAL-2026-18168\n2026-10-21T22:01:01Z,MAL-2026-2144\n2026-10-10T00:00:00Z,GHSA-old\n2026-10-21T23:00:00Z,never-reached';
+  assert.deepEqual(recentOsvIds(csv, '2026-10-15T00:00:00Z'), ['MAL-2026-18168', 'MAL-2026-2144']);
+});
+
+test('a hijacked release of a popular package is kept, a typosquat is not', () => {
+  const since = '2026-10-15T00:00:00Z';
+  const a = advisoryItem(HIJACKED, since);
+  assert.equal(a.malicious, true);
+  assert.equal(a.severity, 'critical');
+  assert.equal(a.updated, true, 'reported in March, changed this week');
+  assert.deepEqual(a.versions, ['1.82.7', '1.82.8', '1.107.0']);
+  assert.match(a.summary, /1\.107\.0.*credential stealer/);
+  const popular = new Set(['PyPI:litellm']);
+  assert.equal(keepAdvisory(a, popular), true);
+  assert.equal(keepAdvisory({ ...a, package: 'litelm-utils' }, popular), false);
+});
+
+test('a GitHub-reviewed bug keeps its severity, CVE and fixed version', () => {
+  const b = advisoryItem(BUG, '2026-10-15T00:00:00Z');
+  assert.deepEqual([b.malicious, b.severity, b.cves, b.fixed, b.updated], [false, 'critical', ['CVE-2026-112393'], ['13.0.0'], false]);
+  assert.equal(keepAdvisory(b, new Set()), true);
+  assert.equal(keepAdvisory({ ...b, severity: 'medium' }, new Set()), false);
+  assert.equal(keepAdvisory({ ...b, updated: true }, new Set()), false, 'an old bug report edited this week is not news');
+});
+
+test('the same CVE from GitHub and PyPA is shown once, keeping the one with a severity', () => {
+  const ghsa = advisoryItem(BUG);
+  const pysec = { ...ghsa, id: 'PYSEC-2026-9', severity: null, modified: '2026-10-22T09:00:00Z' };
+  const other = { ...ghsa, id: 'GHSA-other', cves: [], modified: '2026-10-22T10:00:00Z' };
+  assert.deepEqual(dedupeAdvisories([pysec, ghsa, other]).map((a) => a.id), ['GHSA-other', 'GHSA-332p-7hrc-92wf']);
+});
+
+test('a PyPA copy of an old GitHub advisory is not news', () => {
+  const copy = advisoryItem({ ...BUG, id: 'PYSEC-2026-4067', aliases: ['CVE-2026-1', 'GHSA-4jcj-7x88-m979'], published: '2026-10-01T16:38:41Z', database_specific: {} }, '2026-09-22T00:00:00Z');
+  assert.equal(copy.copyOf, 'GHSA-4jcj-7x88-m979');
+  assert.equal(isFresh(copy), false);
+  assert.equal(isFresh(advisoryItem(BUG, '2026-10-15T00:00:00Z')), true);
+  assert.equal(advisoryItem(HIJACKED).copyOf, null);
+});
+
+test('only watch words that could be package names are looked up', () => {
+  assert.deepEqual(packageLike(['litellm', '@babel/core', 'microsoft exchange', 'ios']), ['litellm', '@babel/core', 'ios']);
 });

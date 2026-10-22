@@ -111,19 +111,32 @@ The latest security vulnerabilities and news in one place, with a watch list for
   attackers are using, added in the last 7, 30 or 90 days. Each shows the vendor and product, whether it's used in
   ransomware, its [EPSS](https://www.first.org/epss/) score (the chance it's exploited in the next 30 days), what to do,
   and links to the NVD and CVE.org.
-- **New CVEs:** critical or high vulnerabilities published in the last 24 hours or 7 days, from the
-  [NVD](https://nvd.nist.gov), highest score first (CVSS 4.0, then 3.1, 3.0, 2.0), with EPSS scores.
+- **New → All CVEs:** critical or high vulnerabilities published in the last 24 hours or 7 days, from the
+  [NVD](https://nvd.nist.gov), highest score first, with EPSS scores. The score is the NVD's own if it has one,
+  otherwise the reporter's, newest CVSS version first. Every CVE of the week is read and sorted here, because the NVD's
+  severity filter only knows CVSS 3 and misses CVEs scored only with CVSS 4.0 (about one in six high or critical ones).
+- **New → Open-source packages:** high and critical advisories for npm, PyPI, Go, Maven, crates.io, RubyGems, NuGet and
+  Packagist from [OSV](https://osv.dev) (GitHub-reviewed and others), plus **malware found in popular packages**, such
+  as a hijacked release of a real package (the LiteLLM 1.107.0 kind), which never gets a CVE. Malware reports for
+  packages outside the most-downloaded lists (the top 5,000 on PyPI, `npm-high-impact` on npm) are left out, since
+  most are typosquats nobody installs. A bug report only counts as new when it's first published (not when it's
+  edited, or re-published as a copy of a GitHub advisory); a malware report also counts when it's updated, because
+  that's how a newly hijacked version shows up.
 - **News:** BleepingComputer, The Hacker News, SecurityWeek, Krebs on Security, Schneier on Security, the UK NCSC and
   CISA advisories, plus security stories from Hacker News, newest first with duplicates removed. CVE numbers in a story
   link to the NVD.
-- **Watch list:** vendors and products you use (e.g. "Fortinet, Chrome, iOS"). Matches are marked on every tab, can
-  be filtered to, and are counted in the header.
+- **Watch list:** vendors, products and packages you use (e.g. "Fortinet, Chrome, iOS, litellm"). Matches are marked
+  on every tab, can be filtered to, and are counted in the header, which flags malware and actively exploited ones as
+  urgent. Words that could be package names are also looked up on OSV as PyPI and npm packages, showing new
+  advisories from the last 30 days and any malware found in their releases.
 - **Package check:** paste `lodash@4.17.15`, `requests==2.19.0` or `go github.com/x/y 1.2.3` lines and see known
   vulnerabilities from [OSV](https://osv.dev), with the versions that fix them.
-- **Where the data comes from:** news sites don't let web pages read their feeds, and CISA's full list is 1.8 MB, so
-  the Pages workflow runs `tools/build-feeds.js` on every deploy and every 3 hours, and publishes the news and the last
-  90 days of CISA's list as `security/data.json` (about 140 KB). The NVD, EPSS, OSV and Hacker News are asked directly
-  by the page. Nothing needs a key. If `data.json` is missing, the page reads CISA's list itself.
+- **Where the data comes from:** news sites don't let web pages read their feeds, CISA's full list is 1.8 MB, a week
+  of NVD CVEs is several MB, and OSV's recent changes are read record by record, so the Pages workflow runs
+  `tools/build-feeds.js` on every deploy and every 3 hours (about 3 minutes, mostly waiting on the NVD's rate limit)
+  and publishes the result as `security/data.json` (about 160 KB compressed). EPSS, Hacker News and the watch-list
+  package lookups are asked directly by the page. Nothing needs a key. If `data.json` is missing, the page reads
+  CISA's list and the NVD itself.
 
 ### 🧮 GX-84 Calculator (`calc84/`)
 

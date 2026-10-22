@@ -1,6 +1,7 @@
 import {
   kevRecent, nvdItems, nvdUrl, epssMap, epssUrls, formatEpss, hnItems, hnUrl, mergeNews, cvesIn,
   parseKeywords, matchKeywords, parsePackages, osvBatchBody, osvResults, osvSummary, ago,
+  advisoryItem, packageLike, dedupeAdvisories, isFresh,
 } from '../src/security.js';
 import { $, esc, switchTab, toast } from '../shared/ui.js';
 
@@ -8,6 +9,8 @@ const STORAGE_KEY = 'security-v1'; // the watch list and packages (backed up)
 const CACHE_KEY = 'security-cache'; // recent NVD and Hacker News results (not backed up)
 const NVD_TTL = 60 * 60000;
 const HN_TTL = 30 * 60000;
+const WATCH_TTL = 60 * 60000;
+const WATCH_DAYS = 30;
 const KEV_URL = 'https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json';
 
 // ---- Persistent state -----------------------------------------------------------------
@@ -20,15 +23,17 @@ function store(key, value) {
 }
 
 const state = load(STORAGE_KEY, { keywords: '', packages: '' });
-const cache = load(CACHE_KEY, { nvd: {}, hn: null });
+const cache = load(CACHE_KEY, { nvd: {}, hn: null, watch: null });
 const save = () => store(STORAGE_KEY, state);
 const saveCache = () => store(CACHE_KEY, cache);
 const keywords = () => parseKeywords(state.keywords);
 
-let data = null; // data.json: { builtAt, kev, news, sources }
+let data = null; // data.json: { builtAt, kev, cves, advisories, news, sources }
 let kev = [];
 let nvd = [];
 let news = [];
+let advisories = []; // open-source advisories from data.json
+let watchAdv = []; // OSV advisories for watch-list words that are package names
 const epss = {};
 
 // ---- Loading ----------------------------------------------------------------------------
@@ -64,9 +69,39 @@ async function loadData() {
   }
   status('kev-status', '');
   news = mergeNews(data?.news || [], cache.hn?.items || []);
+  advisories = data?.advisories?.items || [];
+  watchAdv = cache.watch?.items || [];
   render();
   loadEpss(kev.map((v) => v.cve));
   loadHn();
+  loadWatchAdvisories();
+}
+
+// Asks OSV about each watch-list word as a PyPI and an npm package, keeping advisories
+// published or changed in the last 30 days. This is what catches a hijacked release
+// (malware in a real package) of something you use, which never gets a CVE.
+async function loadWatchAdvisories(force = false) {
+  const names = packageLike(keywords()).slice(0, 15);
+  const key = names.join(',');
+  if (!force && cache.watch?.key === key && Date.now() - cache.watch.at < WATCH_TTL) return;
+  if (!names.length) {
+    watchAdv = [];
+    cache.watch = null;
+    saveCache();
+    return render();
+  }
+  const since = new Date(Date.now() - WATCH_DAYS * 86400000).toISOString();
+  const found = [];
+  await Promise.all(names.flatMap((name) => ['PyPI', 'npm'].map(async (ecosystem) => {
+    try {
+      const res = await getJson('https://api.osv.dev/v1/query', { method: 'POST', body: JSON.stringify({ package: { name, ecosystem } }) });
+      found.push(...(res.vulns || []).filter((v) => (v.modified || '') >= since).map((v) => advisoryItem(v, since)).filter(isFresh));
+    } catch { /* that one just isn't checked */ }
+  })));
+  watchAdv = dedupeAdvisories(found);
+  cache.watch = { key, at: Date.now(), items: watchAdv };
+  saveCache();
+  render();
 }
 
 async function loadEpss(cves) {
@@ -86,13 +121,25 @@ async function loadHn() {
     cache.hn = { at: Date.now(), items: hnItems(await getJson(hnUrl())) };
     saveCache();
     news = mergeNews(data?.news || [], cache.hn.items);
-    renderNews();
+    render();
   } catch { /* the news sites alone are fine */ }
 }
 
 const nvdKey = () => `${radio('nvd-sev')}-${radio('nvd-days')}`;
 
+// New CVEs come from data.json, which has every high and critical CVE of the week (by
+// CVSS 4.0 or 3.x). Only if it's missing is the NVD asked directly, which can only filter
+// by CVSS 3 severity.
 async function loadNvd(force = false) {
+  if (data?.cves?.items) {
+    const days = Number(radio('nvd-days'));
+    const from = new Date(Date.now() - days * 86400000).toISOString();
+    const sev = radio('nvd-sev').toLowerCase();
+    nvd = data.cves.items.filter((c) => c.severity === sev && (c.published || '') >= from);
+    status('nvd-status', data.cves.partial ? 'The NVD stopped answering part-way last time, so a few may be missing.' : '', 'warn');
+    renderNvd();
+    return loadEpss(nvd.slice(0, 200).map((v) => v.cve));
+  }
   const key = nvdKey();
   const hit = cache.nvd[key];
   if (hit && !force && Date.now() - hit.at < NVD_TTL) {
@@ -137,16 +184,36 @@ function render() {
   renderKev();
   renderNews();
   renderWatch();
+  if (!$('oss-list').hidden) renderNew();
+}
+
+// Everything recent that mentions the watch list, by source. Used for the header and the
+// Watch tab, so both always agree.
+function watchMatches() {
+  const kw = keywords();
+  if (!kw.length) return null;
+  const hit = (text) => matchKeywords(text, kw).length > 0;
+  const week = new Date(Date.now() - 7 * 86400000).toISOString();
+  const pkgIds = new Set(watchAdv.map((a) => a.id));
+  return {
+    exploited: kev.filter((v) => v.added >= daysAgo(30) && hit(`${v.vendor} ${v.product} ${v.name}`)),
+    packages: [...watchAdv, ...advisories.filter((a) => !pkgIds.has(a.id) && hit(`${a.package} ${a.summary}`))],
+    cves: (data?.cves?.items || nvd).filter((c) => (c.published || '') >= week && hit(c.summary)),
+    news: news.filter((n) => (n.date || '') >= week && hit(`${n.title} ${n.summary}`)),
+  };
 }
 
 function renderHeader() {
   const week = kev.filter((v) => v.added >= daysAgo(7));
-  const kw = keywords();
-  const mine = kw.length ? kev.filter((v) => matchKeywords(`${v.vendor} ${v.product} ${v.name}`, kw).length && v.added >= daysAgo(30)).length : 0;
+  const m = watchMatches();
   $('headline').textContent = `${week.length} newly exploited`;
   const parts = ['this week, per CISA'];
-  if (kw.length) parts.push(`${mine} on your watch list this month`);
-  else parts.push('set a watch list to see what affects you');
+  if (!m) parts.push('set a watch list to see what affects you');
+  else {
+    const n = m.exploited.length + m.packages.length + m.cves.length + m.news.length;
+    const urgent = m.exploited.length + m.packages.filter((a) => a.malicious).length;
+    parts.push(n ? `⚠ ${n} recent match${n === 1 ? '' : 'es'} for your watch list${urgent ? `, ${urgent} urgent` : ''}` : 'nothing new for your watch list');
+  }
   $('subline').textContent = parts.join(' · ');
 }
 
@@ -172,6 +239,53 @@ function renderKev() {
           <a href="https://www.google.com/search?q=${encodeURIComponent(`${v.cve} ${v.vendor} patch`)}" target="_blank" rel="noopener">Search ↗</a></p>
       </details>
     </li>`).join('') || `<li class="empty">${$('kev-mine').checked ? 'Nothing on your watch list' : 'Nothing'} added in the last ${days} days.</li>`;
+}
+
+function advisoryCard(a, matched = []) {
+  const pills = [
+    a.malicious ? '<span class="pill bad">Malicious release</span>' : `<span class="pill ${a.severity === 'critical' ? 'bad' : 'hot'}">${esc(a.severity || 'unrated')}</span>`,
+    `<span class="pill">${esc(a.ecosystem)}</span>`,
+    a.updated ? '<span class="pill">updated</span>' : '',
+    ...matched.map((k) => `<span class="pill watch">★ ${esc(k)}</span>`),
+  ].join('');
+  const versions = a.malicious && a.versions.length ? `Bad versions: ${esc(a.versions.join(', '))}. Don't install them; if you did, rotate any secrets on that machine.`
+    : a.fixed.length ? `Fixed in ${esc(a.fixed.join(', '))}.` : '';
+  return `<li class="vuln ${matched.length ? 'mine' : ''}">
+    <details>
+      <summary>
+        <div class="top"><strong>${esc(a.package)}</strong><span class="when">${esc(ago(a.modified))}</span></div>
+        <div class="sub clamp">${esc(a.summary)}</div>
+        <div class="pills">${pills}</div>
+      </summary>
+      <p>${esc(a.summary)}</p>
+      ${versions ? `<p class="hint">${versions}</p>` : ''}
+      <p class="links"><a href="https://osv.dev/vulnerability/${encodeURIComponent(a.id)}" target="_blank" rel="noopener">${esc(a.id)} ↗</a>
+        ${a.cves.map((c) => `<a href="${nvdLink(c)}" target="_blank" rel="noopener">${esc(c)} ↗</a>`).join('')}</p>
+    </details>
+  </li>`;
+}
+
+// The New tab shows either all CVEs (NVD) or open-source package advisories (OSV).
+function renderNew() {
+  const oss = radio('new-kind') === 'oss';
+  $('nvd-list').hidden = oss;
+  $('oss-list').hidden = !oss;
+  $('nvd-status').hidden = oss || !$('nvd-status').textContent;
+  $('new-hint').innerHTML = oss
+    ? 'High and critical advisories for npm, PyPI, Go, Maven, crates.io, RubyGems, NuGet and Packagist from <a href="https://osv.dev" target="_blank" rel="noopener">OSV</a> (GitHub, PyPA and others), plus malware found in popular packages, like a hijacked release.'
+    : 'Newly published CVEs from the <a href="https://nvd.nist.gov" target="_blank" rel="noopener">NVD</a>, highest score first. Most are never exploited; the % is the <a href="https://www.first.org/epss/" target="_blank" rel="noopener">EPSS</a> chance it will be in the next 30 days.';
+  if (!oss) return renderNvd();
+  const kw = keywords();
+  const days = Number(radio('nvd-days'));
+  const from = new Date(Date.now() - days * 86400000).toISOString();
+  const sev = radio('nvd-sev').toLowerCase();
+  const list = advisories
+    .filter((a) => (a.modified || '') >= from && (sev === 'critical' ? a.malicious || a.severity === 'critical' : a.severity === 'high'))
+    .map((a) => ({ a, matched: matchKeywords(`${a.package} ${a.summary}`, kw) }))
+    .filter(({ matched }) => !$('nvd-mine').checked || matched.length)
+    .sort((x, y) => Number(y.a.malicious) - Number(x.a.malicious));
+  $('oss-list').innerHTML = list.slice(0, 200).map(({ a, matched }) => advisoryCard(a, matched)).join('')
+    || `<li class="empty">${advisories.length ? 'Nothing here for these choices.' : 'Package advisories aren\'t available right now.'}</li>`;
 }
 
 function renderNvd() {
@@ -218,15 +332,18 @@ function renderWatch() {
   if (document.activeElement !== $('keywords')) $('keywords').value = state.keywords;
   if (document.activeElement !== $('packages')) $('packages').value = state.packages;
   const kw = keywords();
-  const count = (list, text) => list.filter((x) => matchKeywords(text(x), kw).length).length;
-  $('match-summary').innerHTML = kw.length ? `
-    <div><dt>Exploited (last 30 days)</dt><dd>${count(kev.filter((v) => v.added >= daysAgo(30)), (v) => `${v.vendor} ${v.product} ${v.name}`)}</dd></div>
-    <div><dt>New CVEs (as loaded)</dt><dd>${count(nvd, (v) => v.summary)}</dd></div>
-    <div><dt>News stories</dt><dd>${count(news, (n) => `${n.title} ${n.summary}`)}</dd></div>` : '';
+  const m = watchMatches();
+  $('match-summary').innerHTML = m ? `
+    <div><dt>Exploited (last 30 days)</dt><dd>${m.exploited.length}</dd></div>
+    <div><dt>Package advisories</dt><dd>${m.packages.length}${m.packages.some((a) => a.malicious) ? ' <span class="pill bad">malware</span>' : ''}</dd></div>
+    <div><dt>New CVEs (7 days)</dt><dd>${m.cves.length}</dd></div>
+    <div><dt>News stories (7 days)</dt><dd>${m.news.length}</dd></div>` : '';
+  $('watch-adv-card').hidden = !m?.packages.length;
+  $('watch-adv').innerHTML = (m?.packages || []).map((a) => advisoryCard(a, matchKeywords(`${a.package} ${a.summary}`, kw))).join('');
   const sources = data?.sources || [];
   $('source-list').innerHTML = [
     ...sources.map((s) => `<li><span class="${s.ok ? 'ok' : 'bad'}">${s.ok ? '✓' : '✕'}</span> ${esc(s.name)} <small>${s.ok ? `${s.count} item${s.count === 1 ? '' : 's'}` : "couldn't be read last time"}</small></li>`),
-    '<li><span class="ok">↻</span> NVD, EPSS and Hacker News <small>fetched live by this page</small></li>',
+    `<li><span class="ok">↻</span> EPSS, Hacker News${data?.cves ? '' : ', the NVD'} and OSV for your watch list <small>fetched live by this page</small></li>`,
   ].join('');
   $('built-at').textContent = data?.builtAt ? `News and the CISA list were collected ${ago(data.builtAt)}; they're refreshed every few hours.` : 'Using CISA\'s list directly (the collected news isn\'t available).';
 }
@@ -269,13 +386,14 @@ async function checkPackages() {
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   switchTab(b.dataset.tab);
-  if (b.dataset.tab === 'cves' && !nvd.length) loadNvd();
+  if (b.dataset.tab === 'cves') { renderNew(); if (!nvd.length) loadNvd(); }
 }));
 document.querySelectorAll('input[name="kev-days"]').forEach((r) => r.addEventListener('change', renderKev));
 $('kev-search').addEventListener('input', renderKev);
 $('kev-mine').addEventListener('change', renderKev);
-document.querySelectorAll('input[name="nvd-sev"], input[name="nvd-days"]').forEach((r) => r.addEventListener('change', () => loadNvd()));
-$('nvd-mine').addEventListener('change', renderNvd);
+document.querySelectorAll('input[name="nvd-sev"], input[name="nvd-days"]').forEach((r) => r.addEventListener('change', () => (radio('new-kind') === 'oss' ? renderNew() : loadNvd())));
+document.querySelectorAll('input[name="new-kind"]').forEach((r) => r.addEventListener('change', () => (radio('new-kind') === 'oss' ? renderNew() : loadNvd())));
+$('nvd-mine').addEventListener('change', renderNew);
 $('news-source').addEventListener('change', renderNews);
 $('news-search').addEventListener('input', renderNews);
 $('news-mine').addEventListener('change', renderNews);
@@ -283,7 +401,8 @@ $('save-keywords').addEventListener('click', () => {
   state.keywords = $('keywords').value;
   save();
   render();
-  renderNvd();
+  renderNew();
+  loadWatchAdvisories(true);
   toast(keywords().length ? `Watching ${keywords().length} keyword${keywords().length === 1 ? '' : 's'}.` : 'Watch list cleared.');
 });
 $('check-packages').addEventListener('click', checkPackages);
