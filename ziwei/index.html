@@ -118,6 +118,15 @@
     </section>
 
     <section role="tabpanel" data-panel="now" hidden>
+      <div class="card">
+        <p class="hint" data-zh="选任意日期，查看那时的大限和流年。">Pick any date to see the 10-year period and year it falls in.</p>
+        <div class="view-date">
+          <button type="button" class="secondary small" id="zw-view-prev" aria-label="Previous year" data-zh-label="上一年">‹</button>
+          <input type="date" id="zw-view-date" min="1901-02-19" max="2099-12-31" aria-label="View date" data-zh-label="查看日期">
+          <button type="button" class="secondary small" id="zw-view-next" aria-label="Next year" data-zh-label="下一年">›</button>
+          <button type="button" class="secondary small" id="zw-view-today" data-zh="今天">Today</button>
+        </div>
+      </div>
       <div class="card reading" id="zw-now"></div>
       <div class="card">
         <h2 data-zh="十个大限">10-year periods <small>大限</small></h2>

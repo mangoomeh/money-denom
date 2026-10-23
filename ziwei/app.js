@@ -191,9 +191,39 @@ const starText = (k) => t(`${starOf(k).zh} ${starOf(k).en}`, starOf(k).zh);
 const bureauText = (z) => t(`${BUREAU_EN[z.bureau]} bureau`, `${z.lifeNayin.slice(-1)}${'二三四五六'[z.bureau - 2]}局`);
 const gz = (p) => `${STEMS[p.stem]}${BRANCHES[p.branch]}`;
 
-// Nominal age (虚岁) now, the 10-year period it falls in, and this lunar year's overlay.
+// ---- Viewing another date -----------------------------------------------------------------------
+// The luck views show today unless another date is picked; null means today.
+
+let viewDate = null; // 'YYYY-MM-DD'
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+// Noon, so the day never slips across a time-zone or day boundary.
+const viewing = () => (viewDate ? new Date(`${viewDate}T12:00`) : new Date());
+const fmtView = (d) => d.toLocaleDateString(lang() === 'zh' ? 'zh-CN' : 'en', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function setView(d) {
+  // Stay inside the dates the calendar maths covers.
+  if (Number.isNaN(d.getTime()) || isoDay(d) < $('zw-view-date').min || isoDay(d) > $('zw-view-date').max) return;
+  viewDate = isoDay(d) === isoDay(new Date()) ? null : isoDay(d);
+  renderGrid();
+  renderNow();
+}
+
+// The same day of the month, n months on (or the month's last day, if it's shorter).
+function shiftMonths(d, n) {
+  const out = new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
+  out.setDate(Math.min(d.getDate(), new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate()));
+  return out;
+}
+
+$('zw-view-date').addEventListener('change', () => { if ($('zw-view-date').value) setView(new Date(`${$('zw-view-date').value}T12:00`)); });
+$('zw-view-prev').addEventListener('click', () => setView(shiftMonths(viewing(), -12)));
+$('zw-view-next').addEventListener('click', () => setView(shiftMonths(viewing(), 12)));
+$('zw-view-today').addEventListener('click', () => setView(new Date()));
+
+// Nominal age (虚岁) on the viewed date, the 10-year period it falls in, and that lunar year's overlay.
 function zwNow() {
-  const d = new Date();
+  const d = viewing();
   const ly = solarToLunar(d.getFullYear(), d.getMonth() + 1, d.getDate()).year;
   const age = ly - zw.year + 1;
   return { age, lunarYear: ly, decade: decadeAt(zw, age), yr: yearly(zw, ly) };
@@ -306,12 +336,18 @@ function huaList(yr) {
 
 function renderNow() {
   const { age, lunarYear, decade, yr } = zwNow();
-  $('zw-now').innerHTML = `<h2>${t('Now', '当下')} <small>大限 · 流年</small></h2>
+  const isToday = !viewDate;
+  $('zw-view-date').value = isoDay(viewing());
+  $('zw-view-today').disabled = isToday;
+  const heading = `<h2>${isToday ? t('Now', '当下') : esc(fmtView(viewing()))} <small>大限 · 流年</small></h2>`;
+  if (age < 1) {
+    $('zw-now').innerHTML = `${heading}<p>${t('That date is before the birth date. Pick a later one.', '这个日期在出生之前，请选更晚的日期。')}</p>`;
+  } else $('zw-now').innerHTML = `${heading}
     <p>${decade ? t(`At ${age} (nominal age) you are in the 10-year period of your <strong>${PALACES[decade.name].en}</strong> palace (ages ${decade.decade.from}–${decade.decade.to}): ${esc(PALACES[decade.name].about)} take centre stage.`,
     `虚岁${age}岁，正走<strong>${PALACES[decade.name].zh}</strong>大限（${decade.decade.from}–${decade.decade.to}岁）：${esc(PALACES[decade.name].aboutZh)}是这十年的重点。`)
     : t(`Your first 10-year period starts at age ${zw.bureau}.`, `${zw.bureau}岁起第一个大限。`)}</p>
-    <p>${t(`This year (${STEMS[yr.stem]}${BRANCHES[yr.branch]}) falls on your <strong>${PALACES[yr.palace.name].en}</strong> palace, and its four transformations land like this:`,
-    `今年${STEMS[yr.stem]}${BRANCHES[yr.branch]}，流年命宫落在你的<strong>${PALACES[yr.palace.name].zh}</strong>，流年四化如下：`)}</p>
+    <p>${t(`${isToday ? 'This year' : `The lunar year ${lunarYear}`} (${STEMS[yr.stem]}${BRANCHES[yr.branch]}) falls on your <strong>${PALACES[yr.palace.name].en}</strong> palace, and its four transformations land like this:`,
+    `${isToday ? '今年' : `${lunarYear}年`}${STEMS[yr.stem]}${BRANCHES[yr.branch]}，流年命宫落在你的<strong>${PALACES[yr.palace.name].zh}</strong>，流年四化如下：`)}</p>
     <ul class="notes">${huaList(yr)}</ul>`;
   const periods = [...zw.palaces].sort((a, b) => a.decade.from - b.decade.from);
   $('zw-periods').innerHTML = periods.map((p) => {
@@ -322,7 +358,7 @@ function renderNow() {
       <small>${esc(t(PALACES[p.name].about, PALACES[p.name].aboutZh))}</small></span></li>`;
   }).join('');
   const next = yearly(zw, lunarYear + 1);
-  $('zw-next').innerHTML = `<h2>${t('Next year', '明年')} <small>${STEMS[next.stem]}${BRANCHES[next.branch]}</small></h2>
+  $('zw-next').innerHTML = `<h2>${viewDate ? t('The year after', '次年') : t('Next year', '明年')} <small>${STEMS[next.stem]}${BRANCHES[next.branch]}</small></h2>
     <p>${t(`Falls on your <strong>${PALACES[next.palace.name].en}</strong> palace.`, `流年命宫落在你的<strong>${PALACES[next.palace.name].zh}</strong>。`)}</p>
     <ul class="notes">${huaList(next)}</ul>`;
 }
@@ -448,6 +484,10 @@ function applyLanguage() {
   document.querySelectorAll('[data-zh-placeholder]').forEach((el) => {
     if (el.dataset.enPlaceholder == null) el.dataset.enPlaceholder = el.placeholder;
     el.placeholder = zh ? el.dataset.zhPlaceholder : el.dataset.enPlaceholder;
+  });
+  document.querySelectorAll('[data-zh-label]').forEach((el) => {
+    if (el.dataset.enLabel == null) el.dataset.enLabel = el.getAttribute('aria-label');
+    el.setAttribute('aria-label', zh ? el.dataset.zhLabel : el.dataset.enLabel);
   });
   document.title = zh ? '紫微斗数' : 'Zi Wei Dou Shu';
   fillCities();

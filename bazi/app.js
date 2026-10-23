@@ -563,21 +563,55 @@ function renderLuck() {
   }
 }
 
-// ---- Now: this year, month and day -------------------------------------------------------------
+// ---- Viewing another date -----------------------------------------------------------------------
+// The luck views show today unless another date is picked; null means today.
+
+let viewDate = null; // 'YYYY-MM-DD'
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+// Noon, so the day never slips across a time-zone or day boundary.
+const viewing = () => (viewDate ? new Date(`${viewDate}T12:00`) : new Date());
+const fmtView = (d) => d.toLocaleDateString(lang() === 'zh' ? 'zh-CN' : 'en', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function setView(d) {
+  // Stay inside the dates the calendar maths covers.
+  if (Number.isNaN(d.getTime()) || isoDay(d) < $('view-date').min || isoDay(d) > $('view-date').max) return;
+  viewDate = isoDay(d) === isoDay(new Date()) ? null : isoDay(d);
+  renderNow();
+}
+
+// The same day of the month, n months on (or the month's last day, if it's shorter).
+function shiftMonths(d, n) {
+  const out = new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
+  out.setDate(Math.min(d.getDate(), new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate()));
+  return out;
+}
+
+$('view-date').addEventListener('change', () => { if ($('view-date').value) setView(new Date(`${$('view-date').value}T12:00`)); });
+$('view-prev').addEventListener('click', () => setView(shiftMonths(viewing(), -1)));
+$('view-next').addEventListener('click', () => setView(shiftMonths(viewing(), 1)));
+$('view-today').addEventListener('click', () => setView(new Date()));
+
+// ---- Now: this year, month and day (or those of the picked date) -------------------------------
 
 function renderNow() {
   for (const id of ['now-card', 'months-card', 'days-card']) $(id).hidden = !chart;
   if (!chart) return;
   const st = analyseStrength(chart);
   const dm = chart.dayMaster;
-  const d = new Date();
+  const d = viewing();
+  const isToday = !viewDate;
+  $('view-date').value = isoDay(d);
+  $('view-today').disabled = isToday;
   const nowChart = computeChart({
     year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(),
     tzOffset: -d.getTimezoneOffset() / 60,
   });
   const withGods = (p) => ({ ...p, stemGod: tenGod(dm, p.stem), branchGod: tenGod(dm, HIDDEN_STEMS[p.branch][0]) });
   const [, today, month, year] = nowChart.pillars;
-  const nows = [[t('This year', '今年'), year], [t('This month', '本月'), month], [t('Today', '今天'), today]];
+  const nows = isToday
+    ? [[t('This year', '今年'), year], [t('This month', '本月'), month], [t('Today', '今天'), today]]
+    : [[t(`${nowChart.solarYear}`, `${nowChart.solarYear}年`), year], [t('That month', '当月'), month], [d.toLocaleDateString(lang() === 'zh' ? 'zh-CN' : 'en', { day: 'numeric', month: 'short' }), today]];
   $('now').innerHTML = nows.map(([label, p]) => `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}">${cell(withGods(p), label, p.name, favMark(pillarFavour(st, p.stem, p.branch)))}</div>`).join('');
 
   const notes = [];
@@ -592,13 +626,13 @@ function renderNow() {
       else if (r.combo != null) notes.push(t(`${label}'s ${BRANCHES[p.branch]} combines with your ${areaName[n.key]} ${BRANCHES[n.branch]}: things come together there.`, `${label}的${BRANCHES[p.branch]}合你的${areaName[n.key]}${BRANCHES[n.branch]}：这方面容易促成。`));
     }
   }
-  $('now-notes').innerHTML = notes.length ? notes.map((x) => `<li>${esc(x)}</li>`).join('') : `<li>${t('No clashes or combinations with your chart right now.', '目前与你的命盘没有冲合。')}</li>`;
+  $('now-notes').innerHTML = notes.length ? notes.map((x) => `<li>${esc(x)}</li>`).join('') : `<li>${isToday ? t('No clashes or combinations with your chart right now.', '目前与你的命盘没有冲合。') : t(`No clashes or combinations with your chart on ${fmtView(d)}.`, `${fmtView(d)}与你的命盘没有冲合。`)}</li>`;
 
   const months = monthPillarsOf(nowChart.solarYear);
   const fmtDay = (ms) => new Date(ms).toLocaleDateString(lang() === 'zh' ? 'zh-CN' : 'en', { day: 'numeric', month: 'short' });
   $('months-title').innerHTML = t(`Months of ${nowChart.solarYear} <small>流月 · each starts on its solar term</small>`, `${nowChart.solarYear}年的流月 <small>每月从节气开始</small>`);
   $('months').innerHTML = months.map((p, i) => {
-    const current = Date.now() >= p.startMs && (i === 11 || Date.now() < months[i + 1].startMs);
+    const current = d.getTime() >= p.startMs && (i === 11 || d.getTime() < months[i + 1].startMs);
     return `<div class="lp fav-${pillarFavour(st, p.stem, p.branch)}${current ? ' now' : ''}">${cell(withGods(p), p.jie.zh, fmtDay(p.startMs), favMark(pillarFavour(st, p.stem, p.branch)))}</div>`;
   }).join('');
 
@@ -613,9 +647,11 @@ function renderNow() {
     const p = dayPillar(y, m, i + 1);
     const clash = branchPair(p.branch, dayBranch).clash;
     const fav = pillarFavour(st, p.stem, p.branch);
-    return `<span class="cal-d fav-${fav}${i + 1 === d.getDate() ? ' now' : ''}">${favMark(fav)}<b>${i + 1}</b><small>${pillarName(p)}</small>${clash ? '<small class="clash">冲</small>' : ''}</span>`;
+    return `<button type="button" class="cal-d fav-${fav}${i + 1 === d.getDate() ? ' now' : ''}" data-day="${i + 1}" aria-pressed="${i + 1 === d.getDate()}">${favMark(fav)}<b>${i + 1}</b><small>${pillarName(p)}</small>${clash ? '<small class="clash">冲</small>' : ''}</button>`;
   }).join('');
   $('days').innerHTML = heads + blanks + cells;
+  // Tapping a day views it.
+  $('days').querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => setView(new Date(y, m - 1, Number(b.dataset.day), 12))));
   for (const row of [$('months')]) {
     const target = row.querySelector('.now');
     if (target) row.scrollLeft = Math.max(0, target.offsetLeft - row.offsetLeft - row.clientWidth / 2 + target.offsetWidth / 2);
@@ -814,6 +850,10 @@ function applyLanguage() {
   document.querySelectorAll('[data-zh-placeholder]').forEach((el) => {
     if (el.dataset.enPlaceholder == null) el.dataset.enPlaceholder = el.placeholder;
     el.placeholder = zh ? el.dataset.zhPlaceholder : el.dataset.enPlaceholder;
+  });
+  document.querySelectorAll('[data-zh-label]').forEach((el) => {
+    if (el.dataset.enLabel == null) el.dataset.enLabel = el.getAttribute('aria-label');
+    el.setAttribute('aria-label', zh ? el.dataset.zhLabel : el.dataset.enLabel);
   });
   document.title = zh ? '八字排盘' : 'BaZi Calculator';
   fillCities();

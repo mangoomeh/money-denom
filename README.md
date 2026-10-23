@@ -242,6 +242,7 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   climate (调候). Luck pillars, years, months and days are marked favourable, mixed or demanding.
 - **Now (Luck tab):** this year's, month's and day's pillars with their ten gods and any clashes or combinations
   with your chart, the twelve month pillars of the year (流月), and a calendar of this month's day pillars (流日).
+  Pick any date (or step a month at a time, or tap a day in the calendar) to see that year, month and day instead.
 - **Symbolic stars (神煞):** Nobleman, Academic Star, Peach Blossom, Travelling Horse, Canopy, Prosperity Star and
   Goat Blade, with where they fall.
 - **No birth time:** all twelve possible hour pillars are shown; tap one to try it.
@@ -268,7 +269,8 @@ of birth. A separate system from BaZi; people often use both.
   (an empty palace borrows the opposite one's main stars).
 - **Reading:** the life palace in a line, then all 12 palaces explained in order.
 - **Luck:** where you are now (the current 10-year period, and where this year's four transformations land), every
-  10-year period with its palace and stars, and next year's overlay.
+  10-year period with its palace and stars, and next year's overlay. Pick any date (or step a year at a time) to
+  see the period and year it falls in; the chart's highlights follow.
 - **More:** unsure of the hour? The life palace for each of the 12 hours, to tap and try. Saved charts, charts saved
   in the BaZi app (if they have a time), share links (the same format as BaZi's), and a 中文 / EN switch.
 - **Method:** the common 紫微斗数全书 rules (`src/ziwei.js`). The year changes at the lunar new year, a leap-month birth

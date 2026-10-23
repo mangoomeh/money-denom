@@ -98,7 +98,7 @@ details.card[open] summary { margin-bottom: .5rem; }
 
 .field { display: block; margin-top: .75rem; }
 .field span { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .3rem; }
-.field input {
+.field input, .view-date input {
   width: 100%;
   font: inherit;
   font-size: 1.1rem;
@@ -909,6 +909,10 @@ input[type="date"]:disabled { opacity: .7; }
 .cal-d { display: flex; flex-direction: column; padding: .3rem 0 .25rem; border-radius: 8px; background: var(--bg); border-bottom: 3px solid transparent; min-width: 0; }
 .cal-d b { font-size: .85rem; }
 .cal-d small { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+button.cal-d { font: inherit; color: inherit; border-top: 0; border-left: 0; border-right: 0; cursor: pointer; }
+.view-date { display: flex; gap: .4rem; align-items: center; margin: .5rem 0 .75rem; }
+.view-date input { flex: 1; min-width: 0; width: auto; font-size: 1rem; padding: .5rem .6rem; }
+.view-date button { flex: none; }
 .cal-d small.clash { color: var(--bad); font-weight: 700; }
 .cal-d.fav-good { border-bottom-color: var(--ok); }
 .cal-d.fav-mixed { border-bottom-color: var(--warn); }

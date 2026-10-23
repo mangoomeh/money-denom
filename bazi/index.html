@@ -169,6 +169,13 @@
     <section role="tabpanel" data-panel="luck" hidden>
       <div class="card" id="now-card" hidden>
         <h2 data-zh="当下 <small>流年 · 流月 · 流日</small>">Now <small>流年 · 流月 · 流日</small></h2>
+        <p class="hint" data-zh="选任意日期，查看那一年、那个月和那一天。">Pick any date to see that year, month and day.</p>
+        <div class="view-date">
+          <button type="button" class="secondary small" id="view-prev" aria-label="Previous month" data-zh-label="上一个月">‹</button>
+          <input type="date" id="view-date" min="1800-01-01" max="2200-12-31" aria-label="View date" data-zh-label="查看日期">
+          <button type="button" class="secondary small" id="view-next" aria-label="Next month" data-zh-label="下一个月">›</button>
+          <button type="button" class="secondary small" id="view-today" data-zh="今天">Today</button>
+        </div>
         <div class="luck-row" id="now"></div>
         <ul class="notes" id="now-notes"></ul>
       </div>
