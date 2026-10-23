@@ -359,6 +359,13 @@ export function computeChart(input) {
     input: { ...input, hour, minute },
     utcMs,
     solarTime: timeKnown ? { hour: solar.getUTCHours(), minute: solar.getUTCMinutes(), ...solarNote } : null,
+    // The local (solar) calendar day of birth, after the 23:00 rule, and the hour's branch:
+    // what Zi Wei Dou Shu (src/ziwei.js) starts from.
+    birthDay: (() => {
+      const d = new Date(Date.UTC(solar.getUTCFullYear(), solar.getUTCMonth(), solar.getUTCDate() + (lateZi && ziStartsDay ? 1 : 0)));
+      return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+    })(),
+    hourBranch: hourP ? hourP.branch : null,
     sunLongitude: lambda,
     solarYear,
     animal: ANIMALS[yearP.branch],

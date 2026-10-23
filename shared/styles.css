@@ -911,6 +911,7 @@ input[type="date"]:disabled { opacity: .7; }
 #now .lp { flex: 1 1 0; }
 .theme-bazi .tabs { overflow-x: auto; scrollbar-width: none; }
 .theme-bazi .tabs button { flex: 1 0 auto; padding-left: .55rem; padding-right: .55rem; }
+@media (max-width: 360px) { .theme-bazi .tabs button { padding-left: .35rem; padding-right: .35rem; font-size: .95rem; } }
 .summary-cta { width: 100%; margin-bottom: 1rem; }
 .sum-hero { text-align: center; }
 .sum-name { margin: 0 0 .5rem; font-weight: 700; font-size: 1.1rem; }
@@ -1457,3 +1458,45 @@ button.danger { color: var(--bad); }
 .source-list li { padding: .25rem 0; }
 .source-list small { color: var(--muted); }
 .field input[type="search"] { font-size: 1rem; }
+
+/* ---- BaZi: Zi Wei Dou Shu chart -------------------------------------------------- */
+
+.zw-card { padding: .75rem; }
+.zw-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin-top: .5rem; }
+.zw-cell {
+  display: flex; flex-direction: column; gap: .15rem; min-height: 6.6rem; padding: .3rem .25rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);
+  font: inherit; font-size: .68rem; line-height: 1.25; text-align: left; cursor: pointer; min-width: 0; overflow: hidden;
+}
+.zw-cell.life { border-color: var(--accent); }
+.zw-cell.life .zw-name { color: var(--accent); }
+.zw-cell.now { box-shadow: inset 0 0 0 2px var(--accent); }
+.zw-cell.year { background: color-mix(in srgb, var(--accent) 9%, var(--bg)); }
+.zw-cell.sel { outline: 2px solid var(--text); outline-offset: -2px; }
+.zw-name { font-weight: 700; font-size: .72rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .1rem .2rem; }
+.zw-body { font-style: normal; font-size: .58rem; padding: 0 .2rem; border-radius: 4px; background: var(--accent); color: var(--accent-text); white-space: nowrap; }
+.zw-stars { display: flex; flex-wrap: wrap; gap: 0 .3rem; }
+.zw-main { font-size: .86rem; font-weight: 700; white-space: nowrap; }
+.zw-empty { color: var(--muted); }
+.zw-minors { display: flex; flex-wrap: wrap; gap: 0 .25rem; }
+.zw-minor { white-space: nowrap; }
+.zw-minor.good { color: var(--ok); }
+@media (prefers-color-scheme: light) { .zw-minor.good { color: #166534; } }
+.zw-minor.bad { color: var(--bad); }
+.zw-foot { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: space-between; color: var(--muted); font-size: .62rem; gap: 0 .2rem; }
+.zw-foot span { white-space: nowrap; }
+.zw-centre {
+  grid-column: 2 / 4; grid-row: 2 / 4; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  gap: .25rem; text-align: center; font-size: .72rem; color: var(--muted); padding: .4rem;
+}
+.zw-centre strong { color: var(--text); font-size: .95rem; }
+.zw-hua-line { color: var(--text); font-weight: 600; }
+.hua { display: inline-block; font-size: .6rem; font-weight: 800; line-height: 1; padding: .1rem .18rem; margin-left: .1rem; border-radius: 3px; color: #fff; vertical-align: .1em; }
+.hua.h0 { background: #15803d; }
+.hua.h1 { background: #7c3aed; }
+.hua.h2 { background: #0369a1; }
+.hua.h3 { background: #b91c1c; }
+.zw-key { display: inline-block; width: .9rem; height: .7rem; border-radius: 3px; vertical-align: -.05em; border: 1px solid var(--border); }
+.zw-key.now { box-shadow: inset 0 0 0 2px var(--accent); }
+.zw-key.year { background: color-mix(in srgb, var(--accent) 20%, var(--bg)); }
+@media (max-width: 380px) { .zw-cell { font-size: .62rem; } .zw-main { font-size: .78rem; } }
