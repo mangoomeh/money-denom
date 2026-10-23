@@ -3,7 +3,7 @@
 // The file list and VERSION are written by tools/build-sw.js (`npm run sw`); don't edit them by hand.
 
 // <files>
-const VERSION = "4c8fc611ab6d";
+const VERSION = "0ccfe2e5c17c";
 const FILES = [
   "./",
   "petty-cash/",
@@ -14,6 +14,7 @@ const FILES = [
   "wallets/",
   "security/",
   "bazi/",
+  "ziwei/",
   "fengshui/",
   "learnai/",
   "chat/",
@@ -69,6 +70,8 @@ const FILES = [
   "icons/trip-apple.png",
   "icons/wallets-192.png",
   "icons/wallets-apple.png",
+  "icons/ziwei-192.png",
+  "icons/ziwei-apple.png",
   "petty-cash/app.js",
   "petty-cash/manifest.webmanifest",
   "sushiro/ai.js",
@@ -93,6 +96,8 @@ const FILES = [
   "security/manifest.webmanifest",
   "bazi/app.js",
   "bazi/manifest.webmanifest",
+  "ziwei/app.js",
+  "ziwei/manifest.webmanifest",
   "fengshui/app.js",
   "fengshui/manifest.webmanifest",
   "fengshui/plan.js",

@@ -1500,3 +1500,24 @@ button.danger { color: var(--bad); }
 .zw-key.now { box-shadow: inset 0 0 0 2px var(--accent); }
 .zw-key.year { background: color-mix(in srgb, var(--accent) 20%, var(--bg)); }
 @media (max-width: 380px) { .zw-cell { font-size: .62rem; } .zw-main { font-size: .78rem; } }
+
+/* ---- Zi Wei Dou Shu app ---------------------------------------------------------- */
+
+.theme-ziwei { --accent: #5b21b6; --accent-text: #faf5ff; }
+@media (prefers-color-scheme: dark) { .theme-ziwei { --accent: #c4b5fd; --accent-text: #1e0a3c; } }
+.tile.ziwei { background: #5b21b6; color: #fff; border-color: #5b21b6; }
+.tile.ziwei small { color: rgb(255 255 255 / .95); }
+.theme-ziwei .balance { padding-top: calc(3.3rem + env(safe-area-inset-top)); padding-bottom: .8rem; }
+.theme-ziwei .balance .eyebrow { font-size: .8rem; }
+.theme-ziwei .back { padding: .7rem .5rem .7rem 0; top: calc(.1rem + env(safe-area-inset-top)); }
+.theme-ziwei .check { min-height: 2.75rem; }
+.theme-ziwei .check input { width: 1.25rem; height: 1.25rem; flex: none; }
+.theme-ziwei .seg label { padding: .75rem .5rem; }
+.zw-periods, .zw-hours { list-style: none; margin: 0; padding: 0; }
+.zw-periods li, .zw-hours li { border-top: 1px solid var(--border); }
+.zw-periods li:first-child, .zw-hours li:first-child { border-top: 0; }
+.zw-periods li { display: flex; gap: .75rem; padding: .6rem 0; }
+.zw-periods li.now, .zw-hours li.now { background: color-mix(in srgb, var(--accent) 8%, transparent); margin: 0 -.5rem; padding-left: .5rem; padding-right: .5rem; border-radius: 10px; }
+.zw-periods small, .zw-hours small { color: var(--muted); }
+.zw-age { flex: none; width: 4.2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.zw-hour { display: flex; gap: .75rem; width: 100%; padding: .6rem 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }

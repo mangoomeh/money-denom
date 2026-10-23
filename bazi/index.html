@@ -28,7 +28,6 @@
     <button role="tab" data-tab="chart" aria-selected="true" data-zh="命盘">Chart</button>
     <button role="tab" data-tab="summary" data-zh="摘要">Summary</button>
     <button role="tab" data-tab="luck" data-zh="运势">Luck</button>
-    <button role="tab" data-tab="ziwei" data-zh="紫微">Zi Wei</button>
     <button role="tab" data-tab="more" data-zh="更多">More</button>
   </nav>
 
@@ -191,31 +190,6 @@
       <div class="card" id="years-card" hidden>
         <h2 id="years-title">Years</h2>
         <div class="luck-row years" id="years"></div>
-      </div>
-    </section>
-
-    <section role="tabpanel" data-panel="ziwei" hidden>
-      <div class="card" id="zw-none">
-        <p class="hint" id="zw-none-text"></p>
-      </div>
-      <div id="zw-result" hidden>
-        <div class="card zw-card">
-          <h2 data-zh="紫微斗数命盘 <small>点宫位查看解释</small>">Zi Wei Dou Shu chart <small>紫微斗数 · tap a palace</small></h2>
-          <div class="zw-grid" id="zw-grid"></div>
-          <p class="hint legend" data-zh="<b class=&quot;hua h0&quot;>禄</b> 化禄 <b class=&quot;hua h1&quot;>权</b> 化权 <b class=&quot;hua h2&quot;>科</b> 化科 <b class=&quot;hua h3&quot;>忌</b> 化忌 · <span class=&quot;zw-key now&quot;></span> 当前大限 · <span class=&quot;zw-key year&quot;></span> 今年流年"><b class="hua h0">禄</b> wealth <b class="hua h1">权</b> power <b class="hua h2">科</b> fame <b class="hua h3">忌</b> trouble · <span class="zw-key now"></span> this 10-year period · <span class="zw-key year"></span> this year</p>
-        </div>
-        <div class="card reading" id="zw-detail"></div>
-        <div class="card reading" id="zw-life"></div>
-        <div class="card reading" id="zw-now"></div>
-        <details class="card">
-          <summary><h2 data-zh="关于紫微斗数">About Zi Wei Dou Shu</h2></summary>
-          <ul class="notes">
-            <li data-zh="紫微斗数用农历出生日期和时辰排出十二宫，看十四主星和辅星落在哪一宫。它和八字是两套方法，常常一起参考：八字看五行强弱和时运，紫微看人生各方面的细节。">Zi Wei Dou Shu (“Purple Star Astrology”) places 14 main stars and many minor ones in 12 palaces, each a part of life, from the lunar date and two-hour period of birth. It's a separate system from BaZi; people often use both: BaZi for balance and timing, Zi Wei for the detail of each life area.</li>
-            <li data-zh="出生时间、时区、真太阳时和23点换日的设定都与八字命盘相同，所以两个命盘描述的是同一个时刻。">It uses exactly the same birth moment as the BaZi chart: time zone, true solar time and the 23:00 rule all apply.</li>
-            <li data-zh="排法依《紫微斗数全书》的常用方法：年干以正月初一为界；闰月十五日以前按本月、十六日以后按下月；庚年四化为太阳、武曲、太阴、天同。">Method: the common 紫微斗数全书 rules. The year changes at the lunar new year; a leap-month birth counts as that month to the 15th and the next month from the 16th; 庚 years transform 太阳, 武曲, 太阴, 天同.</li>
-            <li data-zh="排盘结果与开源排盘库 iztro 对照了近五千个随机命盘，完全一致。星曜亮度（庙旺利陷）暂未列出。">Checked against the open-source iztro library on nearly 5,000 random charts, with identical results. Star brightness (庙旺利陷) isn't shown yet.</li>
-          </ul>
-        </details>
       </div>
     </section>
 

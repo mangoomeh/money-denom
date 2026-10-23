@@ -23,6 +23,7 @@ APPS = [
     ('wallets', 'Wallet Radar', 'Wallets', '🔎', '#3b2a8a'),
     ('security', 'Security Watch', 'Security', '🛡️', '#9f1239'),
     ('bazi', 'BaZi Calculator', 'BaZi', '☯️', '#7a1f1f'),
+    ('ziwei', 'Zi Wei Dou Shu', 'Zi Wei', '🔮', '#5b21b6'),
     ('fengshui', 'Feng Shui', 'Feng Shui', '🧭', '#14503c'),
     ('learnai', 'AI for Beginners', 'Learn AI', '🤖', '#1e40af'),
     ('chat', 'Local Chat', 'Local Chat', '🦙', '#111827'),

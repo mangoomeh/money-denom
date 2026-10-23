@@ -1,0 +1,27 @@
+{
+  "name": "Zi Wei Dou Shu",
+  "short_name": "Zi Wei",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#5b21b6",
+  "icons": [
+    {
+      "src": "../icons/ziwei-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../icons/ziwei-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "../icons/ziwei-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

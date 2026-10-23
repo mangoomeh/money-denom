@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#5b21b6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Zi Wei Dou Shu</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../icons/ziwei-apple.png">
+  <link rel="icon" href="../icons/ziwei-192.png">
+  <script type="module" src="../shared/pwa.js"></script>
+  <link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body class="theme-ziwei">
+  <header class="balance">
+    <a class="back" href="../" data-zh="‹ 应用">‹ Apps</a>
+    <div class="lang-switch" role="radiogroup" aria-label="Language 语言">
+      <label><input type="radio" name="lang" value="zh"> 中文</label>
+      <label><input type="radio" name="lang" value="en" checked> EN</label>
+    </div>
+    <p class="eyebrow" data-zh="紫微斗数">紫微斗数 · Purple Star Astrology</p>
+    <p class="bazi-headline" id="headline">Enter a birth date</p>
+    <p class="muted" id="subline">The 12 palaces and the stars in them</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="chart" aria-selected="true" data-zh="命盘">Chart</button>
+    <button role="tab" data-tab="reading" data-zh="解读">Reading</button>
+    <button role="tab" data-tab="now" data-zh="运势">Luck</button>
+    <button role="tab" data-tab="more" data-zh="更多">More</button>
+  </nav>
+
+  <main>
+    <section role="tabpanel" data-panel="chart">
+      <div class="card form-compact" id="form-compact" hidden>
+        <p id="form-line"></p>
+        <button class="secondary small" id="edit-form" type="button" data-zh="修改">Edit</button>
+      </div>
+      <div class="card" id="form-card">
+        <h2 data-zh="出生资料">Birth details</h2>
+        <label class="field">
+          <span data-zh="姓名 <small>（可不填）</small>">Name <small>(optional)</small></span>
+          <input id="name" autocomplete="off" placeholder="e.g. Me" data-zh-placeholder="例如：我">
+        </label>
+        <div class="seg" role="radiogroup" aria-label="Calendar">
+          <label><input type="radio" name="cal" value="western" checked> <span data-zh="公历">Western date</span></label>
+          <label><input type="radio" name="cal" value="lunar"> <span data-zh="农历">Lunar 农历</span></label>
+        </div>
+        <div class="lunar-row" id="lunar-fields" hidden>
+          <label class="field"><span data-zh="农历年">Lunar year</span><input id="l-year" type="number" min="1901" max="2099" inputmode="numeric"></label>
+          <label class="field"><span data-zh="月">Month</span><select id="l-month"></select></label>
+          <label class="field"><span data-zh="日">Day</span><select id="l-day"></select></label>
+        </div>
+        <div class="window-row">
+          <label class="field" id="date-field">
+            <span>Date of birth</span>
+            <input id="date" type="date" min="1901-02-19" max="2099-12-31">
+          </label>
+          <label class="field">
+            <span data-zh="出生时间">Time of birth</span>
+            <input id="time" type="time">
+          </label>
+        </div>
+        <p class="hint lunar-line" id="lunar-line"></p>
+        <p class="hint" data-zh="紫微斗数需要出生时辰（两小时一个时辰）。不确定时，先填大约的时间，再到“更多”里比较相邻的时辰。">Zi Wei needs the birth time to the two-hour period (时辰). If you're unsure, enter your best guess and compare the neighbouring hours under More.</p>
+        <div class="seg" role="radiogroup" aria-label="Gender">
+          <label><input type="radio" name="gender" value="male"> <span data-zh="男">Male</span></label>
+          <label><input type="radio" name="gender" value="female"> <span data-zh="女">Female</span></label>
+        </div>
+        <p class="hint" data-zh="性别决定大限顺行还是逆行。">Gender sets which way the 10-year periods run.</p>
+        <label class="field">
+          <span data-zh="出生地">Birthplace</span>
+          <select id="city"></select>
+        </label>
+        <p class="hint tz-line" id="tz-line"></p>
+        <div id="other-fields" hidden>
+          <label class="field">
+            <span data-zh="时区 <small>（选择地区可自动计算夏令时）</small>">Time zone <small>(pick a region to allow for daylight saving automatically)</small></span>
+            <select id="tz"></select>
+          </label>
+          <label class="field">
+            <span data-zh="经度 <small>（东经为正，西经为负；用于真太阳时）</small>">Longitude <small>(° east; negative for west; for true solar time)</small></span>
+            <input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal">
+          </label>
+        </div>
+        <details class="programs">
+          <summary data-zh="时间选项">Time options</summary>
+          <label class="check"><input type="checkbox" id="true-solar"> <span data-zh="使用真太阳时（按出生地经度）">Use true solar time (from the birthplace's longitude)</span></label>
+          <label class="check"><input type="checkbox" id="zi-day" checked> <span data-zh="23:00 起算次日（子时换日）">23:00 starts the next day (子时换日)</span></label>
+          <p class="hint" data-zh="不勾选时，23:00–24:00 算作当日的晚子时。">Unticked, 23:00–24:00 counts as the late Zi hour of the same day.</p>
+        </details>
+        <button class="primary show-chart" id="show-chart" type="button" data-zh="显示命盘 →">Show my chart →</button>
+      </div>
+
+      <p class="status bad" id="error" hidden></p>
+
+      <div id="result" hidden>
+        <div class="card zw-card">
+          <h2 data-zh="命盘 <small>点宫位查看解释</small>">The 12 palaces <small>十二宫 · tap one</small></h2>
+          <div class="zw-grid" id="zw-grid"></div>
+          <p class="hint legend" data-zh="<b class=&quot;hua h0&quot;>禄</b> 化禄 <b class=&quot;hua h1&quot;>权</b> 化权 <b class=&quot;hua h2&quot;>科</b> 化科 <b class=&quot;hua h3&quot;>忌</b> 化忌 · <span class=&quot;zw-key now&quot;></span> 当前大限 · <span class=&quot;zw-key year&quot;></span> 今年流年"><b class="hua h0">禄</b> wealth <b class="hua h1">权</b> power <b class="hua h2">科</b> fame <b class="hua h3">忌</b> trouble · <span class="zw-key now"></span> this 10-year period · <span class="zw-key year"></span> this year</p>
+        </div>
+        <div class="card reading" id="zw-detail"></div>
+        <div class="card">
+          <div class="actions">
+            <button class="secondary" id="save" type="button" data-zh="保存命盘">Save chart</button>
+            <button class="secondary" id="share" type="button" data-zh="分享链接">Share link</button>
+          </div>
+          <p class="hint" id="share-note"></p>
+        </div>
+      </div>
+    </section>
+
+    <section role="tabpanel" data-panel="reading" hidden>
+      <div class="card reading" id="zw-life"></div>
+      <div id="zw-palaces"></div>
+    </section>
+
+    <section role="tabpanel" data-panel="now" hidden>
+      <div class="card reading" id="zw-now"></div>
+      <div class="card">
+        <h2 data-zh="十个大限">10-year periods <small>大限</small></h2>
+        <ul class="zw-periods" id="zw-periods"></ul>
+      </div>
+      <div class="card reading" id="zw-next"></div>
+    </section>
+
+    <section role="tabpanel" data-panel="more" hidden>
+      <div class="card" id="hours-card">
+        <h2 data-zh="不确定时辰？">Unsure of the hour? <small>时辰</small></h2>
+        <p class="hint" data-zh="生命宫随时辰变动。看看相邻时辰的命宫主星，哪个更像你。">The life palace moves with the hour. See which neighbouring hour's life palace sounds more like you, and tap it to use it.</p>
+        <ul class="zw-hours" id="zw-hours"></ul>
+      </div>
+      <div class="card">
+        <h2 data-zh="已保存的命盘">Saved charts</h2>
+        <ul class="groups" id="saved"></ul>
+        <p class="hint" id="saved-empty" data-zh="还没有保存的命盘。在“命盘”页点“保存命盘”。">No saved charts yet. Use “Save chart” on the Chart tab.</p>
+      </div>
+      <div class="card" id="bazi-card" hidden>
+        <h2 data-zh="来自八字的命盘">From your BaZi charts</h2>
+        <p class="hint" data-zh="八字应用里保存过的、有出生时间的命盘。">Charts saved in the BaZi app that have a birth time.</p>
+        <ul class="groups" id="bazi-saved"></ul>
+      </div>
+      <details class="card">
+        <summary><h2 data-zh="关于紫微斗数">About Zi Wei Dou Shu</h2></summary>
+        <ul class="notes">
+          <li data-zh="紫微斗数用农历出生日期和时辰排出十二宫，看十四主星和辅星落在哪一宫。它和八字是两套方法：八字看五行强弱和时运，紫微看人生各方面的细节。">Zi Wei Dou Shu (“Purple Star Astrology”) places 14 main stars and many minor ones in 12 palaces, each a part of life, from the lunar date and two-hour period of birth. It's a separate system from BaZi: BaZi reads balance and timing, Zi Wei the detail of each life area.</li>
+          <li data-zh="出生时间按时区和当时的历史时差换算，可选真太阳时；23点后可算作次日。与八字应用的计算完全相同。">The birth time is converted with the birthplace's time zone as it was then, with optional true solar time and the 23:00 rule: the same calculation as the BaZi app.</li>
+          <li data-zh="排法依《紫微斗数全书》的常用方法：年干以正月初一为界；闰月十五日以前按本月、十六日以后按下月；庚年四化为太阳、武曲、太阴、天同。">Method: the common 紫微斗数全书 rules. The year changes at the lunar new year; a leap-month birth counts as that month to the 15th and the next month from the 16th; 庚 years transform 太阳, 武曲, 太阴, 天同.</li>
+          <li data-zh="排盘结果与开源排盘库 iztro 对照了近五千个随机命盘，完全一致。星曜亮度（庙旺利陷）暂未列出。">Checked against the open-source iztro library on nearly 5,000 random charts, with identical results. Star brightness (庙旺利陷) isn't shown yet.</li>
+          <li data-zh="这是传统命理的解读，仅供参考和乐趣。命盘只保存在这个浏览器里。">This is traditional interpretation, for reflection and fun, not prediction. Charts are kept in this browser only.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

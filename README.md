@@ -241,18 +241,30 @@ Works out a Four Pillars of Destiny (八字) chart from a birth date and time.
   first visit follows the phone's language.
 - **Match:** compares two charts (the current one and any saved one) on day masters, spouse star, spouse
   palaces (day branches), zodiac signs and whether each brings the other's favourable elements (`src/bazimatch.js`).
-- **Zi Wei Dou Shu (紫微斗数):** a 紫微 tab with the Purple Star chart for the same birth details (time zone, true
-  solar time and the 23:00 rule all apply, so both charts describe the same moment). The traditional 4×4 grid shows
-  the 12 palaces with their stems and branches, the 14 main stars, 16 common minor stars, the birth-year four
-  transformations (化禄 化权 化科 化忌), the body palace and each palace's 10-year period (大限); the current period and
-  this year's palace (流年) are highlighted. Tap a palace for what it covers and what its stars mean (an empty palace
-  borrows the opposite one's main stars). Below: the life palace in a line, and where you are now: the current
-  10-year period and where this year's four transformations land. The Summary has a Zi Wei card, and the Luck tab says
-  which Zi Wei period you're in. Method: the common 紫微斗数全书 rules (`src/ziwei.js`); the year changes at the lunar
-  new year, a leap-month birth counts as that month to the 15th and the next month from the 16th, and 庚 years
-  transform 太阳 武曲 太阴 天同. Checked against the open-source [iztro](https://github.com/SylarLong/iztro) library on
-  nearly 5,000 random charts with identical results. It needs a birth time; star brightness (庙旺利陷) isn't shown yet.
+- **Zi Wei Dou Shu:** the Summary links to the Zi Wei Dou Shu app with the same birth details.
 - **Saved charts** are kept on the device.
+
+### 🔮 Zi Wei Dou Shu (`ziwei/`)
+
+Purple Star Astrology (紫微斗数): the 12 palaces of life and the stars in them, from the lunar date and two-hour period
+of birth. A separate system from BaZi; people often use both.
+
+- **Birth details** as in the BaZi app: a Western or lunar (农历) date, the time, gender and birthplace. The time is
+  converted with the birthplace's time zone as it was on that date, with optional true solar time and the 23:00 rule,
+  using the same code as BaZi (`src/bazi.js`), so both apps describe the same moment. A birth time is required.
+- **Chart:** the traditional 4×4 grid with each palace's stem and branch, the 14 main stars, 16 common minor stars,
+  the birth-year four transformations (化禄 化权 化科 化忌), the body palace and each palace's 10-year period (大限); the
+  current period and this year's palace (流年) are highlighted. Tap a palace for what it covers and what its stars mean
+  (an empty palace borrows the opposite one's main stars).
+- **Reading:** the life palace in a line, then all 12 palaces explained in order.
+- **Luck:** where you are now (the current 10-year period, and where this year's four transformations land), every
+  10-year period with its palace and stars, and next year's overlay.
+- **More:** unsure of the hour? The life palace for each of the 12 hours, to tap and try. Saved charts, charts saved
+  in the BaZi app (if they have a time), share links (the same format as BaZi's), and a 中文 / EN switch.
+- **Method:** the common 紫微斗数全书 rules (`src/ziwei.js`). The year changes at the lunar new year, a leap-month birth
+  counts as that month to the 15th and the next month from the 16th, and 庚 years transform 太阳 武曲 太阴 天同.
+  Checked against the open-source [iztro](https://github.com/SylarLong/iztro) library on nearly 5,000 random charts
+  with identical results. Star brightness (庙旺利陷) isn't shown yet.
 
 ### 🧭 Feng Shui (`fengshui/`)
 
@@ -338,7 +350,7 @@ Every push to `main` runs the tests and publishes to GitHub Pages (`.github/work
 - `manifest.webmanifest` in each folder, and `icons/`: what a phone uses when an app is added to the home screen
 - `shared/styles.css`: shared styles, including the Sushiro theme
 - `shared/ui.js`: helpers every app uses (`$`, `esc`, `toast`, `switchTab`); `shared/backup.js`: the Backup card
-- `petty-cash/`, `sushiro/`, `split/`, `trip/`, `security/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
+- `petty-cash/`, `sushiro/`, `split/`, `trip/`, `security/`, `ziwei/`, `calc84/`, `wallets/`, `bazi/`, `fengshui/`, `learnai/`, `chat/`: each app's page and UI script (`sushiro/ocr.js` and `sushiro/photos.js` handle receipts)
 - `src/`: the logic as pure functions (`cash.js`, `sushiro.js`, `split.js`, `trip.js`, `security.js`, `sync.js` (share links and merging), `backup.js`, `receipt.js`, `ti84.js`, `onchain.js`, `bazi.js`, `baziread.js`, `bazimatch.js`, `ziwei.js`, `fengshui.js`, `plangrid.js`, `places.js`, `learnai.js`, `chat.js`, `compass.js`), with all money in integer cents
 - `tests/`: unit tests for `src/`, plus checks that the offline and install files are complete
 - `tools/`: `build-sw.js` (offline file list), `build-pwa.py` (icons and manifests) and `build-feeds.js` (Security Watch's data)
