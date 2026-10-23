@@ -67,8 +67,11 @@ test('Chinese text: words split on spaces, and the filter reads two-character pi
 test('the Chinese lessons match the English ones', async () => {
   const en = await import('../learnai/lessons.js');
   const zh = await import('../learnai/lessons-zh.js');
-  assert.deepEqual(zh.LESSONS.map((l) => [l.id, l.emoji, l.cards.map((c) => c.demo || 'text'), l.quiz.map((q) => [q.options.length, q.answer])]),
-    en.LESSONS.map((l) => [l.id, l.emoji, l.cards.map((c) => c.demo || 'text'), l.quiz.map((q) => [q.options.length, q.answer])]));
+  // Same lessons, levels, card kinds, quiz answers, and right answers in each sorting game.
+  const shape = (l) => [l.id, l.level || 'beginner', l.emoji, l.minutes,
+    l.cards.map((c) => (c.demo === 'judge' ? ['judge', c.labels.length, c.items.map((it) => it.flag)] : c.demo || 'text')),
+    l.quiz.map((q) => [q.options.length, q.answer])];
+  assert.deepEqual(zh.LESSONS.map(shape), en.LESSONS.map(shape));
   for (const key of ['SPAM_TRAIN', 'SPAM_TEST', 'CHECK_ITEMS', 'SORT_ITEMS', 'PROMPTS', 'GLOSSARY']) assert.equal(zh[key].length, en[key].length, key);
   assert.deepEqual(zh.SPAM_TRAIN.map((m) => m.label), en.SPAM_TRAIN.map((m) => m.label));
   assert.deepEqual(zh.CHECK_ITEMS.map((m) => m.risky), en.CHECK_ITEMS.map((m) => m.risky));
@@ -83,5 +86,24 @@ test('taught correctly, each language\'s filter gets every test message right', 
     // Every first word on offer leads somewhere.
     const bigrams = trainBigrams(PREDICT_TEXT);
     for (const w of PREDICT_STARTS) assert.ok(nextWordOdds(bigrams, ['<s>', w]).length, `${file}: ${w}`);
+  }
+});
+
+test('every lesson is complete, and each level has lessons', async () => {
+  for (const file of ['lessons.js', 'lessons-zh.js']) {
+    const { LESSONS } = await import(`../learnai/${file}`);
+    assert.equal(new Set(LESSONS.map((l) => l.id)).size, LESSONS.length, `${file}: ids are unique`);
+    for (const level of ['beginner', 'intermediate']) assert.ok(LESSONS.some((l) => (l.level || 'beginner') === level), `${file}: ${level}`);
+    // Beginner lessons come first, so "next lesson" walks through the levels in order.
+    const levels = LESSONS.map((l) => l.level || 'beginner');
+    assert.deepEqual(levels, [...levels].sort(), file);
+    for (const l of LESSONS) {
+      assert.ok(l.title && l.cards.length >= 3 && l.quiz.length === 3, `${file}: ${l.id}`);
+      for (const c of l.cards) {
+        if (c.demo === 'judge') assert.ok(c.title && c.hint && c.labels.length === 2 && c.items.every((it) => it.text && it.why && typeof it.flag === 'boolean'), `${file}: ${l.id} judge`);
+        else if (!c.demo) assert.ok(c.h && c.body, `${file}: ${l.id} card`);
+      }
+      for (const q of l.quiz) assert.ok(q.q && q.why && q.answer >= 0 && q.answer < q.options.length, `${file}: ${l.id} quiz`);
+    }
   }
 });

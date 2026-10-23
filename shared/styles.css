@@ -1127,6 +1127,9 @@ label.fs-file.secondary { padding: .4rem .7rem; font-size: .9rem; border-radius:
 @media (prefers-color-scheme: dark) { .theme-learnai { --accent: #93b4ff; --accent-text: #0b1a40; } }
 .theme-learnai .balance { background: linear-gradient(160deg, rgb(255 255 255 / .12), transparent 55%), var(--accent); }
 .theme-learnai .balance { padding-top: calc(3.3rem + env(safe-area-inset-top)); }
+.la-level { margin: 1.4rem .25rem .2rem; font-size: 1.15rem; }
+.la-level small { display: block; margin-top: .15rem; font-size: .8rem; font-weight: 500; color: var(--muted); }
+.la-level-about { margin: 0 .25rem .6rem; }
 .tile.learnai { background: #1e40af; color: #fff; border-color: #1e40af; }
 .tile.learnai small { color: rgb(255 255 255 / .95); }
 .la-progress { height: .45rem; margin: .6rem auto 0; max-width: 16rem; border-radius: 999px; background: rgb(255 255 255 / .25); overflow: hidden; }

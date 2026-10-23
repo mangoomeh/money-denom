@@ -27,30 +27,53 @@ let answers = []; // chosen option per quiz question
 
 // ---- Header and lesson list ------------------------------------------------------------------------
 
+const LEVELS = [['beginner', 'Beginner', '入门'], ['intermediate', 'Intermediate', '进阶']];
+const levelOf = (l) => l.level || 'beginner';
+const doneCount = (list) => list.filter((l) => state.done[l.id]).length;
+
 function renderProgress() {
-  const n = Object.keys(state.done).length;
-  const total = C().LESSONS.length;
+  const { LESSONS } = C();
+  const n = doneCount(LESSONS);
+  const total = LESSONS.length;
   $('progress-bar').style.width = `${(n / total) * 100}%`;
+  const per = LEVELS.map(([k, en, cn]) => [LESSONS.filter((l) => levelOf(l) === k).length, en, cn]);
   $('progress-line').textContent = n === total
     ? t(`All ${total} lessons done 🎉`, `全部 ${total} 课都完成了 🎉`)
-    : n ? t(`${n} of ${total} lessons done`, `已完成 ${n} / ${total} 课`) : t(`${total} short lessons · about 40 minutes in all`, `${total} 堂短课 · 总共约 40 分钟`);
+    : n ? t(`${n} of ${total} lessons done`, `已完成 ${n} / ${total} 课`)
+      : t(per.map(([c, en]) => `${c} ${en.toLowerCase()}`).join(' + ') + ' lessons', per.map(([c, , cn]) => `${cn} ${c} 课`).join(' + '));
 }
+
+const lessonRow = (l, i) => {
+  const d = state.done[l.id];
+  return `<li><button type="button" class="la-lesson ${d ? 'done' : ''}" data-open="${l.id}">
+    <span class="la-emoji" aria-hidden="true">${l.emoji}</span>
+    <span class="la-text"><strong>${i + 1}. ${esc(l.title)}</strong><small>${t(`${l.minutes} min`, `${l.minutes} 分钟`)}${d ? t(` · quiz ${d.score}/${l.quiz.length}`, ` · 测验 ${d.score}/${l.quiz.length}`) : ''}</small></span>
+    <span class="la-check" aria-label="${d ? t('Done', '已完成') : t('Not done', '未完成')}">${d ? '✓' : '›'}</span></button></li>`;
+};
 
 function renderList() {
   const { LESSONS } = C();
   const next = LESSONS.find((l) => !state.done[l.id]);
-  $('lesson-list').innerHTML = `
-    ${next ? `<button class="primary la-continue" type="button" data-open="${next.id}">${Object.keys(state.done).length ? t('Continue', '继续') : t('Start', '开始')}${t(': ', '：')}${next.emoji} ${esc(next.title)}</button>` : `
-      <div class="card la-cert"><p class="la-cert-emoji">🏅</p><h2>${t('You finished AI for Beginners!', '你完成了《AI 入门》！')}</h2>
-      <p class="hint">${t('You know how AI learns, writes and slips up, how to ask it well and how to stay safe. Now go and try it.', '你已经知道 AI 怎么学习、怎么写字、为什么会出错、怎么问得好，以及怎么保护自己。现在就去试试吧。')}</p></div>`}
-    <ol class="la-lessons">${LESSONS.map((l, i) => {
-      const d = state.done[l.id];
-      return `<li><button type="button" class="la-lesson ${d ? 'done' : ''}" data-open="${l.id}">
-        <span class="la-emoji" aria-hidden="true">${l.emoji}</span>
-        <span class="la-text"><strong>${i + 1}. ${esc(l.title)}</strong><small>${t(`${l.minutes} min`, `${l.minutes} 分钟`)}${d ? t(` · quiz ${d.score}/${l.quiz.length}`, ` · 测验 ${d.score}/${l.quiz.length}`) : ''}</small></span>
-        <span class="la-check" aria-label="${d ? t('Done', '已完成') : t('Not done', '未完成')}">${d ? '✓' : '›'}</span></button></li>`;
-    }).join('')}</ol>
-    ${Object.keys(state.done).length ? `<p class="la-reset"><button class="linkish" type="button" id="reset">${t('Reset my progress', '重设我的进度')}</button></p>` : ''}`;
+  const beginners = LESSONS.filter((l) => levelOf(l) === 'beginner');
+  const intermediate = LESSONS.filter((l) => levelOf(l) === 'intermediate');
+  // Finishing the beginner lessons earns a badge and an invitation to the next level.
+  const levelUp = next && levelOf(next) === 'intermediate' && !doneCount(intermediate);
+  const top = !next
+    ? `<div class="card la-cert"><p class="la-cert-emoji">🏆</p><h2>${t('You finished both levels!', '两个级别都完成了！')}</h2>
+      <p class="hint">${t('You know how AI works, how to get good answers from it, and how to keep yourself and your data safe. Keep practising: the best way to learn is to use it.', '你已经知道 AI 怎么运作、怎么得到好的回答，以及怎么保护自己和你的资料。继续练习：最好的学法就是去用。')}</p></div>`
+    : levelUp
+      ? `<div class="card la-cert"><p class="la-cert-emoji">🏅</p><h2>${t('Beginner level done!', '入门级完成了！')}</h2>
+        <p class="hint">${t('You know how AI learns, writes and slips up, how to ask it well and how to stay safe. Ready to get more out of it?', '你已经知道 AI 怎么学习、怎么写字、为什么会出错、怎么问得好，以及怎么保护自己。准备好更上一层楼了吗？')}</p>
+        <button class="primary" type="button" data-open="${next.id}">${t('Start Intermediate: ', '开始进阶：')}${next.emoji} ${esc(next.title)}</button></div>`
+      : `<button class="primary la-continue" type="button" data-open="${next.id}">${doneCount(LESSONS) ? t('Continue', '继续') : t('Start', '开始')}${t(': ', '：')}${next.emoji} ${esc(next.title)}</button>`;
+  const section = (list, [, en, cn], about) => `
+    <h2 class="la-level">${t(en, cn)} <small>${t(`${list.length} lessons · about ${list.reduce((m, l) => m + l.minutes, 0)} min`, `${list.length} 课 · 约 ${list.reduce((m, l) => m + l.minutes, 0)} 分钟`)}${doneCount(list) ? t(` · ${doneCount(list)} done`, ` · 已完成 ${doneCount(list)}`) : ''}</small></h2>
+    <p class="hint la-level-about">${about}</p>
+    <ol class="la-lessons">${list.map(lessonRow).join('')}</ol>`;
+  $('lesson-list').innerHTML = `${top}
+    ${section(beginners, LEVELS[0], t('Start here: what AI is, how it works, and how to use it safely.', '从这里开始：AI 是什么、怎么运作，以及怎么安全地使用。'))}
+    ${section(intermediate, LEVELS[1], t('For when you already use a chatbot: better answers, files and photos, agents, and protecting your data.', '给已经在用聊天机器人的你：更好的回答、文件和照片、智能体，以及保护你的资料。'))}
+    ${doneCount(LESSONS) ? `<p class="la-reset"><button class="linkish" type="button" id="reset">${t('Reset my progress', '重设我的进度')}</button></p>` : ''}`;
 }
 
 // ---- Lesson view -----------------------------------------------------------------------------------
@@ -116,7 +139,7 @@ function renderLesson() {
       <button class="secondary" type="button" id="prev" ${step === 0 ? 'disabled' : ''}>${t('Back', '上一步')}</button>
       <button class="primary" type="button" id="next" ${canNext ? '' : 'disabled'}>${step === total - 1 ? t('Finish', '完成') : step === nCards - 1 ? t('Quick quiz', '小测验') : t('Next', '下一步')}</button></div>`}`;
   const c = lesson.cards[step];
-  if (c?.demo) DEMOS[c.demo]($('demo'));
+  if (c?.demo) DEMOS[c.demo]($('demo'), c);
 }
 
 function go(delta) {
@@ -127,7 +150,7 @@ function go(delta) {
 
 // ---- Demos -----------------------------------------------------------------------------------------
 
-const DEMOS = { predict: demoPredict, spam: demoSpam, tokens: demoTokens, prompt: demoPrompt, check: demoCheck, sort: demoSort };
+const DEMOS = { predict: demoPredict, spam: demoSpam, tokens: demoTokens, prompt: demoPrompt, check: demoCheck, sort: demoSort, judge: demoJudge };
 const pct = (p) => `${Math.round(p * 100)}%`;
 const verdict = (s) => {
   const scam = s.p >= 0.5;
@@ -316,6 +339,33 @@ function demoCheck(box) {
     const b = e.target.closest('[data-c]');
     if (!b) return;
     picks[Number(b.dataset.c)] = b.dataset.v === '1';
+    draw();
+  };
+  draw();
+}
+
+// A sorting game whose words come from the lesson card: each item is either fine or flagged.
+function demoJudge(box, card) {
+  const picks = [];
+  function draw() {
+    const answered = picks.filter((p) => p != null).length;
+    const right = card.items.filter((it, i) => picks[i] === it.flag).length;
+    box.innerHTML = `<p class="eyebrow-dark">${t('Try it', '试试看')}</p>
+      <h2>${esc(card.title)}</h2>
+      <p class="hint">${esc(card.hint)}</p>
+      ${card.items.map((it, i) => {
+        const p = picks[i];
+        const ok = p === it.flag;
+        return `<div class="la-test ${p == null ? '' : ok ? 'ok' : 'miss'}"><p>${esc(it.text)}</p>
+          ${p == null ? `<div class="la-row la-two"><button type="button" class="secondary small" data-j="${i}" data-v="0">${esc(card.labels[0])}</button><button type="button" class="secondary small" data-j="${i}" data-v="1">${esc(card.labels[1])}</button></div>`
+          : `<p class="hint"><b>${ok ? t('Good call.', '判断正确。') : t('Not quite.', '不太对。')}</b> ${esc(it.why)}</p>`}</div>`;
+      }).join('')}
+      ${answered === card.items.length ? `<p class="la-score">${t(`You got <b>${right} of ${card.items.length}</b> right.`, `你答对了 <b>${right} / ${card.items.length}</b> 题。`)}</p>` : ''}`;
+  }
+  box.onclick = (e) => {
+    const b = e.target.closest('[data-j]');
+    if (!b) return;
+    picks[Number(b.dataset.j)] = b.dataset.v === '1';
     draw();
   };
   draw();
