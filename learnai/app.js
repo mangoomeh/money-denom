@@ -1,5 +1,6 @@
 import { trainBigrams, nextWordOdds, pickWord, trainFilter, scoreMessage, roughTokens } from '../src/learnai.js';
-import { LESSONS, PREDICT_TEXT, PREDICT_STARTS, SPAM_TRAIN, SPAM_TEST, CHECK_ITEMS, SORT_ITEMS, PROMPTS, GLOSSARY } from './lessons.js';
+import * as EN from './lessons.js';
+import * as ZH from './lessons-zh.js';
 
 const STORAGE_KEY = 'learnai-v1';
 const $ = (id) => document.getElementById(id);
@@ -8,12 +9,17 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (s && s.done) return s;
+    if (s && s.done) return { lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en', ...s };
   } catch { /* ignore */ }
-  return { done: {} };
+  return { done: {}, lang: /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en' };
 }
 const state = load();
 const persist = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ } };
+
+// English or Chinese: the lesson content comes from lessons.js or lessons-zh.js, the rest from t().
+const zh = () => state.lang === 'zh';
+const t = (en, cn) => (zh() ? cn : en);
+const C = () => (zh() ? ZH : EN);
 
 let lesson = null; // the open lesson
 let step = 0; // index into its cards, then its quiz questions, then the finish screen
@@ -23,32 +29,34 @@ let answers = []; // chosen option per quiz question
 
 function renderProgress() {
   const n = Object.keys(state.done).length;
-  $('progress-bar').style.width = `${(n / LESSONS.length) * 100}%`;
-  $('progress-line').textContent = n === LESSONS.length
-    ? `All ${LESSONS.length} lessons done 🎉`
-    : n ? `${n} of ${LESSONS.length} lessons done` : `${LESSONS.length} short lessons · about 40 minutes in all`;
+  const total = C().LESSONS.length;
+  $('progress-bar').style.width = `${(n / total) * 100}%`;
+  $('progress-line').textContent = n === total
+    ? t(`All ${total} lessons done 🎉`, `全部 ${total} 课都完成了 🎉`)
+    : n ? t(`${n} of ${total} lessons done`, `已完成 ${n} / ${total} 课`) : t(`${total} short lessons · about 40 minutes in all`, `${total} 堂短课 · 总共约 40 分钟`);
 }
 
 function renderList() {
+  const { LESSONS } = C();
   const next = LESSONS.find((l) => !state.done[l.id]);
   $('lesson-list').innerHTML = `
-    ${next ? `<button class="primary la-continue" type="button" data-open="${next.id}">${Object.keys(state.done).length ? 'Continue' : 'Start'}: ${next.emoji} ${esc(next.title)}</button>` : `
-      <div class="card la-cert"><p class="la-cert-emoji">🏅</p><h2>You finished AI for Beginners!</h2>
-      <p class="hint">You know how AI learns, writes and slips up, how to ask it well and how to stay safe. Now go and try it.</p></div>`}
+    ${next ? `<button class="primary la-continue" type="button" data-open="${next.id}">${Object.keys(state.done).length ? t('Continue', '继续') : t('Start', '开始')}${t(': ', '：')}${next.emoji} ${esc(next.title)}</button>` : `
+      <div class="card la-cert"><p class="la-cert-emoji">🏅</p><h2>${t('You finished AI for Beginners!', '你完成了《AI 入门》！')}</h2>
+      <p class="hint">${t('You know how AI learns, writes and slips up, how to ask it well and how to stay safe. Now go and try it.', '你已经知道 AI 怎么学习、怎么写字、为什么会出错、怎么问得好，以及怎么保护自己。现在就去试试吧。')}</p></div>`}
     <ol class="la-lessons">${LESSONS.map((l, i) => {
       const d = state.done[l.id];
       return `<li><button type="button" class="la-lesson ${d ? 'done' : ''}" data-open="${l.id}">
         <span class="la-emoji" aria-hidden="true">${l.emoji}</span>
-        <span class="la-text"><strong>${i + 1}. ${esc(l.title)}</strong><small>${l.minutes} min${d ? ` · quiz ${d.score}/${l.quiz.length}` : ''}</small></span>
-        <span class="la-check" aria-label="${d ? 'Done' : 'Not done'}">${d ? '✓' : '›'}</span></button></li>`;
+        <span class="la-text"><strong>${i + 1}. ${esc(l.title)}</strong><small>${t(`${l.minutes} min`, `${l.minutes} 分钟`)}${d ? t(` · quiz ${d.score}/${l.quiz.length}`, ` · 测验 ${d.score}/${l.quiz.length}`) : ''}</small></span>
+        <span class="la-check" aria-label="${d ? t('Done', '已完成') : t('Not done', '未完成')}">${d ? '✓' : '›'}</span></button></li>`;
     }).join('')}</ol>
-    ${Object.keys(state.done).length ? '<p class="la-reset"><button class="linkish" type="button" id="reset">Reset my progress</button></p>' : ''}`;
+    ${Object.keys(state.done).length ? `<p class="la-reset"><button class="linkish" type="button" id="reset">${t('Reset my progress', '重设我的进度')}</button></p>` : ''}`;
 }
 
 // ---- Lesson view -----------------------------------------------------------------------------------
 
 function openLesson(id) {
-  lesson = LESSONS.find((l) => l.id === id);
+  lesson = C().LESSONS.find((l) => l.id === id);
   step = 0;
   answers = [];
   $('lesson-list').hidden = true;
@@ -79,33 +87,34 @@ function renderLesson() {
     const q = lesson.quiz[qi];
     const picked = answers[qi];
     canNext = picked != null;
-    body = `<div class="card la-quiz"><p class="eyebrow-dark">Quick check · ${qi + 1} of ${nQuiz}</p><h2>${esc(q.q)}</h2>
+    body = `<div class="card la-quiz"><p class="eyebrow-dark">${t(`Quick check · ${qi + 1} of ${nQuiz}`, `小测验 · 第 ${qi + 1} / ${nQuiz} 题`)}</p><h2>${esc(q.q)}</h2>
       <div class="la-options">${q.options.map((o, i) => {
         const cls = picked == null ? '' : i === q.answer ? 'right' : i === picked ? 'wrong' : 'dim';
         return `<button type="button" class="la-option ${cls}" data-pick="${i}" ${picked != null ? 'disabled' : ''}>${esc(o)}</button>`;
       }).join('')}</div>
-      ${picked != null ? `<p class="la-why ${picked === q.answer ? 'right' : 'wrong'}"><b>${picked === q.answer ? 'Yes!' : 'Not quite.'}</b> ${esc(q.why)}</p>` : ''}</div>`;
+      ${picked != null ? `<p class="la-why ${picked === q.answer ? 'right' : 'wrong'}"><b>${picked === q.answer ? t('Yes!', '答对了！') : t('Not quite.', '不太对。')}</b> ${esc(q.why)}</p>` : ''}</div>`;
   } else {
     const score = lesson.quiz.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
     const prev = state.done[lesson.id];
     state.done[lesson.id] = { score: Math.max(score, prev?.score ?? 0) };
     persist();
     renderProgress();
+    const { LESSONS } = C();
     const next = LESSONS[LESSONS.indexOf(lesson) + 1];
     body = `<div class="card la-finish"><p class="la-cert-emoji">${score === nQuiz ? '🌟' : '👍'}</p>
-      <h2>Lesson done!</h2><p>You got <b>${score} of ${nQuiz}</b>${score === nQuiz ? ' — perfect.' : '. Have another look whenever you like.'}</p>
-      ${next ? `<button class="primary" type="button" data-open="${next.id}">Next: ${next.emoji} ${esc(next.title)}</button>` : '<button class="primary" type="button" id="to-list">See your progress 🏅</button>'}
-      <button class="secondary" type="button" id="again">Do this lesson again</button></div>`;
+      <h2>${t('Lesson done!', '这一课完成了！')}</h2><p>${t(`You got <b>${score} of ${nQuiz}</b>${score === nQuiz ? ' — perfect.' : '. Have another look whenever you like.'}`, `你答对了 <b>${score} / ${nQuiz}</b> 题${score === nQuiz ? '，满分！' : '。随时可以回来再看一遍。'}`)}</p>
+      ${next ? `<button class="primary" type="button" data-open="${next.id}">${t('Next: ', '下一课：')}${next.emoji} ${esc(next.title)}</button>` : `<button class="primary" type="button" id="to-list">${t('See your progress 🏅', '查看你的进度 🏅')}</button>`}
+      <button class="secondary" type="button" id="again">${t('Do this lesson again', '重做这一课')}</button></div>`;
   }
   const atEnd = step >= total;
   $('lesson-view').innerHTML = `
-    <div class="la-lesson-head"><button class="secondary small" type="button" id="close">‹ Lessons</button>
+    <div class="la-lesson-head"><button class="secondary small" type="button" id="close">${t('‹ Lessons', '‹ 课程')}</button>
       <span>${lesson.emoji} ${esc(lesson.title)}</span></div>
     <div class="la-dots">${dots}</div>
     ${body}
     ${atEnd ? '' : `<div class="la-nav">
-      <button class="secondary" type="button" id="prev" ${step === 0 ? 'disabled' : ''}>Back</button>
-      <button class="primary" type="button" id="next" ${canNext ? '' : 'disabled'}>${step === total - 1 ? 'Finish' : step === nCards - 1 ? 'Quick quiz' : 'Next'}</button></div>`}`;
+      <button class="secondary" type="button" id="prev" ${step === 0 ? 'disabled' : ''}>${t('Back', '上一步')}</button>
+      <button class="primary" type="button" id="next" ${canNext ? '' : 'disabled'}>${step === total - 1 ? t('Finish', '完成') : step === nCards - 1 ? t('Quick quiz', '小测验') : t('Next', '下一步')}</button></div>`}`;
   const c = lesson.cards[step];
   if (c?.demo) DEMOS[c.demo]($('demo'));
 }
@@ -120,30 +129,41 @@ function go(delta) {
 
 const DEMOS = { predict: demoPredict, spam: demoSpam, tokens: demoTokens, prompt: demoPrompt, check: demoCheck, sort: demoSort };
 const pct = (p) => `${Math.round(p * 100)}%`;
+const verdict = (s) => {
+  const scam = s.p >= 0.5;
+  const sure = pct(scam ? s.p : 1 - s.p);
+  return `${scam ? `🚨 ${t('Scam', '诈骗')}` : `✅ ${t('Normal', '正常')}`} <small>${t(`${sure} sure`, `把握 ${sure}`)}</small>`;
+};
 
-const bigrams = trainBigrams(PREDICT_TEXT);
+const bigramsFor = new Map();
 function demoPredict(box) {
+  const { PREDICT_TEXT, PREDICT_STARTS } = C();
+  if (!bigramsFor.has(state.lang)) bigramsFor.set(state.lang, trainBigrams(PREDICT_TEXT));
+  const bigrams = bigramsFor.get(state.lang);
   let sentence = [];
   let temperature = 1;
   const last = () => (sentence.length ? sentence[sentence.length - 1] : '<s>');
   const context = () => ['<s>', ...sentence];
-  const ended = () => ['.', '?', '!'].includes(last());
-  const text = () => sentence.map((w, i) => (i && !/^[.,!?]$/.test(w) ? ` ${w}` : w)).join('').replace(/^./, (c) => c.toUpperCase());
+  const ended = () => ['.', '?', '!', '。', '？', '！'].includes(last());
+  // Chinese is written without spaces between words.
+  const text = () => (zh() ? sentence.join('') : sentence.map((w, i) => (i && !/^[.,!?]$/.test(w) ? ` ${w}` : w)).join('').replace(/^./, (c) => c.toUpperCase()));
   const add = (w) => { if (w) sentence.push(w); draw(); };
   function draw() {
     const odds = sentence.length && !ended() ? nextWordOdds(bigrams, context(), temperature).slice(0, 5) : [];
-    box.innerHTML = `<p class="eyebrow-dark">Try it: be the chatbot</p>
-      <h2>What word comes next?</h2>
-      <p class="hint">This tiny model has read ${PREDICT_TEXT.split('\n').length} everyday sentences and only looks at the last two words, so it sometimes writes nonsense. Real chatbots read billions of sentences and look back over the whole conversation. Tap a word, or let it pick.</p>
-      ${sentence.length ? '' : `<p class="la-label">Pick a first word:</p><div class="la-chips">${PREDICT_STARTS.map((w) => `<button type="button" class="la-chip" data-w="${w}">${w}</button>`).join('')}</div>`}
+    const n = PREDICT_TEXT.split('\n').length;
+    box.innerHTML = `<p class="eyebrow-dark">${t('Try it: be the chatbot', '试试看：当一次聊天机器人')}</p>
+      <h2>${t('What word comes next?', '下一个词是什么？')}</h2>
+      <p class="hint">${t(`This tiny model has read ${n} everyday sentences and only looks at the last two words, so it sometimes writes nonsense. Real chatbots read billions of sentences and look back over the whole conversation. Tap a word, or let it pick.`,
+        `这个小模型只读过 ${n} 个日常句子，而且只看最后两个词，所以有时会写出不通的句子。真正的聊天机器人读过几十亿个句子，还会回顾整段对话。点一个词，或让它自己选。`)}</p>
+      ${sentence.length ? '' : `<p class="la-label">${t('Pick a first word:', '选第一个词：')}</p><div class="la-chips">${PREDICT_STARTS.map((w) => `<button type="button" class="la-chip" data-w="${w}">${w}</button>`).join('')}</div>`}
       ${sentence.length ? `<p class="la-sentence">${esc(text())}<span class="la-caret">${ended() ? '' : '▍'}</span></p>` : ''}
       ${odds.length ? `<div class="la-odds">${odds.map((o) => `<button type="button" class="la-odd" data-w="${esc(o.word)}"><span class="w">${esc(o.word)}</span><span class="bar"><span style="width:${pct(o.p)}"></span></span><span class="p">${pct(o.p)}</span></button>`).join('')}</div>` : ''}
       ${sentence.length ? `<div class="la-row">
-        ${ended() ? '' : '<button type="button" class="secondary small" id="p-one">Let AI pick one</button><button type="button" class="secondary small" id="p-all">Finish the sentence</button>'}
-        <button type="button" class="secondary small" id="p-reset">Start again</button></div>` : ''}
-      <label class="field"><span>Temperature: <b>${temperature.toFixed(1)}</b> ${temperature < 0.7 ? '(safe, predictable)' : temperature > 1.4 ? '(wild, creative)' : '(normal)'}</span>
+        ${ended() ? '' : `<button type="button" class="secondary small" id="p-one">${t('Let AI pick one', '让 AI 选一个')}</button><button type="button" class="secondary small" id="p-all">${t('Finish the sentence', '把句子写完')}</button>`}
+        <button type="button" class="secondary small" id="p-reset">${t('Start again', '重新开始')}</button></div>` : ''}
+      <label class="field"><span>${t('Temperature', '温度')}${t(': ', '：')}<b>${temperature.toFixed(1)}</b> ${temperature < 0.7 ? t('(safe, predictable)', '（稳定、可预测）') : temperature > 1.4 ? t('(wild, creative)', '（狂野、有创意）') : t('(normal)', '（一般）')}</span>
         <input type="range" id="p-temp" min="0.2" max="2" step="0.1" value="${temperature}"></label>
-      <p class="hint">Watch the percentages change as you move the slider: low makes the top word win more often, high gives the long shots a chance.</p>`;
+      <p class="hint">${t('Watch the percentages change as you move the slider: low makes the top word win more often, high gives the long shots a chance.', '拉动滑杆时留意百分比的变化：调低时最可能的词更常胜出，调高时冷门的词也有机会。')}</p>`;
   }
   box.onclick = (e) => {
     const w = e.target.closest('[data-w]')?.dataset.w;
@@ -165,16 +185,17 @@ function demoPredict(box) {
 }
 
 function demoSpam(box) {
+  const { SPAM_TRAIN, SPAM_TEST } = C();
   let labels = [];
   let custom = '';
   function draw() {
     if (labels.length < SPAM_TRAIN.length) {
       const m = SPAM_TRAIN[labels.length];
-      box.innerHTML = `<p class="eyebrow-dark">Try it: be the teacher</p>
-        <h2>Teach a scam filter</h2>
-        <p class="hint">Label each message. The filter learns from your answers, nothing else. Message ${labels.length + 1} of ${SPAM_TRAIN.length}.</p>
+      box.innerHTML = `<p class="eyebrow-dark">${t('Try it: be the teacher', '试试看：当一次老师')}</p>
+        <h2>${t('Teach a scam filter', '教一个诈骗过滤器')}</h2>
+        <p class="hint">${t(`Label each message. The filter learns from your answers, nothing else. Message ${labels.length + 1} of ${SPAM_TRAIN.length}.`, `给每条信息贴上标签。过滤器只从你的答案学习，别的什么都不知道。第 ${labels.length + 1} / ${SPAM_TRAIN.length} 条。`)}</p>
         <div class="la-msg">${esc(m.text)}</div>
-        <div class="la-row la-two"><button type="button" class="la-big bad" data-label="scam">🚨 Scam</button><button type="button" class="la-big good" data-label="normal">✅ Normal</button></div>`;
+        <div class="la-row la-two"><button type="button" class="la-big bad" data-label="scam">🚨 ${t('Scam', '诈骗')}</button><button type="button" class="la-big good" data-label="normal">✅ ${t('Normal', '正常')}</button></div>`;
       return;
     }
     const model = trainFilter(SPAM_TRAIN.map((m, i) => ({ text: m.text, label: labels[i] })));
@@ -182,22 +203,23 @@ function demoSpam(box) {
     const results = SPAM_TEST.map((m) => ({ ...m, s: scoreMessage(model, m.text) }));
     const right = results.filter((r) => r.s && (r.s.p >= 0.5) === (r.label === 'scam')).length;
     const row = (text, s, truth) => {
-      if (!s) return `<div class="la-test"><p>${esc(text)}</p><p class="hint">It needs at least one scam and one normal example to learn.</p></div>`;
+      if (!s) return `<div class="la-test"><p>${esc(text)}</p><p class="hint">${t('It needs at least one scam and one normal example to learn.', '它至少需要一个诈骗和一个正常的例子才能学习。')}</p></div>`;
       const scam = s.p >= 0.5;
       const clues = s.clues.slice(0, 3).map((c) => `<span class="la-clue ${c.weight > 0 ? 'bad' : 'good'}">${esc(c.word)}</span>`).join(' ');
       return `<div class="la-test ${truth == null ? '' : scam === (truth === 'scam') ? 'ok' : 'miss'}">
         <p>${esc(text)}</p>
-        <p class="la-verdict">${scam ? '🚨 Scam' : '✅ Normal'} <small>${pct(scam ? s.p : 1 - s.p)} sure</small>${truth == null ? '' : scam === (truth === 'scam') ? ' <b class="ok">✓ right</b>' : ' <b class="miss">✗ wrong</b>'}</p>
-        ${clues ? `<p class="hint">Clue words: ${clues}</p>` : ''}</div>`;
+        <p class="la-verdict">${verdict(s)}${truth == null ? '' : scam === (truth === 'scam') ? ` <b class="ok">${t('✓ right', '✓ 对')}</b>` : ` <b class="miss">${t('✗ wrong', '✗ 错')}</b>`}</p>
+        ${clues ? `<p class="hint">${t('Clue words', '线索词')}${t(': ', '：')}${clues}</p>` : ''}</div>`;
     };
-    box.innerHTML = `<p class="eyebrow-dark">Try it: be the teacher</p>
-      <h2>Now it's tested on messages it has never seen</h2>
+    box.innerHTML = `<p class="eyebrow-dark">${t('Try it: be the teacher', '试试看：当一次老师')}</p>
+      <h2>${t('Now it\'s tested on messages it has never seen', '现在用它没看过的信息来考它')}</h2>
       ${results.map((r) => row(r.text, r.s, r.label)).join('')}
-      <p class="la-score">It got <b>${right} of ${SPAM_TEST.length}</b> right.
-        ${wrongTeach ? `You labelled ${wrongTeach} example${wrongTeach > 1 ? 's' : ''} differently from the usual answer, so it learned that too. Rubbish in, rubbish out!` : 'It learned only from your 8 examples: that\'s how AI learns.'}</p>
-      <label class="field"><span>Type your own message to test it</span><input id="s-own" value="${esc(custom)}" placeholder="e.g. Claim your free prize now" autocomplete="off"></label>
+      <p class="la-score">${t(`It got <b>${right} of ${SPAM_TEST.length}</b> right.`, `它答对了 <b>${right} / ${SPAM_TEST.length}</b> 条。`)}
+        ${wrongTeach ? t(`You labelled ${wrongTeach} example${wrongTeach > 1 ? 's' : ''} differently from the usual answer, so it learned that too. Rubbish in, rubbish out!`, `你有 ${wrongTeach} 个例子的标签和一般答案不同，所以它也学到了。垃圾进，垃圾出！`) : t(`It learned only from your ${SPAM_TRAIN.length} examples: that's how AI learns.`, `它只从你的 ${SPAM_TRAIN.length} 个例子学习：AI 就是这样学的。`)}</p>
+      ${zh() ? '<p class="hint">中文没有空格，所以它把文字切成两个字一组来学，线索词就是这些两个字的组合。</p>' : ''}
+      <label class="field"><span>${t('Type your own message to test it', '输入你自己的信息来考它')}</span><input id="s-own" value="${esc(custom)}" placeholder="${t('e.g. Claim your free prize now', '例如：马上领取你的免费奖品')}" autocomplete="off"></label>
       <div id="s-own-out">${custom.trim() ? row(custom, scoreMessage(model, custom), null) : ''}</div>
-      <button type="button" class="secondary small" id="s-reset">Teach it again</button>`;
+      <button type="button" class="secondary small" id="s-reset">${t('Teach it again', '重新教它')}</button>`;
   }
   box.onclick = (e) => {
     const l = e.target.closest('[data-label]')?.dataset.label;
@@ -212,9 +234,8 @@ function demoSpam(box) {
     // Redraw only the result so typing isn't interrupted.
     const tmp = document.createElement('div');
     if (custom.trim() && s) {
-      const scam = s.p >= 0.5;
-      tmp.innerHTML = `<div class="la-test"><p class="la-verdict">${scam ? '🚨 Scam' : '✅ Normal'} <small>${pct(scam ? s.p : 1 - s.p)} sure</small></p>
-        ${s.clues.length ? `<p class="hint">Clue words: ${s.clues.slice(0, 3).map((c) => `<span class="la-clue ${c.weight > 0 ? 'bad' : 'good'}">${esc(c.word)}</span>`).join(' ')}</p>` : '<p class="hint">None of these words were in its lessons, so it\'s just guessing.</p>'}</div>`;
+      tmp.innerHTML = `<div class="la-test"><p class="la-verdict">${verdict(s)}</p>
+        ${s.clues.length ? `<p class="hint">${t('Clue words', '线索词')}${t(': ', '：')}${s.clues.slice(0, 3).map((c) => `<span class="la-clue ${c.weight > 0 ? 'bad' : 'good'}">${esc(c.word)}</span>`).join(' ')}</p>` : `<p class="hint">${t('None of these words were in its lessons, so it\'s just guessing.', '这些字都不在它学过的内容里，所以它只是在猜。')}</p>`}</div>`;
     }
     box.querySelector('#s-own-out').innerHTML = tmp.innerHTML;
   };
@@ -222,10 +243,10 @@ function demoSpam(box) {
 }
 
 function demoTokens(box) {
-  const start = 'I want to eat chicken rice tonight! Unbelievable. 你好 2026';
-  box.innerHTML = `<p class="eyebrow-dark">Try it: see what AI sees</p>
-    <h2>Split text into tokens</h2>
-    <p class="hint">Type anything. Each coloured block is roughly one token. (Every AI splits a little differently; this is a close imitation.)</p>
+  const start = t('I want to eat chicken rice tonight! Unbelievable. 你好 2026', '我今晚想吃鸡饭！Unbelievable. Hello 2026');
+  box.innerHTML = `<p class="eyebrow-dark">${t('Try it: see what AI sees', '试试看：AI 眼中的文字')}</p>
+    <h2>${t('Split text into tokens', '把文字切成 token')}</h2>
+    <p class="hint">${t('Type anything. Each coloured block is roughly one token. (Every AI splits a little differently; this is a close imitation.)', '随便输入什么。每个彩色方块大约是一个 token。（每个 AI 切法都有点不同，这里是一个相近的模仿。）')}</p>
     <textarea id="t-in" class="la-textarea" rows="3">${esc(start)}</textarea>
     <div class="la-tokens" id="t-out"></div>
     <p class="la-score" id="t-count"></p>`;
@@ -234,35 +255,42 @@ function demoTokens(box) {
     const toks = roughTokens(text);
     box.querySelector('#t-out').innerHTML = toks.map((tk, i) => `<span class="tk c${i % 5}">${esc(tk).replace(/ /g, '␣').replace(/\n/g, '↵')}</span>`).join('');
     const words = (text.match(/\S+/g) || []).length;
-    box.querySelector('#t-count').innerHTML = `<b>${toks.length}</b> tokens · ${words} words · ${text.length} characters`;
+    box.querySelector('#t-count').innerHTML = t(`<b>${toks.length}</b> tokens · ${words} words · ${text.length} characters`, `<b>${toks.length}</b> 个 token · ${text.length} 个字符`);
   };
   box.querySelector('#t-in').addEventListener('input', draw);
   draw();
 }
 
 function demoPrompt(box) {
-  const f = { task: 'write a message to my landlord', context: 'the kitchen tap has been leaking for a week', who: 'my landlord', format: 'under 100 words', tone: 'polite but firm' };
-  box.innerHTML = `<p class="eyebrow-dark">Try it: build a prompt</p>
-    <h2>Prompt builder</h2>
-    <p class="hint">Fill in the parts. Watch a vague request turn into a clear one.</p>
-    <label class="field"><span>1. Task: what should it do?</span><input id="b-task" value="${esc(f.task)}"></label>
-    <label class="field"><span>2. Context: what does it need to know?</span><input id="b-context" value="${esc(f.context)}"></label>
-    <label class="field"><span>3. Who is it for?</span><input id="b-who" value="${esc(f.who)}"></label>
-    <label class="field"><span>4. Format</span><select id="b-format">${['under 100 words', 'as bullet points', 'as a simple table', 'in 3 short steps', 'in WhatsApp style'].map((o) => `<option ${o === f.format ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
-    <label class="field"><span>5. Tone</span><select id="b-tone">${['polite but firm', 'warm and friendly', 'formal', 'simple, for a child', 'funny'].map((o) => `<option ${o === f.tone ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
-    <p class="la-label">Vague: <span class="la-weak">"${esc(f.task.split(' ').slice(0, 2).join(' '))}…"</span></p>
-    <p class="la-label">Clear:</p>
+  const f = zh()
+    ? { task: '写一条信息给房东', context: '厨房的水龙头已经漏水一个星期了', who: '我的房东', vague: '写信息', formats: ['100 字以内', '用列点', '用简单的表格', '分 3 个简短步骤', '用 WhatsApp 的口吻'], tones: ['有礼貌但坚定', '温暖亲切', '正式', '简单，给孩子看', '幽默'] }
+    : { task: 'write a message to my landlord', context: 'the kitchen tap has been leaking for a week', who: 'my landlord', vague: 'write a', formats: ['under 100 words', 'as bullet points', 'as a simple table', 'in 3 short steps', 'in WhatsApp style'], tones: ['polite but firm', 'warm and friendly', 'formal', 'simple, for a child', 'funny'] };
+  box.innerHTML = `<p class="eyebrow-dark">${t('Try it: build a prompt', '试试看：组一个提示词')}</p>
+    <h2>${t('Prompt builder', '提示词组合器')}</h2>
+    <p class="hint">${t('Fill in the parts. Watch a vague request turn into a clear one.', '把各部分填上，看看含糊的要求怎么变成清楚的要求。')}</p>
+    <label class="field"><span>${t('1. Task: what should it do?', '1. 任务：要它做什么？')}</span><input id="b-task" value="${esc(f.task)}"></label>
+    <label class="field"><span>${t('2. Context: what does it need to know?', '2. 背景：它需要知道什么？')}</span><input id="b-context" value="${esc(f.context)}"></label>
+    <label class="field"><span>${t('3. Who is it for?', '3. 给谁看？')}</span><input id="b-who" value="${esc(f.who)}"></label>
+    <label class="field"><span>${t('4. Format', '4. 格式')}</span><select id="b-format">${f.formats.map((o) => `<option>${o}</option>`).join('')}</select></label>
+    <label class="field"><span>${t('5. Tone', '5. 语气')}</span><select id="b-tone">${f.tones.map((o) => `<option>${o}</option>`).join('')}</select></label>
+    <p class="la-label">${t('Vague', '含糊')}${t(': ', '：')}<span class="la-weak">${t(`"${esc(f.vague)}…"`, `“${esc(f.vague)}……”`)}</span></p>
+    <p class="la-label">${t('Clear:', '清楚：')}</p>
     <div class="la-built" id="b-out"></div>
-    <button type="button" class="primary" id="b-copy">Copy prompt</button>`;
+    <button type="button" class="primary" id="b-copy">${t('Copy prompt', '复制提示词')}</button>`;
   const draw = () => {
     const v = (id) => box.querySelector(id).value.trim();
-    const parts = [
+    const parts = zh() ? [
+      v('#b-task') && `请${v('#b-task')}。`,
+      v('#b-context') && `背景：${v('#b-context')}。`,
+      v('#b-who') && `这是给${v('#b-who')}看的。`,
+      `语气要${v('#b-tone')}，${v('#b-format')}。`,
+    ] : [
       v('#b-task') && `Please ${v('#b-task')}.`,
       v('#b-context') && `Background: ${v('#b-context')}.`,
       v('#b-who') && `It's for ${v('#b-who')}.`,
       `Make it ${v('#b-tone')}, ${v('#b-format')}.`,
-    ].filter(Boolean);
-    box.querySelector('#b-out').textContent = parts.join(' ');
+    ];
+    box.querySelector('#b-out').textContent = parts.filter(Boolean).join(zh() ? '' : ' ');
   };
   box.oninput = draw;
   box.querySelector('#b-copy').addEventListener('click', () => copy(box.querySelector('#b-out').textContent, box.querySelector('#b-copy')));
@@ -270,17 +298,18 @@ function demoPrompt(box) {
 }
 
 function demoCheck(box) {
+  const { CHECK_ITEMS } = C();
   const picks = [];
   function draw() {
-    box.innerHTML = `<p class="eyebrow-dark">Try it: be the checker</p>
-      <h2>Trust it, or double-check?</h2>
-      <p class="hint">A chatbot said each of these. Decide which you'd check before relying on it.</p>
+    box.innerHTML = `<p class="eyebrow-dark">${t('Try it: be the checker', '试试看：当一次核查员')}</p>
+      <h2>${t('Trust it, or double-check?', '相信，还是再核实？')}</h2>
+      <p class="hint">${t('A chatbot said each of these. Decide which you\'d check before relying on it.', '下面每句都是聊天机器人说的。决定哪些你会先核实，再拿来用。')}</p>
       ${CHECK_ITEMS.map((it, i) => {
         const p = picks[i];
         const right = p != null && p === it.risky;
         return `<div class="la-test ${p == null ? '' : right ? 'ok' : 'miss'}"><p>${esc(it.text)}</p>
-          ${p == null ? `<div class="la-row la-two"><button type="button" class="secondary small" data-c="${i}" data-v="0">👍 Fine</button><button type="button" class="secondary small" data-c="${i}" data-v="1">🔍 Double-check</button></div>`
-          : `<p class="hint"><b>${right ? 'Good call.' : 'Hmm.'}</b> ${esc(it.why)}</p>`}</div>`;
+          ${p == null ? `<div class="la-row la-two"><button type="button" class="secondary small" data-c="${i}" data-v="0">👍 ${t('Fine', '没问题')}</button><button type="button" class="secondary small" data-c="${i}" data-v="1">🔍 ${t('Double-check', '再核实')}</button></div>`
+          : `<p class="hint"><b>${right ? t('Good call.', '判断正确。') : t('Hmm.', '嗯……')}</b> ${esc(it.why)}</p>`}</div>`;
       }).join('')}`;
   }
   box.onclick = (e) => {
@@ -293,22 +322,23 @@ function demoCheck(box) {
 }
 
 function demoSort(box) {
+  const { SORT_ITEMS } = C();
   let i = 0;
   let score = 0;
   let last = null;
   function draw() {
     if (i >= SORT_ITEMS.length) {
-      box.innerHTML = `<p class="eyebrow-dark">Try it: sort the jobs</p><h2>${score} of ${SORT_ITEMS.length} right</h2>
-        <p class="hint">${score >= 6 ? 'You have a good instinct for when to lean on AI.' : 'Rule of thumb: drafts, explanations and ideas are great; exact facts, decisions and official forms need you.'}</p>
-        <button type="button" class="secondary small" id="o-again">Play again</button>`;
+      box.innerHTML = `<p class="eyebrow-dark">${t('Try it: sort the jobs', '试试看：把工作分类')}</p><h2>${t(`${score} of ${SORT_ITEMS.length} right`, `答对 ${score} / ${SORT_ITEMS.length}`)}</h2>
+        <p class="hint">${score >= 6 ? t('You have a good instinct for when to lean on AI.', '你很清楚什么时候可以靠 AI。') : t('Rule of thumb: drafts, explanations and ideas are great; exact facts, decisions and official forms need you.', '简单原则：草稿、解释和点子很适合；准确的事实、决定和正式表格要靠你自己。')}</p>
+        <button type="button" class="secondary small" id="o-again">${t('Play again', '再玩一次')}</button>`;
       return;
     }
     const it = SORT_ITEMS[i];
-    box.innerHTML = `<p class="eyebrow-dark">Try it: sort the jobs · ${i + 1} of ${SORT_ITEMS.length}</p>
-      <h2>Good use of AI, or be careful?</h2>
-      ${last ? `<p class="la-why ${last.ok ? 'right' : 'wrong'}">${last.ok ? '✓ Right' : '✗ Not quite'}: "${esc(last.text)}" is ${last.good ? 'a good use' : 'one to be careful with'}.</p>` : ''}
+    box.innerHTML = `<p class="eyebrow-dark">${t(`Try it: sort the jobs · ${i + 1} of ${SORT_ITEMS.length}`, `试试看：把工作分类 · 第 ${i + 1} / ${SORT_ITEMS.length} 项`)}</p>
+      <h2>${t('Good use of AI, or be careful?', '适合用 AI，还是要小心？')}</h2>
+      ${last ? `<p class="la-why ${last.ok ? 'right' : 'wrong'}">${t(`${last.ok ? '✓ Right' : '✗ Not quite'}: "${esc(last.text)}" is ${last.good ? 'a good use' : 'one to be careful with'}.`, `${last.ok ? '✓ 对' : '✗ 不太对'}：“${esc(last.text)}”${last.good ? '很适合用 AI' : '要小心使用'}。`)}</p>` : ''}
       <div class="la-msg">${esc(it.text)}</div>
-      <div class="la-row la-two"><button type="button" class="la-big good" data-g="1">✅ Good use</button><button type="button" class="la-big bad" data-g="0">⚠️ Be careful</button></div>`;
+      <div class="la-row la-two"><button type="button" class="la-big good" data-g="1">✅ ${t('Good use', '适合')}</button><button type="button" class="la-big bad" data-g="0">⚠️ ${t('Be careful', '要小心')}</button></div>`;
   }
   box.onclick = (e) => {
     if (e.target.closest('#o-again')) { i = 0; score = 0; last = null; draw(); return; }
@@ -334,21 +364,21 @@ async function copy(text, button) {
     ta.remove();
   }
   const was = button.textContent;
-  button.textContent = 'Copied ✓';
+  button.textContent = t('Copied ✓', '已复制 ✓');
   setTimeout(() => { button.textContent = was; }, 1500);
 }
 
 function renderPrompts() {
-  $('prompt-list').innerHTML = PROMPTS.map((p, i) => `<div class="card la-prompt">
+  $('prompt-list').innerHTML = C().PROMPTS.map((p, i) => `<div class="card la-prompt">
     <h3>${p.emoji} ${esc(p.title)}</h3>
     <p>${esc(p.text).replace(/\[([^\]]+)\]/g, '<mark>[$1]</mark>')}</p>
-    <button type="button" class="secondary small" data-copy="${i}">Copy</button></div>`).join('');
+    <button type="button" class="secondary small" data-copy="${i}">${t('Copy', '复制')}</button></div>`).join('');
 }
 
 function renderGlossary() {
   const q = $('word-search').value.trim().toLowerCase();
-  const rows = GLOSSARY.filter(([w, d]) => !q || w.toLowerCase().includes(q) || d.toLowerCase().includes(q));
-  $('glossary').innerHTML = rows.length ? rows.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join('') : '<dd class="hint">No match. Try another word.</dd>';
+  const rows = C().GLOSSARY.filter(([w, d]) => !q || w.toLowerCase().includes(q) || d.toLowerCase().includes(q));
+  $('glossary').innerHTML = rows.length ? rows.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join('') : `<dd class="hint">${t('No match. Try another word.', '找不到，换个词试试。')}</dd>`;
 }
 
 // ---- Start-up --------------------------------------------------------------------------------------
@@ -363,7 +393,7 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 $('lesson-list').addEventListener('click', (e) => {
   const o = e.target.closest('[data-open]');
   if (o) { openLesson(o.dataset.open); window.scrollTo(0, 0); return; }
-  if (e.target.closest('#reset') && confirm('Reset your progress? Your quiz scores will be cleared.')) {
+  if (e.target.closest('#reset') && confirm(t('Reset your progress? Your quiz scores will be cleared.', '要重设进度吗？你的测验分数会被清除。'))) {
     state.done = {};
     persist();
     renderProgress();
@@ -385,11 +415,39 @@ $('lesson-view').addEventListener('click', (e) => {
 });
 $('prompt-list').addEventListener('click', (e) => {
   const b = e.target.closest('[data-copy]');
-  if (b) copy(PROMPTS[Number(b.dataset.copy)].text, b);
+  if (b) copy(C().PROMPTS[Number(b.dataset.copy)].text, b);
 });
 $('word-search').addEventListener('input', renderGlossary);
 
-renderProgress();
-renderList();
-renderPrompts();
-renderGlossary();
+// Static text: elements carry their Chinese in data-zh; the English is the original markup.
+function applyLanguage() {
+  document.documentElement.lang = zh() ? 'zh-Hans' : 'en';
+  document.title = t('AI for Beginners', 'AI 入门');
+  document.querySelectorAll('[data-zh]').forEach((el) => {
+    if (el.dataset.en == null) el.dataset.en = el.innerHTML;
+    el.innerHTML = zh() ? el.dataset.zh : el.dataset.en;
+  });
+  document.querySelectorAll('[data-zh-placeholder]').forEach((el) => {
+    if (el.dataset.enPlaceholder == null) el.dataset.enPlaceholder = el.placeholder;
+    el.placeholder = zh() ? el.dataset.zhPlaceholder : el.dataset.enPlaceholder;
+  });
+  document.querySelector(`input[name="lang"][value="${state.lang}"]`).checked = true;
+}
+
+function renderAll() {
+  applyLanguage();
+  renderProgress();
+  renderList();
+  renderPrompts();
+  renderGlossary();
+  // An open lesson switches language where it is.
+  if (lesson) { lesson = C().LESSONS.find((l) => l.id === lesson.id); renderLesson(); }
+}
+
+document.querySelectorAll('input[name="lang"]').forEach((el) => el.addEventListener('input', () => {
+  state.lang = el.value;
+  persist();
+  renderAll();
+}));
+
+renderAll();

@@ -309,8 +309,12 @@ Flying Star (玄空飞星) and Eight Mansions (八宅) feng shui for a home and 
 
 ### 🤖 AI for Beginners (`learnai/`)
 
-Ten short lessons on AI in plain English, each a few cards and a three-question quiz, with progress kept on the
-device.
+Ten short lessons on AI in plain English or Simplified Chinese (中文 / EN switch in the header; phones set to
+Chinese start in Chinese), each a few cards and a three-question quiz, with progress kept on the device.
+
+- **Chinese version:** `learnai/lessons-zh.js` mirrors `lessons.js` (a test checks they match). The demos work in
+  Chinese too: the word predictor's sentences are written with spaces between words, and the scam filter reads
+  Chinese in two-character pieces, so it copes with everyday text typed without spaces.
 
 - **Lessons:** what AI is, how it learns, how chatbots write, tokens, why AI makes things up, how to prompt,
   what it's good and bad at, staying safe (privacy, voice-clone and deepfake scams, ScamShield), pictures and

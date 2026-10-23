@@ -4,7 +4,9 @@
 
 // ---- Next-word prediction -----------------------------------------------------------------------
 
-const words = (s) => s.toLowerCase().match(/[a-z']+|[.,!?]/g) || [];
+// Chinese has no spaces between words, so Chinese training text is written with spaces between them.
+const CJK = '\u3400-\u9fff';
+const words = (s) => s.toLowerCase().match(new RegExp(`[a-z']+|[${CJK}]+|[.,!?。，！？]`, 'g')) || [];
 
 // Count which word follows each word, and each pair of words, in the training text.
 export function trainBigrams(text) {
@@ -51,6 +53,17 @@ export function pickWord(odds, rand) {
 
 // ---- Learning from examples: a naive Bayes scam filter -------------------------------------------
 
+// What the filter counts: English words, and Chinese in overlapping two-character pieces (so it works
+// on everyday Chinese typed without spaces; most Chinese words are two characters).
+export function filterTerms(text) {
+  const out = words(text).filter((x) => /[a-z]/.test(x));
+  for (const run of text.replace(/\s+/g, '').match(new RegExp(`[${CJK}]+`, 'g')) || []) {
+    if (run.length === 1) out.push(run);
+    for (let i = 0; i + 1 < run.length; i++) out.push(run.slice(i, i + 2));
+  }
+  return out;
+}
+
 export function trainFilter(examples) {
   const counts = { scam: new Map(), normal: new Map() };
   const totals = { scam: 0, normal: 0 };
@@ -58,7 +71,7 @@ export function trainFilter(examples) {
   const vocab = new Set();
   for (const { text, label } of examples) {
     docs[label]++;
-    for (const w of new Set(words(text).filter((x) => /[a-z]/.test(x)))) {
+    for (const w of new Set(filterTerms(text))) {
       counts[label].set(w, (counts[label].get(w) || 0) + 1);
       totals[label]++;
       vocab.add(w);
@@ -74,7 +87,7 @@ export function scoreMessage(model, text) {
   const v = vocab.size + 1;
   let logOdds = Math.log(docs.scam / docs.normal);
   const clues = [];
-  for (const w of new Set(words(text).filter((x) => /[a-z]/.test(x)))) {
+  for (const w of new Set(filterTerms(text))) {
     if (!vocab.has(w)) continue;
     const ps = ((counts.scam.get(w) || 0) + 1) / (totals.scam + v);
     const pn = ((counts.normal.get(w) || 0) + 1) / (totals.normal + v);

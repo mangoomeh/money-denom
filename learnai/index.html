@@ -15,16 +15,20 @@
 <body class="theme-learnai">
   <header class="balance">
     <a class="back" href="../">‹ Apps</a>
-    <p class="eyebrow">No jargon · No judgement</p>
-    <p class="big">AI for Beginners</p>
+    <div class="lang-switch" role="radiogroup" aria-label="Language 语言">
+      <label><input type="radio" name="lang" value="zh"> 中文</label>
+      <label><input type="radio" name="lang" value="en" checked> EN</label>
+    </div>
+    <p class="eyebrow" data-zh="没有术语 · 不怕问">No jargon · No judgement</p>
+    <p class="big" data-zh="AI 入门">AI for Beginners</p>
     <div class="la-progress" aria-hidden="true"><span id="progress-bar"></span></div>
     <p class="muted" id="progress-line"></p>
   </header>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
-    <button role="tab" data-tab="prompts">Prompts</button>
-    <button role="tab" data-tab="words">Words</button>
+    <button role="tab" data-tab="learn" aria-selected="true" data-zh="学习">Learn</button>
+    <button role="tab" data-tab="prompts" data-zh="提示词">Prompts</button>
+    <button role="tab" data-tab="words" data-zh="词汇">Words</button>
   </nav>
 
   <main>
@@ -35,16 +39,16 @@
 
     <section role="tabpanel" data-panel="prompts" hidden>
       <div class="card">
-        <h2>Ready-made prompts</h2>
-        <p class="hint">Tap one to copy it, paste it into any chatbot, then replace the [brackets] with your details. Never paste passwords, OTPs or your NRIC.</p>
+        <h2 data-zh="现成的提示词">Ready-made prompts</h2>
+        <p class="hint" data-zh="点一下就能复制，贴到任何聊天机器人里，再把 [方括号] 换成你的资料。千万不要贴密码、OTP 或身份证号码。">Tap one to copy it, paste it into any chatbot, then replace the [brackets] with your details. Never paste passwords, OTPs or your NRIC.</p>
       </div>
       <div id="prompt-list"></div>
     </section>
 
     <section role="tabpanel" data-panel="words" hidden>
       <div class="card">
-        <h2>AI words, explained</h2>
-        <input id="word-search" class="la-search" type="search" placeholder="Search, e.g. token" autocomplete="off">
+        <h2 data-zh="AI 词汇解释">AI words, explained</h2>
+        <input id="word-search" class="la-search" type="search" placeholder="Search, e.g. token" data-zh-placeholder="搜索，例如 token" autocomplete="off">
         <dl class="la-glossary" id="glossary"></dl>
       </div>
     </section>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { trainBigrams, nextWordOdds, pickWord, trainFilter, scoreMessage, roughTokens } from '../src/learnai.js';
+import { trainBigrams, nextWordOdds, pickWord, trainFilter, scoreMessage, roughTokens, filterTerms } from '../src/learnai.js';
 
 test('word predictor learns which word comes next', () => {
   const m = trainBigrams('I like chicken rice.\nI like chicken rice.\nI like kaya toast.');
@@ -54,4 +54,34 @@ test('rough tokens look like real ones', () => {
   assert.deepEqual(roughTokens('unbelievable'), ['unbe', 'liev', 'able']);
   assert.deepEqual(roughTokens('Pay 12345 now'), ['Pay', ' 123', '45', ' now']);
   assert.deepEqual(roughTokens('你好'), ['你', '好']);
+});
+
+test('Chinese text: words split on spaces, and the filter reads two-character pieces', () => {
+  const m = trainBigrams('我 喜欢 吃 鸡饭 。\n我 喜欢 喝 咖啡 。\n我 喜欢 吃 面 。');
+  assert.equal(nextWordOdds(m, ['我', '喜欢'])[0].word, '吃');
+  assert.equal(nextWordOdds(m, '咖啡')[0].word, '。');
+  assert.deepEqual(filterTerms('点击链接'), ['点击', '击链', '链接']);
+  assert.deepEqual(filterTerms('Click 链接 now'), ['click', 'now', '链接']);
+});
+
+test('the Chinese lessons match the English ones', async () => {
+  const en = await import('../learnai/lessons.js');
+  const zh = await import('../learnai/lessons-zh.js');
+  assert.deepEqual(zh.LESSONS.map((l) => [l.id, l.emoji, l.cards.map((c) => c.demo || 'text'), l.quiz.map((q) => [q.options.length, q.answer])]),
+    en.LESSONS.map((l) => [l.id, l.emoji, l.cards.map((c) => c.demo || 'text'), l.quiz.map((q) => [q.options.length, q.answer])]));
+  for (const key of ['SPAM_TRAIN', 'SPAM_TEST', 'CHECK_ITEMS', 'SORT_ITEMS', 'PROMPTS', 'GLOSSARY']) assert.equal(zh[key].length, en[key].length, key);
+  assert.deepEqual(zh.SPAM_TRAIN.map((m) => m.label), en.SPAM_TRAIN.map((m) => m.label));
+  assert.deepEqual(zh.CHECK_ITEMS.map((m) => m.risky), en.CHECK_ITEMS.map((m) => m.risky));
+  assert.deepEqual(zh.SORT_ITEMS.map((m) => m.good), en.SORT_ITEMS.map((m) => m.good));
+});
+
+test('taught correctly, each language\'s filter gets every test message right', async () => {
+  for (const file of ['lessons.js', 'lessons-zh.js']) {
+    const { SPAM_TRAIN, SPAM_TEST, PREDICT_TEXT, PREDICT_STARTS } = await import(`../learnai/${file}`);
+    const model = trainFilter(SPAM_TRAIN);
+    for (const m of SPAM_TEST) assert.equal(scoreMessage(model, m.text).p >= 0.5, m.label === 'scam', `${file}: ${m.text}`);
+    // Every first word on offer leads somewhere.
+    const bigrams = trainBigrams(PREDICT_TEXT);
+    for (const w of PREDICT_STARTS) assert.ok(nextWordOdds(bigrams, ['<s>', w]).length, `${file}: ${w}`);
+  }
 });
