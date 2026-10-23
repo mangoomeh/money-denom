@@ -159,14 +159,33 @@ async function findBuyers() {
     if (!validAddress($('b-token').value)) throw new Error('Pick a token from the search results, or paste its address.');
     const token = requireAddress($('b-token').value, 'token');
     const { start, end } = readWindow('b');
-    const minPct = Math.max(0.01, Number($('b-min').value) || 1);
+    const byUsd = buyersBy() === 'usd';
+    const min = byUsd ? Math.max(1, Number($('b-min').value) || 1000) : Math.max(0.01, Number($('b-min').value) || 1);
     state.inputs.bToken = token;
-    state.inputs.bMin = minPct;
-    const opts = { token, start, end, minPct, countTransfersIn: $('b-transfers').checked, onStep: step };
+    state.inputs[byUsd ? 'bMinUsd' : 'bMin'] = min;
+    state.inputs.bBy = buyersBy();
+    const opts = {
+      token, start, end, countTransfersIn: $('b-transfers').checked, onStep: step,
+      ...(byUsd ? { minUsd: min, quotes: chain.quotes } : { minPct: min }),
+    };
     const result = isSol() ? await solEarlyBuyers(rpc, { ...opts, rpcKind: solKind() }) : await earlyBuyers(rpc, opts);
-    lastBuyers = { ...result, token, start, end, minPct };
+    lastBuyers = { ...result, token, start, end, minPct: byUsd ? null : min, minUsd: byUsd ? min : null };
     renderBuyers();
   });
+}
+
+const buyersBy = () => document.querySelector('input[name="b-by"]:checked').value;
+const usdText = (v) => (v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e4 ? `$${Math.round(v / 1000)}K` : `$${Math.round(v).toLocaleString('en-US')}`);
+const levelText = (l, byUsd) => (byUsd ? `≥$${l.level >= 1000 ? `${l.level / 1000}K` : l.level}` : `≥${pctText(l.level)}`);
+
+// The threshold box changes meaning (and remembered value) with the % / $ choice.
+function showBuyersBy() {
+  const byUsd = buyersBy() === 'usd';
+  $('b-min-label').textContent = byUsd ? 'Show wallets that spent at least this many US dollars' : 'Show wallets that got at least this % of the supply';
+  $('b-min').min = byUsd ? '1' : '0.01';
+  $('b-min').step = byUsd ? '100' : '0.1';
+  $('b-min').value = byUsd ? state.inputs.bMinUsd || 1000 : state.inputs.bMin || 1;
+  $('b-by-hint').hidden = !byUsd;
 }
 
 function badge(text, tone = '') {
@@ -179,6 +198,7 @@ function renderBuyers() {
   box.hidden = false;
   const { info } = r;
   const more = r.matched - r.wallets.length;
+  const byUsd = r.minUsd != null;
   const rows = r.wallets.map((w, i) => {
     const holdsPct = w.holds != null ? percentOf(w.holds, info.totalSupply) : null;
     const badges = [
@@ -198,7 +218,7 @@ function renderBuyers() {
             <span class="badges">${badges}</span>
           </span>
           <span class="nums">
-            <strong>${pctText(w.pct)}</strong>
+            ${r.minUsd != null ? `<strong>${usdText(w.spentUsd)}</strong><small>${pctText(w.pct)} of supply</small>` : `<strong>${pctText(w.pct)}</strong>${w.spentUsd != null ? `<small>spent ${usdText(w.spentUsd)}</small>` : ''}`}
             <small>${formatAmount(w.inAmount, info.decimals)} ${esc(info.symbol)}</small>
             ${w.sold > 0n ? `<small>net ${w.inAmount >= w.sold ? '+' : '−'}${pctText(percentOf(w.inAmount >= w.sold ? w.inAmount - w.sold : w.sold - w.inAmount, info.totalSupply))}</small>` : ''}
             <small>${holdsPct == null ? '' : `holds ${pctText(holdsPct)} now`}</small>
@@ -209,10 +229,15 @@ function renderBuyers() {
   box.innerHTML = `
     <h2>${esc(info.symbol)} ${info.name ? `<small>${esc(info.name)}</small>` : ''}</h2>
     ${info.suspicious ? '<p class="progress error">⚠ This token’s name contains hidden characters, a trick used by fake look-alike tokens.</p>' : ''}
-    <p class="summary-line">${r.transfers.toLocaleString()} transfers · ${r.buyers.toLocaleString()} wallets got tokens ·
-      <b>${r.matched.toLocaleString()} with ≥${pctText(r.minPct)}</b></p>
-    ${r.wallets.length ? `<ol class="wallets">${rows}</ol>` : '<p class="hint">No wallet reached that share in this window. Try a lower % or a different window.</p>'}
-    ${more > 0 ? `<p class="hint">Showing the top ${r.wallets.length}. ${more.toLocaleString()} more matched; raise the % to narrow it down.</p>` : ''}
+    <div class="buyers-headline">
+      <p class="big-count">${r.matched.toLocaleString()}</p>
+      <p>wallet${r.matched === 1 ? '' : 's'} ${byUsd ? `spent at least ${usdText(r.minUsd)}` : `got at least ${pctText(r.minPct)} of the supply`} between ${esc(timeText(r.start))} and ${esc(timeText(r.end))}${byUsd && r.matched ? `, ${usdText(r.spentTotal)} in all` : ''}.</p>
+    </div>
+    <p class="summary-line">${r.transfers.toLocaleString()} ${isSol() ? 'transactions' : 'transfers'} · ${r.buyers.toLocaleString()} wallets got tokens</p>
+    ${r.levels?.length ? `<p class="levels">${r.levels.map((l) => `<span><b>${l.count.toLocaleString()}</b> ${levelText(l, byUsd)}</span>`).join('')}</p>` : ''}
+    ${byUsd && r.unpriced ? `<p class="hint">${r.unpriced.toLocaleString()} buyer${r.unpriced === 1 ? '' : 's'} paid from another address (a smart account, or a bundle bought by someone else), so what they spent can't be seen; they aren't counted.</p>` : ''}
+    ${r.wallets.length ? `<ol class="wallets">${rows}</ol>` : `<p class="hint">No wallet reached that ${byUsd ? 'amount' : 'share'} in this window. Try a lower ${byUsd ? 'amount' : '%'} or a different window.</p>`}
+    ${more > 0 ? `<p class="hint">Showing the top ${r.wallets.length}. ${more.toLocaleString()} more matched; raise the ${byUsd ? 'amount' : '%'} to narrow it down.</p>` : ''}
     ${r.wallets.length ? `<div class="actions">
       <button class="secondary" type="button" id="b-save">Save as group</button>
       <button class="secondary" type="button" id="b-csv">Export CSV</button>
@@ -224,7 +249,7 @@ function renderBuyers() {
 
 function saveGroup() {
   const r = lastBuyers;
-  const name = prompt('Name this group', `${r.info.symbol} ≥${r.minPct}% · ${timeText(r.start)}`);
+  const name = prompt('Name this group', `${r.info.symbol} ${r.minUsd != null ? `≥${usdText(r.minUsd)}` : `≥${r.minPct}%`} · ${timeText(r.start)}`);
   if (!name) return;
   state.groups.unshift({
     id: Date.now().toString(36),
@@ -246,9 +271,9 @@ function exportCsv() {
     const s = (v < 0n ? -v : v).toString().padStart(d + 1, '0');
     return d ? `${s.slice(0, -d)}.${s.slice(-d)}` : s;
   };
-  const lines = [['wallet', 'percent_of_supply', 'amount', 'buys', 'first_in_local_time', 'first_tx', 'sold_in_window', 'holds_now', 'bundled_with', 'is_contract']];
+  const lines = [['wallet', 'percent_of_supply', 'amount', 'spent_usd', 'buys', 'first_in_local_time', 'first_tx', 'sold_in_window', 'holds_now', 'bundled_with', 'is_contract']];
   for (const w of r.wallets) {
-    lines.push([w.address, w.pct, amount(w.inAmount), w.buys, timeText(w.firstTs), w.firstTx, amount(w.sold), w.holds == null ? '' : amount(w.holds), w.bundledWith.length, w.isContract ? 'yes' : 'no']);
+    lines.push([w.address, w.pct, amount(w.inAmount), w.spentUsd == null ? '' : w.spentUsd.toFixed(2), w.buys, timeText(w.firstTs), w.firstTx, amount(w.sold), w.holds == null ? '' : amount(w.holds), w.bundledWith.length, w.isContract ? 'yes' : 'no']);
   }
   const csv = lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
@@ -465,7 +490,9 @@ for (const [id, key] of [['s-rpc', 'rpc'], ['s-blockscout', 'blockscoutKey'], ['
   });
 }
 $('b-token').value = state.inputs.bToken || '';
-$('b-min').value = state.inputs.bMin || 1;
+document.querySelector(`input[name="b-by"][value="${state.inputs.bBy === 'usd' ? 'usd' : 'pct'}"]`).checked = true;
+showBuyersBy();
+document.querySelectorAll('input[name="b-by"]').forEach((r) => r.addEventListener('change', showBuyersBy));
 $('c-token').value = state.inputs.cToken || '';
 $('w-address').value = state.inputs.wAddress || '';
 
@@ -502,7 +529,7 @@ function attachSearch(inputId, boxId, onPick) {
       box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
         input.value = results[Number(b.dataset.i)].address;
         box.hidden = true;
-        onPick?.();
+        onPick?.(results[Number(b.dataset.i)]);
       }));
     } catch (err) {
       if (err.name !== 'AbortError') box.innerHTML = `<p class="progress error">${esc(err.message || 'Search failed.')}</p>`;
@@ -536,7 +563,21 @@ $('chain').addEventListener('change', () => {
   if ($('b-token').value) showTokenInfo();
 });
 
-attachSearch('b-token', 'b-search', showTokenInfo);
+// A token picked from the search knows when its first pool opened, so offer its first hour.
+function showLaunch(createdAt) {
+  document.getElementById('b-launch')?.remove();
+  if (!createdAt) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.id = 'b-launch';
+  b.className = 'secondary small';
+  b.textContent = 'First hour after launch';
+  b.title = `Trading started ${timeText(Math.floor(createdAt / 1000))}`;
+  b.addEventListener('click', () => setWindow('b', createdAt, createdAt + 3600 * 1000));
+  document.querySelector('[data-window="b"] .presets').prepend(b);
+}
+$('b-token').addEventListener('input', () => showLaunch(null));
+attachSearch('b-token', 'b-search', (t) => { showTokenInfo(); showLaunch(t.createdAt); });
 attachSearch('c-token', 'c-search');
 
 buildWindows();

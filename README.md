@@ -177,8 +177,12 @@ reads public blockchain data: there's no wallet connection and nothing to sign.
   tokens on the chosen chain, most traded first. Copycats and tokens with "big liquidity, almost no trading" (a
   sign of a fake) are flagged. You can also paste the address directly.
 
-- **Buyers:** the wallets that bought at least X% of a token's supply between two times. Each shows the first buy
-  time, number of buys, amount sold in the window, net position, current holding, and flags:
+- **Buyers:** how many wallets bought at least X% of a token's supply, or spent at least $X, between two times
+  (for example, the first hour after launch). The count leads the results, with a breakdown (≥$1K, ≥$10K, …).
+  - **$ spent** is read from each buy transaction: ETH, wrapped ETH or SOL valued at that minute's price (Coinbase
+    candles, `src/prices.js`), plus USDC, USDT or USDG. Buyers who paid from another address (smart accounts,
+    bundles bought by someone else) can't be priced and are left out, with a count shown.
+  - Each wallet shows the first buy time, number of buys, amount sold in the window, net position, current holding, and flags:
   - **bundle:** one transaction bought for several wallets;
   - **likely a trading bot:** many buys;
   - **contract:** usually a smart wallet.

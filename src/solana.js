@@ -6,7 +6,8 @@
 // A signer whose balance of the token went up bought it; a non-signer whose balance went
 // up received it. Results use the same shapes as onchain.js so the app can show either chain.
 
-import { percentOf } from './onchain.js';
+import { percentOf, levelCounts, USD_LEVELS, PCT_LEVELS } from './onchain.js';
+import { usdSeries as coinbaseSeries, priceAt } from './prices.js';
 
 export const SOLANA = {
   name: 'Solana',
@@ -15,6 +16,14 @@ export const SOLANA = {
   explorer: 'https://solscan.io',
 };
 const ATA_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+export const WSOL = 'So11111111111111111111111111111111111111112';
+// Stablecoins buys are paid with, and their decimals.
+export const STABLES = {
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: 6, // USDC
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY2Ln7nmVJo9Fmi5: 6, // USDT
+};
+// The refundable deposit for opening a token account, which isn't money spent on the token.
+const TOKEN_ACCOUNT_RENT = 2039280n;
 const METADATA_PROGRAM = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -243,6 +252,38 @@ export function tokenDeltas(tx, mint) {
   return { deltas, signers };
 }
 
+// What `owner` paid in one transaction: SOL it lost (less the network fee if it paid it, and
+// the deposit for a token account the transaction opened for it), wrapped SOL it spent, and
+// USDC or USDT. Returns { lamports, usd }.
+export function paidInSolTx(tx, owner, mint) {
+  const keys = tx.transaction?.message?.accountKeys || [];
+  const i = keys.findIndex((k) => (k.pubkey ?? k) === owner);
+  let lamports = 0n;
+  const pre = tx.meta?.preBalances?.[i];
+  const post = tx.meta?.postBalances?.[i];
+  if (i >= 0 && pre != null && post != null) {
+    lamports = BigInt(pre) - BigInt(post);
+    if (i === 0) lamports -= BigInt(tx.meta.fee || 0);
+  }
+  const change = new Map();
+  let hadTokenAccount = false;
+  for (const [list, sign] of [[tx.meta?.preTokenBalances || [], -1n], [tx.meta?.postTokenBalances || [], 1n]]) {
+    for (const b of list) {
+      if (b.owner !== owner) continue;
+      if (b.mint === mint && sign < 0n) hadTokenAccount = true;
+      change.set(b.mint, (change.get(b.mint) || 0n) + sign * BigInt(b.uiTokenAmount.amount));
+    }
+  }
+  if (!hadTokenAccount) lamports -= TOKEN_ACCOUNT_RENT;
+  lamports -= change.get(WSOL) || 0n;
+  let usd = 0;
+  for (const [m, decimals] of Object.entries(STABLES)) {
+    const d = change.get(m) || 0n;
+    if (d < 0n) usd += Number(-d) / 10 ** decimals;
+  }
+  return { lamports: lamports > 0n ? lamports : 0n, usd };
+}
+
 // Ordinary wallets are ed25519 keys; program accounts (pools, bonding curves) are not.
 // No network call needed.
 export function walletKinds(addresses) {
@@ -292,7 +333,7 @@ function txLimitCheck(n, rpcKind) {
 export function solanaSummary(mint, { countTransfersIn = false } = {}) {
   const wallets = new Map();
   const get = (a) => {
-    if (!wallets.has(a)) wallets.set(a, { address: a, bought: 0n, sold: 0n, received: 0n, sent: 0n, minted: 0n, buys: 0, firstTs: null, firstSlot: null, firstTx: null });
+    if (!wallets.has(a)) wallets.set(a, { address: a, bought: 0n, sold: 0n, received: 0n, sent: 0n, minted: 0n, buys: 0, firstTs: null, firstSlot: null, firstTx: null, paid: [] });
     return wallets.get(a);
   };
   const buyersBySlot = new Map();
@@ -309,6 +350,7 @@ export function solanaSummary(mint, { countTransfersIn = false } = {}) {
         if (signed) {
           w.bought += d;
           w.buys++;
+          w.paid.push({ ts: tx.blockTime, ...paidInSolTx(tx, owner, mint) });
           if (!buyersBySlot.has(tx.slot)) buyersBySlot.set(tx.slot, new Set());
           buyersBySlot.get(tx.slot).add(owner);
         } else w.received += d;
@@ -332,7 +374,15 @@ export function summariseSolana(txs, mint, opts) {
   return s.finish();
 }
 
-export async function solEarlyBuyers(rpc, { token, start, end, minPct = 1, countTransfersIn = false, maxResults = 200, rpcKind = 'public', onStep = () => {} }) {
+// Dollars each wallet spent on its buys, at SOL's price when it paid; null if nothing was seen.
+export function solSpentUsd(w, solPrice) {
+  if (!w.paid?.some((p) => p.lamports > 0n || p.usd > 0)) return null;
+  return w.paid.reduce((sum, p) => sum + p.usd + (p.lamports > 0n ? (Number(p.lamports) / 1e9) * solPrice(p.ts) : 0), 0);
+}
+
+// With minUsd, counts wallets that spent at least that many dollars instead of % of supply.
+// What was paid is in the transactions already read, so only SOL prices are fetched.
+export async function solEarlyBuyers(rpc, { token, start, end, minPct = 1, minUsd = null, usdSeries = coinbaseSeries, countTransfersIn = false, maxResults = 200, rpcKind = 'public', onStep = () => {} }) {
   onStep('Reading the token…');
   const info = await solTokenInfo(rpc, token);
   onStep('Finding transactions in your window…');
@@ -352,9 +402,21 @@ export async function solEarlyBuyers(rpc, { token, start, end, minPct = 1, count
   });
   let wallets = summary.finish();
   const buyers = wallets.length;
-  wallets = wallets.map((w) => ({ ...w, pct: percentOf(w.inAmount, info.totalSupply) }))
-    .filter((w) => w.pct >= minPct)
-    .sort((a, b) => (b.inAmount > a.inAmount ? 1 : b.inAmount < a.inAmount ? -1 : 0));
+  // Dollar values are shown whenever SOL prices can be had; they're required only with minUsd.
+  let series = null;
+  onStep('Getting SOL prices for the window…');
+  try {
+    series = await usdSeries('SOL', start, end);
+  } catch (e) {
+    if (minUsd != null) throw e;
+  }
+  wallets = wallets.map((w) => ({ ...w, pct: percentOf(w.inAmount, info.totalSupply), spentUsd: series ? solSpentUsd(w, (ts) => priceAt(series, ts)) : null }));
+  const unpriced = series ? wallets.filter((w) => w.spentUsd == null && w.bought > 0n).length : 0;
+  const levels = minUsd != null ? levelCounts(wallets.map((w) => w.spentUsd), USD_LEVELS) : levelCounts(wallets.map((w) => w.pct), PCT_LEVELS);
+  wallets = minUsd != null
+    ? wallets.filter((w) => w.spentUsd != null && w.spentUsd >= minUsd).sort((a, b) => b.spentUsd - a.spentUsd)
+    : wallets.filter((w) => w.pct >= minPct).sort((a, b) => (b.inAmount > a.inAmount ? 1 : b.inAmount < a.inAmount ? -1 : 0));
+  const spentTotal = wallets.reduce((s, w) => s + (w.spentUsd || 0), 0);
   const matched = wallets.length;
   wallets = wallets.slice(0, maxResults);
   if (wallets.length) {
@@ -365,7 +427,7 @@ export async function solEarlyBuyers(rpc, { token, start, end, minPct = 1, count
     const holds = await solBalances(rpc, token, wallets.map((w) => w.address), info.tokenProgram);
     wallets = wallets.map((w) => ({ ...w, holds: holds.get(w.address) ?? null, isContract: false }));
   }
-  return { info, transfers: summary.count(), buyers, matched, wallets };
+  return { info, transfers: summary.count(), buyers, matched, wallets, levels, unpriced, spentTotal };
 }
 
 export async function solGroupInToken(rpc, { token, wallets, start, end, onStep = () => {} }) {

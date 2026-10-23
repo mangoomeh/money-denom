@@ -49,10 +49,15 @@
       <div class="card">
         <h2>Time window</h2>
         <div class="window" data-window="b"></div>
-        <label class="field">
-          <span>Show wallets that got at least this % of the supply</span>
+        <div class="seg" role="radiogroup" aria-label="Count wallets by">
+          <label><input type="radio" name="b-by" value="pct" checked> % of supply</label>
+          <label><input type="radio" name="b-by" value="usd"> $ spent</label>
+        </div>
+        <label class="field" id="b-min-field">
+          <span id="b-min-label">Show wallets that got at least this % of the supply</span>
           <input id="b-min" type="number" min="0.01" step="0.1" value="1" inputmode="decimal">
         </label>
+        <p class="hint" id="b-by-hint" hidden>What each wallet paid in its buys (ETH, wrapped ETH or SOL at the price at that minute, plus stablecoins such as USDC, USDT and USDG), from the transactions themselves.</p>
         <label class="check"><input type="checkbox" id="b-transfers"> Also count tokens received by transfer (not only buys)</label>
         <div class="actions">
           <button class="primary" id="b-run" type="button">Find wallets</button>

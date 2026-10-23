@@ -770,6 +770,12 @@ label.check { display: flex; gap: .5rem; align-items: center; margin-top: .75rem
 .wallet-row .nums { text-align: right; display: flex; flex-direction: column; flex: none; max-width: 48%; }
 .wallet-row .nums strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .wallet-row .nums small { color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+.buyers-headline { display: flex; align-items: center; gap: .8rem; margin: .5rem 0 .25rem; }
+.buyers-headline .big-count { margin: 0; font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
+.buyers-headline p:last-child { margin: 0; }
+.levels { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0; }
+.levels span { border: 1px solid var(--border); border-radius: 999px; padding: .15rem .6rem; font-size: .85rem; color: var(--muted); }
+.levels b { color: var(--text); font-variant-numeric: tabular-nums; }
 .badges { display: flex; flex-wrap: wrap; gap: .25rem; }
 .badges:empty { display: none; }
 .badge { font-size: .7rem; font-weight: 700; padding: .05rem .4rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); color: var(--muted); }

@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   base58Decode, base58Encode, isOnCurve, associatedTokenAddress, tokenDeltas, summariseSolana, makeSolRpc,
-  signaturesInWindow, isSolanaAddress,
+  signaturesInWindow, isSolanaAddress, paidInSolTx, solSpentUsd, WSOL,
 } from '../src/solana.js';
+import { chooseGranularity, candleRequests, parseCandles, priceAt } from '../src/prices.js';
 
 // Real accounts from a pump.fun transaction on Solana mainnet.
 const T22 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
@@ -107,4 +108,48 @@ test('signaturesInWindow pages back until the window start', async () => {
   assert.equal(sigs.length, 500);
   assert.equal(sigs[0].blockTime, 1999);
   assert.equal(sigs.at(-1).blockTime, 1500);
+});
+
+const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+// A buy in the shape getTransaction(jsonParsed) returns, with SOL and token balances.
+const buyTx = ({ payer = WALLET, sol = [0, 0], fee = 5000, tokens = [], time = 1000 }) => ({
+  slot: 1,
+  blockTime: time,
+  transaction: { signatures: ['s'], message: { accountKeys: [{ pubkey: payer, signer: true }, { pubkey: CURVE, signer: false }] } },
+  meta: {
+    fee,
+    preBalances: [sol[0], 0],
+    postBalances: [sol[1], 0],
+    preTokenBalances: tokens.filter((t) => t.pre != null).map((t) => ({ mint: t.mint, owner: t.owner ?? payer, uiTokenAmount: { amount: String(t.pre) } })),
+    postTokenBalances: tokens.filter((t) => t.post != null).map((t) => ({ mint: t.mint, owner: t.owner ?? payer, uiTokenAmount: { amount: String(t.post) } })),
+  },
+});
+
+test('what a Solana buyer paid: SOL less the fee and new-account deposit, wrapped SOL, stablecoins', () => {
+  // First buy: 1.5 SOL left the wallet, including the 0.000005 fee and a 0.00203928 deposit
+  // for its new token account; it paid 1.49795572 SOL for the tokens.
+  const first = buyTx({ sol: [5_000_000_000, 3_500_000_000], tokens: [{ mint: MINT, post: 1000 }] });
+  assert.deepEqual(paidInSolTx(first, WALLET, MINT), { lamports: 1_500_000_000n - 5000n - 2039280n, usd: 0 });
+  // Later buy, account already open, paid with wrapped SOL.
+  const wrapped = buyTx({ sol: [1_000_000_000, 999_995_000], tokens: [{ mint: MINT, pre: 1000, post: 3000 }, { mint: WSOL, pre: 800_000_000, post: 300_000_000 }] });
+  assert.deepEqual(paidInSolTx(wrapped, WALLET, MINT), { lamports: 500_000_000n, usd: 0 });
+  // Paid in USDC.
+  const usdc = buyTx({ sol: [1_000_000_000, 999_995_000], tokens: [{ mint: MINT, pre: 5, post: 9 }, { mint: USDC, pre: 900_000_000, post: 150_000_000 }] });
+  assert.deepEqual(paidInSolTx(usdc, WALLET, MINT), { lamports: 0n, usd: 750 });
+  // At $100 then $200 a SOL.
+  const price = (ts) => (ts < 2000 ? 100 : 200);
+  assert.equal(solSpentUsd({ paid: [{ ts: 1000, lamports: 1_000_000_000n, usd: 0 }, { ts: 2500, lamports: 500_000_000n, usd: 750 }] }, price), 100 + 100 + 750);
+  assert.equal(solSpentUsd({ paid: [{ ts: 1000, lamports: 0n, usd: 0 }] }, price), null);
+});
+
+test('price candles: size, requests, order and lookup', () => {
+  assert.equal(chooseGranularity(0, 3 * 3600), 60);
+  assert.equal(chooseGranularity(0, 30 * 86400), 900);
+  // 3 hours of minute candles fit one request (starting a candle early).
+  assert.deepEqual(candleRequests(10000, 10000 + 3 * 3600, 60), [[9940, 20800]]);
+  assert.equal(candleRequests(0, 30 * 86400, 900).length, 10);
+  const series = parseCandles([[180, 0, 0, 0, 12], [60, 0, 0, 0, 10], [120, 0, 0, 0, 11]]);
+  assert.deepEqual(series, [[60, 10], [120, 11], [180, 12]]);
+  assert.deepEqual([priceAt(series, 30), priceAt(series, 60), priceAt(series, 150), priceAt(series, 999)], [10, 10, 11, 12]);
+  assert.equal(priceAt([], 5), null);
 });

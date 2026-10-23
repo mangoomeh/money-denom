@@ -4,6 +4,8 @@
 // say so in their error messages, so getLogs() splits a request until it fits.
 // Token amounts are BigInt throughout; addresses are lower-case.
 
+import { usdSeries as coinbaseSeries, priceAt } from './prices.js';
+
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -14,6 +16,11 @@ export const CHAINS = {
     rpc: 'https://rpc.mainnet.chain.robinhood.com',
     explorer: 'https://robinhoodchain.blockscout.com',
     native: 'ETH',
+    // What buys are paid with besides ETH itself, for "spent at least $X" searches.
+    quotes: {
+      '0x0bd7d308f8e1639fab988df18a8011f41eacad73': { symbol: 'WETH', asset: 'ETH', decimals: 18 },
+      '0x5fc5360d0400a0fd4f2af552add042d716f1d168': { symbol: 'USDG', asset: 'USD', decimals: 6 },
+    },
   },
 };
 
@@ -342,7 +349,7 @@ export function summariseWallets(transfers, contracts, { countTransfersIn = fals
     for (const tx of w.buyTxs) for (const other of recipientsByTx.get(tx) || []) if (other !== w.address) bundledWith.add(other);
     const inAmount = w.bought + (countTransfersIn ? w.received + w.minted : 0n);
     const { buyTxs, ...rest } = w;
-    return { ...rest, inAmount, bundledWith: [...bundledWith] };
+    return { ...rest, inAmount, bundledWith: [...bundledWith], buyTxList: [...buyTxs] };
   }).filter((w) => w.inAmount > 0n || w.sold > 0n);
 }
 
@@ -384,12 +391,80 @@ export function groupCounterparties(transfers, wallet, direction = 'out') {
   return [...groups.values()].sort((a, b) => a.firstTs - b.firstTs);
 }
 
+// ---- What buyers paid -------------------------------------------------------------------------------
+
+// What `wallet` paid in one transaction: ETH sent with it (if the wallet sent the
+// transaction), plus the quote tokens (WETH, stablecoins) it transferred out in it.
+// Returns { eth (wei), usd (dollars) }. A wallet that bought through a smart account or as
+// part of someone else's bundle pays from another address, so it shows as paying nothing.
+export function paidInTransaction(wallet, tx, quotes) {
+  let eth = 0n;
+  let usd = 0;
+  if (normAddress(tx.from) === wallet) eth += BigInt(tx.value || 0);
+  for (const log of tx.logs || []) {
+    const q = quotes[normAddress(log.address)];
+    if (!q || log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
+    if (addressFromTopic(log.topics[1]) !== wallet) continue;
+    const value = BigInt(log.data);
+    if (q.asset === 'ETH') eth += value * 10n ** BigInt(18 - q.decimals);
+    else usd += Number(value) / 10 ** q.decimals;
+  }
+  return { eth, usd };
+}
+
+// Each buy transaction's sender, ETH value and logs, in batches of 20 (two calls each).
+export async function buyTransactions(rpc, hashes, { maxTxs = 3000, onProgress } = {}) {
+  if (hashes.length > maxTxs) {
+    throw new Error(`There were ${hashes.length.toLocaleString()} buys in this window, too many to price one by one. Try a shorter window, or search by % of supply.`);
+  }
+  const out = new Map();
+  for (let i = 0; i < hashes.length; i += 20) {
+    const slice = hashes.slice(i, i + 20);
+    const res = await rpc.batch(slice.flatMap((h) => [['eth_getTransactionByHash', [h]], ['eth_getTransactionReceipt', [h]]]));
+    slice.forEach((h, k) => {
+      const tx = res[2 * k];
+      const receipt = res[2 * k + 1];
+      if (tx && receipt && !(tx instanceof Error) && !(receipt instanceof Error)) out.set(h, { from: tx.from, value: tx.value, logs: receipt.logs });
+    });
+    onProgress?.(Math.min(i + 20, hashes.length), hashes.length);
+  }
+  return out;
+}
+
+// Dollars each wallet spent on its buys, at the ETH price when it paid; null when no payment
+// from the wallet itself could be seen (smart accounts, bundles).
+export function spentUsd(wallets, txs, txTs, quotes, ethPrice) {
+  return new Map(wallets.map((w) => {
+    let total = 0;
+    let seen = false;
+    for (const h of w.buyTxList || []) {
+      const tx = txs.get(h);
+      if (!tx) continue;
+      const { eth, usd } = paidInTransaction(w.address, tx, quotes);
+      if (eth > 0n || usd > 0) seen = true;
+      total += usd + (eth > 0n ? (Number(eth) / 1e18) * ethPrice(txTs.get(h)) : 0);
+    }
+    return [w.address, seen ? total : null];
+  }));
+}
+
+// How many wallets reached each level, for the summary line ("≥$1K: 12 · ≥$10K: 3").
+export function levelCounts(values, levels) {
+  return levels.map((level) => ({ level, count: values.filter((v) => v != null && v >= level).length }));
+}
+
+export const USD_LEVELS = [100, 1000, 10000, 100000];
+export const PCT_LEVELS = [0.1, 0.5, 1, 5];
+
 // ---- Whole searches, as the app runs them ------------------------------------------------------------
 
 // Feature 1: wallets that bought at least minPct of a token's supply between two times.
 // Only addresses that sent tokens are checked for being contracts (pools, routers and
 // launchpads always send), plus the final candidates, which keeps it fast on busy tokens.
-export async function earlyBuyers(rpc, { token, start, end, minPct = 1, countTransfersIn = false, maxResults = 200, onStep = () => {} }) {
+// With minUsd, it counts wallets that spent at least that many dollars instead (reading each
+// buy transaction to see what was paid, priced with ETH's price at the time). `quotes` are
+// the chain's WETH and stablecoins (CHAINS.*.quotes).
+export async function earlyBuyers(rpc, { token, start, end, minPct = 1, minUsd = null, quotes = {}, usdSeries = coinbaseSeries, countTransfersIn = false, maxResults = 200, onStep = () => {} }) {
   onStep('Reading the token…');
   const info = await tokenInfo(rpc, token);
   onStep('Finding the blocks for your time window…');
@@ -403,10 +478,28 @@ export async function earlyBuyers(rpc, { token, start, end, minPct = 1, countTra
   const contracts = await findContracts(rpc, senders, { onProgress: (i, n) => onStep(`Checking addresses… ${i}/${n}`) });
   let wallets = summariseWallets(transfers, contracts, { countTransfersIn }).filter((w) => w.inAmount > 0n);
   const buyers = wallets.length;
-  wallets = wallets
-    .map((w) => ({ ...w, pct: percentOf(w.inAmount, info.totalSupply) }))
-    .filter((w) => w.pct >= minPct)
-    .sort((a, b) => (b.inAmount > a.inAmount ? 1 : b.inAmount < a.inAmount ? -1 : 0));
+  wallets = wallets.map((w) => ({ ...w, pct: percentOf(w.inAmount, info.totalSupply), spentUsd: null }));
+  let levels;
+  let unpriced = 0;
+  if (minUsd != null) {
+    await addTimestamps(rpc, transfers);
+    const txTs = new Map(transfers.map((t) => [t.tx, t.ts]));
+    const hashes = [...new Set(wallets.flatMap((w) => w.buyTxList))];
+    const txs = await buyTransactions(rpc, hashes, { onProgress: (i, n) => onStep(`Reading what buyers paid… ${i.toLocaleString()}/${n.toLocaleString()}`) });
+    onStep('Getting ETH prices for the window…');
+    const series = await usdSeries('ETH', start, end);
+    const spent = spentUsd(wallets, txs, txTs, quotes, (ts) => priceAt(series, ts));
+    wallets = wallets.map((w) => ({ ...w, spentUsd: spent.get(w.address) }));
+    unpriced = wallets.filter((w) => w.spentUsd == null && w.bought > 0n).length;
+    levels = levelCounts(wallets.map((w) => w.spentUsd), USD_LEVELS);
+    wallets = wallets.filter((w) => w.spentUsd != null && w.spentUsd >= minUsd).sort((a, b) => b.spentUsd - a.spentUsd);
+  } else {
+    levels = levelCounts(wallets.map((w) => w.pct), PCT_LEVELS);
+    wallets = wallets
+      .filter((w) => w.pct >= minPct)
+      .sort((a, b) => (b.inAmount > a.inAmount ? 1 : b.inAmount < a.inAmount ? -1 : 0));
+  }
+  const spentTotal = wallets.reduce((s, w) => s + (w.spentUsd || 0), 0);
   // Details (exact time, current balance, contract check) for the top results only.
   const matched = wallets.length;
   wallets = wallets.slice(0, maxResults);
@@ -424,7 +517,7 @@ export async function earlyBuyers(rpc, { token, start, end, minPct = 1, countTra
       isContract: contractsAmong.has(w.address),
     }));
   }
-  return { info, fromBlock, toBlock, transfers: transfers.length, buyers, matched, wallets };
+  return { info, fromBlock, toBlock, transfers: transfers.length, buyers, matched, wallets, levels, unpriced, spentTotal };
 }
 
 // Feature 2: how a group of wallets traded another token between two times.

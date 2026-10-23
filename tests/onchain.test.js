@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   TRANSFER_TOPIC, ZERO_ADDRESS, toHex, topicFor, getTransfers, blockAtTime, blockRange, tokenInfo, findContracts,
   summariseWallets, percentOf, formatAmount, groupCounterparties, decodeString, earlyBuyers, groupInToken, walletFlows, cleanName,
+  paidInTransaction, levelCounts,
 } from '../src/onchain.js';
 
 const A = (n) => `0x${n.toString(16).padStart(40, '0')}`; // test addresses
@@ -10,7 +11,7 @@ const POOL = A(0xbeef);
 const TOKEN = A(0x70c);
 
 // A fake chain: one block per second from t=1000, with the same limits Robinhood Chain's RPC has.
-function fakeChain({ transfers, contracts = [], maxSpanNoAddress = 30000, maxLogs = 10000, blankTimes = false }) {
+function fakeChain({ transfers, contracts = [], maxSpanNoAddress = 30000, maxLogs = 10000, blankTimes = false, txInfo = {} }) {
   const head = 100000;
   const logs = transfers.map((t, i) => ({
     address: t.token ?? TOKEN, blockNumber: toHex(t.block), blockTimestamp: blankTimes ? '0x0' : toHex(1000 + t.block),
@@ -23,6 +24,8 @@ function fakeChain({ transfers, contracts = [], maxSpanNoAddress = 30000, maxLog
     if (method === 'eth_blockNumber') return toHex(head);
     if (method === 'eth_getBlockByNumber') return { timestamp: toHex(1000 + Number.parseInt(params[0], 16)) };
     if (method === 'eth_getCode') return contracts.includes(params[0]) ? '0x6080' : '0x';
+    if (method === 'eth_getTransactionByHash') return txInfo[params[0]] ? { from: txInfo[params[0]].from, value: txInfo[params[0]].value ?? '0x0' } : null;
+    if (method === 'eth_getTransactionReceipt') return txInfo[params[0]] ? { logs: txInfo[params[0]].logs ?? [] } : null;
     if (method === 'eth_call') {
       const sel = params[0].data.slice(0, 10);
       if (sel === '0x18160ddd') return toHex(1000000n);
@@ -185,4 +188,58 @@ test('cleanName spots look-alike token names with hidden characters', () => {
   assert.deepEqual(cleanName('U\u206fS\u206fDG'), { text: 'USDG', suspicious: true });
   assert.deepEqual(cleanName('Paper'), { text: 'Paper', suspicious: false });
   assert.deepEqual(cleanName('金钱自由'), { text: '金钱自由', suspicious: false });
+});
+
+const WETH = A(0xe7);
+const USDG = A(0x05d);
+const QUOTES = { [WETH]: { symbol: 'WETH', asset: 'ETH', decimals: 18 }, [USDG]: { symbol: 'USDG', asset: 'USD', decimals: 6 } };
+const quoteLog = (token, from, to, value) => ({ address: token, topics: [TRANSFER_TOPIC, topicFor(from), topicFor(to)], data: toHex(value) });
+
+test('what a wallet paid: ETH it sent, WETH and stablecoins it transferred, nothing via others', () => {
+  const w = A(1);
+  const eth = 10n ** 17n; // 0.1 ETH
+  assert.deepEqual(paidInTransaction(w, { from: w, value: toHex(eth), logs: [] }, QUOTES), { eth, usd: 0 });
+  assert.deepEqual(paidInTransaction(w, { from: w, value: '0x0', logs: [quoteLog(WETH, w, POOL, 2n * eth), quoteLog(USDG, w, POOL, 250000000n)] }, QUOTES), { eth: 2n * eth, usd: 250 });
+  // A router wrapping the wallet's ETH moves WETH from itself, not the wallet: not counted twice.
+  assert.deepEqual(paidInTransaction(w, { from: w, value: toHex(eth), logs: [quoteLog(WETH, A(0xa0), POOL, eth)] }, QUOTES), { eth, usd: 0 });
+  // Bought in someone else's transaction (a bundle): no payment from this wallet to be seen.
+  assert.deepEqual(paidInTransaction(w, { from: A(2), value: toHex(eth), logs: [] }, QUOTES), { eth: 0n, usd: 0 });
+});
+
+test('earlyBuyers by dollars spent: counts, levels, unpriced wallets and ETH price at the time', async () => {
+  const [w1, w2, w3, w4] = [A(1), A(2), A(3), A(4)];
+  const tx = (n) => `0x${n.toString(16).padStart(64, '0')}`;
+  const transfers = [
+    { block: 500, from: POOL, to: w1, value: 1000n, tx: tx(1) }, // paid 1 ETH
+    { block: 600, from: POOL, to: w2, value: 500n, tx: tx(2) }, // paid 300 USDG
+    { block: 650, from: POOL, to: w2, value: 500n, tx: tx(3) }, // and 0.1 ETH later
+    { block: 700, from: POOL, to: w3, value: 9000n, tx: tx(4) }, // smart account: payment not visible
+    { block: 710, from: POOL, to: w4, value: 10n, tx: tx(5) }, // 0.01 ETH
+  ];
+  const txInfo = {
+    [tx(1)]: { from: w1, value: toHex(10n ** 18n) },
+    [tx(2)]: { from: w2, logs: [quoteLog(USDG, w2, POOL, 300000000n)] },
+    [tx(3)]: { from: w2, value: toHex(10n ** 17n) },
+    [tx(4)]: { from: A(0xbb) },
+    [tx(5)]: { from: w4, value: toHex(10n ** 16n) },
+  };
+  const { rpc } = fakeChain({ transfers, contracts: [POOL], txInfo });
+  // ETH was $2,000 until t=1600, then $3,000.
+  const usdSeries = async (asset, start, end) => { assert.equal(asset, 'ETH'); assert.deepEqual([start, end], [1400, 1800]); return [[1000, 2000], [1600, 3000]]; };
+  const r = await earlyBuyers(rpc, { token: TOKEN, start: 1400, end: 1800, minUsd: 100, quotes: QUOTES, usdSeries });
+  assert.deepEqual(r.wallets.map((w) => [w.address, Math.round(w.spentUsd)]), [[w1, 2000], [w2, 600]]);
+  assert.equal(r.matched, 2);
+  assert.equal(r.buyers, 4);
+  assert.equal(r.unpriced, 1, 'the smart-account buyer');
+  assert.equal(Math.round(r.spentTotal), 2600);
+  assert.deepEqual(r.levels.map((l) => l.count), [2, 1, 0, 0]);
+  // By % of supply, the same search still works and reports % levels.
+  // (Supply is 1,000,000: w3 has 0.9%, w1 and w2 0.1% each, w4 0.001%.)
+  const byPct = await earlyBuyers(rpc, { token: TOKEN, start: 1400, end: 1800, minPct: 0.05 });
+  assert.deepEqual(byPct.wallets.map((w) => w.address), [w3, w1, w2]);
+  assert.deepEqual(byPct.levels.map((l) => l.count), [3, 1, 0, 0]);
+});
+
+test('levelCounts ignores unknown values', () => {
+  assert.deepEqual(levelCounts([50, 150, null, 2000], [100, 1000]), [{ level: 100, count: 2 }, { level: 1000, count: 1 }]);
 });
