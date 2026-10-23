@@ -33,6 +33,7 @@
     <button role="tab" data-tab="spend" aria-selected="true">Spend</button>
     <button role="tab" data-tab="stash">Cash on hand</button>
     <button role="tab" data-tab="history">History</button>
+    <button role="tab" data-tab="stats">Stats</button>
   </nav>
 
   <main>
@@ -110,8 +111,46 @@
         <div class="actions"><button class="secondary" id="export-csv">Export to spreadsheet (CSV)</button></div>
       </div>
     </section>
+
+    <!-- Stats -->
+    <section data-panel="stats" hidden>
+      <div class="seg stats-period" role="radiogroup" aria-label="Period">
+        <label><input type="radio" name="period" value="7d" checked> 7 days</label>
+        <label><input type="radio" name="period" value="30d"> 30 days</label>
+        <label><input type="radio" name="period" value="month"> This month</label>
+        <label><input type="radio" name="period" value="all"> All time</label>
+      </div>
+      <div class="card stats-hero">
+        <p class="hero-label" id="hero-label">Spent in the last 7 days</p>
+        <p class="hero-value" id="hero-value">$0.00</p>
+        <p class="hero-delta" id="hero-delta"></p>
+      </div>
+      <dl class="kpis" id="kpis"></dl>
+      <div class="card">
+        <h2 id="time-title">Spending by day</h2>
+        <div class="colchart" id="time-chart"></div>
+        <details class="table-view">
+          <summary>Show as a table</summary>
+          <table id="time-table"></table>
+        </details>
+      </div>
+      <div class="card">
+        <h2>What it went on <small>by note</small></h2>
+        <ul class="hbars" id="note-chart"></ul>
+      </div>
+      <div class="card">
+        <h2>Notes and coins handed over</h2>
+        <ul class="hbars" id="denom-chart"></ul>
+      </div>
+      <div class="card">
+        <h2>Biggest purchases</h2>
+        <ol class="history" id="biggest"></ol>
+      </div>
+      <p class="hint stats-empty" id="stats-empty" hidden>No purchases in this period yet. Confirmed purchases on the Spend tab show up here; undone ones don't count.</p>
+    </section>
   </main>
 
+  <div class="chart-tip" id="chart-tip" role="status" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <footer class="win-taskbar" aria-hidden="true">

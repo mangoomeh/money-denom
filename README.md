@@ -22,6 +22,12 @@ A cash denomination counter with a transaction checker.
   received. *Confirm* only deducts from your cash on hand when the cash you selected equals the purchase amount.
 - **History with undo, and low cash warnings.** "Export to spreadsheet" saves the history as a CSV file, e.g. for a
   reimbursement claim.
+- **Stats:** pick the last 7 or 30 days, this month or all time. A headline total compared with the period before
+  (this month is compared with the same days last month), tiles for the number of purchases, the average purchase,
+  cash on hand, how many days it lasts at the last 30 days' rate and any top-ups, then spending per day (per month for
+  all time) with a tap-for-value tooltip and a table view, what it went on (grouped by note), which notes and coins
+  were handed over, and the biggest purchases. Undone purchases don't count. Worked out in `src/cash.js`
+  (`periodRange`, `spendStats`).
 - **Two themes:** modern, or retro Windows 95 (title bar, bevelled buttons, LCD balance, taskbar). The 🖥️ button in
   the header switches between them, and the choice is remembered on that device.
 

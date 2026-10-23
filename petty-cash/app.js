@@ -1,6 +1,6 @@
 import {
   DENOMINATIONS, emptyCounts, totalCents, parseAmount, formatCents,
-  checkTransaction, applyDelta, lowDenominations, historyCsv,
+  checkTransaction, applyDelta, lowDenominations, historyCsv, periodRange, spendStats,
 } from '../src/cash.js';
 import { $, switchTab, toast } from '../shared/ui.js';
 
@@ -205,7 +205,168 @@ function render() {
   renderSpend();
   renderStash();
   renderHistory();
+  renderStats();
 }
+
+// ---- Stats ------------------------------------------------------------------
+
+const PERIOD_TEXT = {
+  '7d': ['Spent in the last 7 days', 'the previous 7 days'],
+  '30d': ['Spent in the last 30 days', 'the previous 30 days'],
+  month: ['Spent this month', 'the same days last month'],
+  all: ['Spent in total', null],
+};
+
+// Whole dollars on axes and tiles once amounts get big, cents otherwise.
+const shortMoney = (cents) => (cents >= 100000 ? `$${Math.round(cents / 100).toLocaleString('en-SG')}` : formatCents(cents));
+const dayLabel = (d) => d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+const monthLabel = (d) => d.toLocaleDateString('en-SG', { month: 'short', year: '2-digit' });
+
+// Round axis steps (1, 2, 2.5 or 5 × a power of ten) giving three gridlines above zero.
+function niceMax(cents) {
+  if (cents <= 0) return { max: 3000, step: 1000 }; // an empty chart still shows $0–$30
+  const raw = cents / 3;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((x) => x >= raw);
+  return { max: step * 3, step };
+}
+
+function renderStats() {
+  const period = document.querySelector('input[name="period"]:checked').value;
+  const range = periodRange(period, state.history);
+  const s = spendStats(state.history, range, { stash: state.stash });
+  const [label, prevLabel] = PERIOD_TEXT[period];
+
+  $('hero-label').textContent = label;
+  $('hero-value').textContent = formatCents(s.total);
+  const delta = $('hero-delta');
+  delta.className = 'hero-delta';
+  if (s.prevTotal == null) delta.textContent = s.count ? `since ${range.from.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}` : '';
+  else if (!s.prevTotal) delta.textContent = s.total ? `nothing spent in ${prevLabel}` : '';
+  else {
+    const pct = Math.round(((s.total - s.prevTotal) / s.prevTotal) * 100);
+    // Spending more is the direction to watch, so it gets the warning colour (and an arrow).
+    delta.classList.add(pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat');
+    delta.textContent = `${pct > 0 ? '▲' : pct < 0 ? '▼' : '='} ${Math.abs(pct)}% vs ${prevLabel} (${formatCents(s.prevTotal)})`;
+  }
+
+  const tiles = [
+    ['Purchases', String(s.count)],
+    ['Average purchase', s.count ? formatCents(s.average) : '–'],
+    ['Cash on hand', shortMoney(s.onHand)],
+    ['Lasts about', s.lastsDays == null ? '–' : `${s.lastsDays} day${s.lastsDays === 1 ? '' : 's'}`, 'at the last 30 days’ rate'],
+  ];
+  if (s.topUps.count) tiles.push(['Topped up', shortMoney(s.topUps.cents), `${s.topUps.count} time${s.topUps.count === 1 ? '' : 's'}`]);
+  $('kpis').replaceChildren(...tiles.map(([k, v, note]) => {
+    const div = document.createElement('div');
+    div.innerHTML = '<dt></dt><dd></dd>';
+    div.querySelector('dt').textContent = k;
+    div.querySelector('dd').textContent = v;
+    if (note) {
+      const small = document.createElement('small');
+      small.textContent = note;
+      div.append(small);
+    }
+    return div;
+  }));
+
+  $('stats-empty').hidden = s.count > 0;
+  renderTimeChart(s, range);
+  renderHbars($('note-chart'), s.byNote.map((n) => ({
+    label: n.note === null ? `Other (${n.other} notes)` : n.note || 'No note',
+    value: n.cents,
+    text: `${formatCents(n.cents)} · ${n.count}×`,
+  })));
+  renderHbars($('denom-chart'), s.denominations.map((d) => ({ label: d.label, value: d.count, text: `${d.count}×` })));
+  $('biggest').replaceChildren(...s.biggest.map((e) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<div class="top"><span></span><span class="amt"></span></div><div class="meta"></div>';
+    li.querySelector('.top span').textContent = e.note || 'Purchase';
+    li.querySelector('.amt').textContent = formatCents(e.amountCents);
+    li.querySelector('.meta').textContent = new Date(e.at).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' });
+    return li;
+  }));
+  for (const id of ['note-chart', 'denom-chart', 'biggest']) $(id).closest('.card').hidden = !s.count;
+}
+
+// Columns for each day (or month), on one baseline, with round gridlines; the tallest is
+// labelled and every column shows its value on hover or focus, and in the table below.
+function renderTimeChart(s, range) {
+  const monthly = range.bucket === 'month';
+  const buckets = monthly ? s.buckets.slice(-12) : s.buckets;
+  $('time-title').textContent = monthly ? `Spending by month${s.buckets.length > 12 ? ' (last 12)' : ''}` : 'Spending by day';
+  const peak = Math.max(0, ...buckets.map((b) => b.cents));
+  const { max, step } = niceMax(peak);
+  const chart = $('time-chart');
+  const grid = [3, 2, 1, 0].map((i) => `<span class="grid" style="bottom:${(i * step / max) * 100}%"><i>${shortMoney(i * step)}</i></span>`).join('');
+  const peakIndex = buckets.findIndex((b) => b.cents === peak && peak > 0);
+  chart.innerHTML = `${grid}<div class="cols"></div><div class="xlabels"></div>`;
+  const cols = chart.querySelector('.cols');
+  buckets.forEach((b, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'col';
+    const when = monthly ? monthLabel(b.date) : dayLabel(b.date);
+    btn.dataset.tip = `${formatCents(b.cents)} · ${when}${b.count ? ` · ${b.count} purchase${b.count === 1 ? '' : 's'}` : ''}`;
+    btn.setAttribute('aria-label', btn.dataset.tip);
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    bar.style.height = `${(b.cents / max) * 100}%`;
+    btn.append(bar);
+    if (i === peakIndex) {
+      const v = document.createElement('span');
+      v.className = 'peak';
+      v.style.bottom = `${(b.cents / max) * 100}%`;
+      v.textContent = shortMoney(b.cents);
+      btn.append(v);
+    }
+    cols.append(btn);
+  });
+  // A few x labels: first, middle and last.
+  const xl = chart.querySelector('.xlabels');
+  const pick = [...new Set([0, Math.floor((buckets.length - 1) / 2), buckets.length - 1])];
+  xl.replaceChildren(...pick.map((i) => {
+    const span = document.createElement('span');
+    span.textContent = monthly ? monthLabel(buckets[i].date) : dayLabel(buckets[i].date);
+    span.style.left = `${((i + 0.5) / buckets.length) * 100}%`;
+    return span;
+  }));
+  // The same numbers as a table.
+  const rows = buckets.filter((b) => b.count).map((b) => `<tr><td></td><td class="num"></td><td class="num">${b.count}</td></tr>`);
+  const table = $('time-table');
+  table.innerHTML = `<thead><tr><th>${monthly ? 'Month' : 'Day'}</th><th class="num">Spent</th><th class="num">Purchases</th></tr></thead><tbody>${rows.join('') || '<tr><td colspan="3">Nothing spent</td></tr>'}</tbody>`;
+  buckets.filter((b) => b.count).forEach((b, i) => {
+    const tr = table.tBodies[0].rows[i];
+    tr.cells[0].textContent = monthly ? monthLabel(b.date) : dayLabel(b.date);
+    tr.cells[1].textContent = formatCents(b.cents);
+  });
+}
+
+// Horizontal bars, largest first, value at each bar's tip.
+function renderHbars(list, rows) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  list.replaceChildren(...rows.map((r) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="hb-label"></span><span class="hb-track"><span class="hb-bar"></span><span class="hb-value"></span></span>';
+    li.querySelector('.hb-label').textContent = r.label;
+    // Scaled within the track minus room for the value, so every bar keeps its true proportion.
+    li.querySelector('.hb-bar').style.width = `calc((100% - 5.5rem) * ${r.value / max})`;
+    li.querySelector('.hb-value').textContent = r.text;
+    return li;
+  }));
+}
+
+// One tooltip for every column: shown on hover, focus or tap, positioned above the column.
+function showTip(target) {
+  const tip = $('chart-tip');
+  tip.textContent = target.dataset.tip;
+  tip.hidden = false;
+  const r = target.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  tip.style.left = `${Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8)}px`;
+  tip.style.top = `${r.top + window.scrollY - tip.offsetHeight - 8}px`;
+}
+const hideTip = () => { $('chart-tip').hidden = true; };
 
 // ---- Actions ----------------------------------------------------------------
 
@@ -272,7 +433,13 @@ function saveStash() {
 
 // ---- Wiring -----------------------------------------------------------------
 
-document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { hideTip(); switchTab(b.dataset.tab); }));
+document.querySelectorAll('input[name="period"]').forEach((r) => r.addEventListener('change', () => { hideTip(); renderStats(); }));
+for (const type of ['pointerover', 'focusin', 'click']) {
+  $('time-chart').addEventListener(type, (e) => { const c = e.target.closest('.col'); if (c) showTip(c); });
+}
+$('time-chart').addEventListener('pointerleave', hideTip);
+$('time-chart').addEventListener('focusout', hideTip);
 $('export-csv').addEventListener('click', () => {
   if (!state.history.length) return toast('No transactions to export yet.');
   const a = document.createElement('a');
