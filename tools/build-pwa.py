@@ -26,6 +26,7 @@ APPS = [
     ('ziwei', 'Zi Wei Dou Shu', 'Zi Wei', '🔮', '#5b21b6'),
     ('fengshui', 'Feng Shui', 'Feng Shui', '🧭', '#14503c'),
     ('learnai', 'AI for Beginners', 'Learn AI', '🤖', '#1e40af'),
+    ('godigital', 'Go Digital', 'Go Digital', '📱', '#0f766e'),
     ('chat', 'Local Chat', 'Local Chat', '🦙', '#111827'),
 ]
 

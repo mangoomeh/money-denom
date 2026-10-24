@@ -330,6 +330,24 @@ Chinese start in Chinese), each a few cards and a three-question quiz, with prog
 - **Prompts:** ready-made prompts to copy (explain a letter, cook with what's in the fridge, homework hints…).
 - **Words:** a searchable glossary.
 
+### 📱 Go Digital (`godigital/`)
+
+Picture guides that teach seniors to use everyday apps, in English, 中文 or Burmese (မြန်မာ). Each step shows a
+simplified phone screen with the button to press glowing and a hand pointing at it; tapping it moves on, like the
+real thing. One short sentence per step, a 🔊 read-aloud button (using the phone's own voices), and a bigger-text
+switch.
+
+- **Grab:** create an account, book a ride (check the car plate), order food, save places, add a card, car types
+  (JustGrab, taxi, 6-seater, GrabFamily, GrabAssist for seniors and foldable wheelchairs, Premium; what to do with a
+  wheelchair that can't fold), and staying safe.
+- **FairPrice:** create an account, and order groceries for delivery (search, add, cart, delivery slot, checkout).
+- **DBS digibank:** log in and check your balance, PayNow (check the name before sending), scan a QR code to pay,
+  pay a bill, and staying safe from scams (SMS links, Safety Switch, ScamShield 1799).
+- **Content** lives in `src/godigital.js`: screens are small HTML builders and lessons are lists of steps. Tests check
+  every step's button exists on its screen and every step is in all three languages.
+- The screens are simplified drawings, not copies of the real apps, and the app says it isn't made by or linked to
+  Grab, FairPrice or DBS.
+
 ### 🦙 Local Chat (`chat/`)
 
 A chat app for your own AI models running in [Ollama](https://ollama.com) on your PC. The page talks to Ollama
