@@ -251,91 +251,137 @@ const fairprice = {
 };
 
 // ---- DBS digibank -------------------------------------------------------------------------------------
+// Drawn after the screenshots in DBS's own help pages and its "Your simple guide to digibank" handbook
+// (dbs.com.sg): the first screen's shortcuts, the Pay & Transfer tab, PayNow, Scan & Pay and Bills.
 
-const DBS_TABS = [['tab-home', '🏠', 'Home'], ['tab-pay', '💸', 'Pay'], ['tab-cards', '💳', 'Cards'], ['tab-more', '☰', 'More']];
+const DBS_TABS = [['tab-home', '🏠', 'Home'], ['tab-pay', '💲', 'Pay & Transfer'], ['tab-wealth', '📈', 'digiWealth'], ['tab-apply', '📝', 'Apply'], ['tab-more', '▦', 'More']];
+const ACCOUNT = row('', '🟥', 'DBS Multiplier Account', '120-12345-1 · SGD 3,250.40', '›');
+const darkbar = (id, label, amount) => `<div class="gd-darkbar" ${id ? `data-id="${id}"` : ''}><small>${label}</small><span><b>SGD</b><b>${amount}</b></span></div>`;
 
 const dbs = {
-  login: () => `<div class="gd-hero"><span class="gd-appicon big dbs">🏦</span><b>Welcome back</b><small>digibank</small></div>
-    ${btn('login', '🙂 Log in with Face ID / fingerprint', 'primary')}
-    ${btn('pin', 'Log in with User ID & PIN', 'ghost')}
-    <p class="gd-note">🔒 Only log in inside the bank's own app, never from a link in an SMS or email.</p>`,
-  home: () => `<div class="gd-greet"><b>Good morning, Ah Kow</b></div>
-    <div class="gd-card bank" data-id="balance"><small>Savings Account ••••-1234</small><b>$3,250.40</b><small>Available balance</small></div>
-    <div class="gd-grid four">${tile('paytransfer', '💸', 'Pay & Transfer')}${tile('paynow', '📲', 'PayNow')}${tile('scan', '📷', 'Scan & Pay')}${tile('history', '🧾', 'History')}</div>
-    ${row('', '🔔', 'Alerts', 'You have 1 new alert', '›')}
+  // The screen before logging in: shortcuts over a photo, with a scam reminder at the top.
+  start: () => `<div class="gd-dbsstart">
+      <div class="gd-scamnote">Stay vigilant against scams. Never click on suspicious links or share your banking details and OTP.</div>
+      <div class="gd-peek"><small>Tap and hold to</small><b>PEEK BALANCE</b></div>
+      <div class="gd-shortcuts">
+        ${tile('login', '🔑', 'Log In')}${tile('token', '📟', 'Digital Token')}${tile('paynow', '📲', 'PayNow')}
+        ${tile('overseas', '🌐', 'Overseas Transfer')}${tile('scan', '🔳', 'Scan & Pay')}${tile('apply', '📝', 'Apply & More Services')}
+      </div>
+      <div class="gd-promo">🐰 Do less, multiply more</div>
+    </div>`,
+  login: () => `<div class="gd-dbslogin">
+      <span class="gd-x">✕</span>
+      <div class="gd-loginbox">${field('', '', '', 'User ID')}${field('', '', '', 'PIN')}</div>
+      <small class="gd-forgot">Forgot <u>User ID</u> or <u>PIN</u>?</small>
+      <div class="gd-loginrow"><div class="gd-btn primary" data-id="loginbtn">LOGIN</div><span class="gd-faceid" data-id="faceid">🙂</span></div>
+      <small class="gd-forgot center">New to digibank?</small>
+      <div class="gd-btn outline">GET STARTED</div>
+    </div>`,
+  home: ({ open = false } = {}) => `<div class="gd-dbsbanner"><span>🔔 👁</span><span class="gd-logout">LOG OUT</span><b>Save more, beat inflation!</b><small>Last login: 24 Oct 2026, 09:12 AM</small></div>
+    <p class="gd-p"><b>Smart Shortcuts</b></p>
+    <div class="gd-grid four">${tile('', '🔔', 'Manage Notifications')}${tile('', '⇆', 'Transfer Money')}${tile('', '📲', 'PayNow')}${tile('', '🔳', 'Scan & Pay')}</div>
+    <div class="gd-subtabs"><span class="on">ACCOUNTS</span><span>INSIGHTS</span></div>
+    ${row('deposits', '💰', 'Deposits', open ? '' : 'Balance ******', open ? '⌃' : '⌄')}
+    ${open ? `<div class="gd-row" data-id="account"><span class="gd-ic">🟥</span><span class="gd-rt"><b>DBS Multiplier Account</b><small>120-12345-1</small></span><span class="gd-rr"><b>SGD 3,250.40</b></span></div>` : ''}
+    ${row('', '📊', 'digiPortfolio', '', '⌄')}
     ${tabs(DBS_TABS, 'tab-home')}`,
-  history: () => `${top('Transaction history')}
-    ${row('', '⬇️', 'Salary / Pension', '22 Oct', '<b class="gd-in">+$1,200.00</b>')}
-    ${row('', '🛒', 'NTUC FairPrice', '21 Oct', '−$32.60')}
-    ${row('', '📲', 'PayNow to TAN MEI LING', '20 Oct', '−$50.00')}
-    ${row('', '⚡', 'SP Group bill', '18 Oct', '−$86.15')}
-    <p class="gd-note">🔍 See something you don't recognise? Call the bank straight away.</p>`,
+  history: () => `${top('DBS Multiplier Account')}
+    <div class="gd-balance"><small>Available balance</small><b>SGD 3,250.40</b></div>
+    <div class="gd-subtabs"><span class="on">TRANSACTION HISTORY</span><span>DETAILS</span></div>
+    ${row('', '⬇️', 'Salary / CPF LIFE payout', '22 Oct', '<b class="gd-in">+1,200.00</b>')}
+    ${row('', '🛒', 'NTUC FairPrice', '21 Oct', '−32.60')}
+    ${row('', '📲', 'PayNow to TAN MEI LING', '20 Oct', '−50.00')}
+    ${row('', '⚡', 'Bill payment: SP GROUP', '18 Oct', '−86.15')}`,
+  paytransfer: () => `<div class="gd-top center"><b>Pay & Transfer</b></div>
+    <div class="gd-grid four">${tile('', '📲', 'PayNow')}${tile('', '🏦', 'Local transfer')}${tile('', '🔳', 'Scan & Pay')}${tile('', '🌐', 'Overseas transfer')}${tile('bills', '🧾', 'Bills, Cards & GIRO')}${tile('', '🗓️', 'Scheduled transfer')}${tile('', '🧧', 'EDP')}${tile('', '💳', 'Top-ups & cheques')}</div>
+    <p class="gd-p"><b>Your Recipients & Billers</b></p>
+    <div class="gd-subtabs"><span>Recent</span><span class="on">All</span><span>Favourites</span></div>
+    ${row('', '➕', 'Add a recipient or bill')}
+    ${row('', '🏦', 'Your DBS/POSB accounts', '', '⌄')}
+    ${row('', '👥', 'Local recipients', '', '⌄')}
+    ${tabs(DBS_TABS, 'tab-pay')}`,
   paynow: () => `${top('PayNow')}
-    <p class="gd-p"><b>Send money to</b></p>
-    ${row('mobile', '📱', 'Mobile number', 'Pay someone using their phone number', '›')}
-    ${row('', '🪪', 'NRIC / FIN', '', '›')}
-    ${row('', '🏢', 'UEN (businesses)', '', '›')}
-    ${row('', '👥', 'Choose from contacts', '', '›')}`,
-  paynowto: ({ found = false } = {}) => `${top('PayNow to mobile')}
-    ${field('number', 'Mobile number', '9876 5432')}
-    ${found ? `<div class="gd-recipient" data-id="name"><small>This number belongs to</small><b>TAN MEI LING</b><small>Check this is the right person</small></div>${btn('next', 'Next', 'primary')}` : `${btn('find', 'Next', 'primary')}${keypad()}`}`,
-  amount: () => `${top('Amount')}
-    <div class="gd-recipient"><small>To</small><b>TAN MEI LING</b><small>PayNow · 9876 5432</small></div>
-    <div class="gd-amount" data-id="amount">$ 50.00</div>
-    ${field('', 'Message (optional)', 'Lunch money')}
-    ${btn('next', 'Next', 'primary')}
-    ${keypad()}`,
-  review: ({ icon = '👤', to = 'TAN MEI LING', via = 'PayNow · 9876 5432', amount = '$50.00', note = 'Lunch money', action = 'Transfer Now' } = {}) => `${top('Review')}
-    ${row('', icon, to, via)}
-    ${row('', '💵', amount, 'From Savings ••••-1234')}
-    ${note ? row('', '📝', note, 'Message') : ''}
+    <div class="gd-subtabs"><span class="on">Transfer</span><span>Recipients</span></div>
+    <p class="gd-label">LOCAL TRANSFER VIA PAYNOW</p>
+    ${row('mobile', '📱', 'PayNow to Mobile', '', '›')}
+    ${row('', '🪪', 'PayNow to NRIC/FIN', '', '›')}
+    ${row('', '🏢', 'PayNow to UEN', '', '›')}
+    ${row('', '🔗', 'PayNow to VPA', '', '›')}
+    <p class="gd-label">OVERSEAS TRANSFER VIA PAYNOW</p>
+    ${row('', '🇲🇾', 'DuitNow (Malaysia)', '', '›')}
+    ${row('', '🇹🇭', 'PromptPay (Thailand)', '', '›')}`,
+  paynowto: ({ found = false } = {}) => `${top('PayNow Transfer')}
+    <p class="gd-p"><b>Recipient details</b></p>
+    ${field('', 'PayNow ID', 'Mobile ⌄')}
+    ${field('number', 'Mobile number', '+65 &nbsp;9876 5432')}
+    ${found ? `<div class="gd-verified" data-id="name"><small class="gd-in">✓ Verified</small><small>Name on PayNow</small><b>TAN MEI LING</b></div>` : ''}
+    ${btn(found ? 'next' : 'find', 'Next', 'primary')}
+    ${found ? '' : keypad()}`,
+  amount: () => `${top('PayNow transfer')}
+    ${ACCOUNT}
+    ${row('', '<span class="gd-avatar">TM</span>', 'TAN MEI LING', 'Mobile +65 9876 5432', '<span class="gd-tag">PAYNOW</span>')}
+    ${darkbar('amount', 'You send', '50.00')}
+    <div class="gd-limit"><small>Daily limit left</small><small><b>SGD 1,000.00</b> &nbsp;Change limit ›</small></div>
+    ${field('', 'Comments for recipient (optional)', 'Lunch money')}
+    ${btn('next', 'Next', 'primary')}`,
+  review: ({ title = 'PayNow Transfer', label = 'You send', amount = '50.00', from = 'DBS Multiplier Account', to = 'TAN MEI LING', toSub = 'Mobile +65 9876 5432', action = '🛡️ Transfer now' } = {}) => `${top(title)}
+    <p class="gd-p"><b>Let's review!</b></p>
+    ${darkbar('', label, amount)}
+    ${row('', '↗', from, 'From')}
+    ${row('', '↘', to, toSub)}
     <p class="gd-note">⚠️ Once sent, money usually can't be taken back.</p>
     ${btn('send', action, 'primary')}`,
-  sent: ({ what = 'Transfer successful', detail = '$50.00 to TAN MEI LING', ref = 'PN2610240012' } = {}) => `<div class="gd-hero"><span class="gd-appicon big ok">✅</span><b>${what}</b><small>${detail}</small></div>
-    ${row('', '🧾', 'Reference', ref)}
-    ${btn('done', 'Done', 'ghost')}`,
+  sent: ({ label = 'You send', amount = '50.00', to = 'TAN MEI LING', again = true } = {}) => `<div class="gd-hero"><span class="gd-appicon big ok">✓</span><b>Successful!</b><small>on 24 Oct 2026, 14:05</small></div>
+    ${darkbar('', label, amount)}
+    ${row('', '↘', to, 'To')}
+    <div class="gd-actions ${again ? 'two' : ''}">${again ? btn('again', 'Send again', 'ghost') : ''}${btn('done', 'Done', 'primary')}</div>`,
   scan: () => `${top('Scan & Pay')}
-    <div class="gd-camera"><div class="gd-qrframe" data-id="qr"><span class="gd-qr"></span></div><small>Point the camera at the QR code</small></div>
-    ${btn('photo', '🖼️ Choose QR from photos', 'ghost')}`,
-  scanpay: () => `${top('Pay')}
-    <div class="gd-recipient" data-id="merchant"><small>Paying to</small><b>AH HOCK CHICKEN RICE</b><small>SGQR · Stall #01-23</small></div>
-    <div class="gd-amount" data-id="amount">$ 4.50</div>
-    ${btn('pay', 'Pay', 'primary')}
-    ${keypad()}`,
-  paytransfer: () => `${top('Pay & Transfer')}
-    ${row('', '📲', 'PayNow', 'To a mobile number or NRIC', '›')}
-    ${row('bills', '🧾', 'Pay Bills', 'Utilities, telco, town council, cards', '›')}
-    ${row('', '🏦', 'Transfer to bank account', '', '›')}
-    ${row('', '🌏', 'Overseas transfer', '', '›')}`,
-  bills: () => `${top('Pay Bills')}
-    ${row('', '⚡', 'SP Group', 'Saved · 9-123-456-789', '›')}
-    ${row('', '📶', 'Singtel', 'Saved · 8xxx xxxx', '›')}
-    ${row('add', '➕', 'Add Billing Organisation', 'Pay a new bill')}`,
-  billorg: () => `${top('Add Billing Organisation')}
-    ${search('search', 'SP', true)}
-    ${row('sp', '⚡', 'SP Group', 'Electricity, water, gas')}
-    ${row('', '🏘️', 'Town Council', '')}
-    ${row('', '📱', 'StarHub', '')}
-    ${keypad()}`,
-  billref: () => `${top('SP Group')}
-    ${field('ref', 'Account number', '9-123-456-789')}
-    <div class="gd-billhint">🧾 <span>Find this number at the top of your paper or e-bill</span></div>
-    ${field('', 'Amount', '$ 86.15')}
+    <div class="gd-subtabs"><span class="on">Scan</span><span>Your QR</span><span>Create QR</span></div>
+    <div class="gd-camera light"><div class="gd-sgqr" data-id="qr"><small class="gd-sgqrlogo">SGQR</small><span class="gd-qr"></span><small class="gd-scanbar">SCAN TO PAY</small></div></div>
+    <p class="gd-p center"><b>Scan QR Code</b><br><small>Line up with the frame to scan NETS, SGQR, PayNow QR codes.</small></p>
+    ${btn('photos', 'PHOTO LIBRARY', 'ghost')}`,
+  scanpay: () => `${top('Scan & Pay')}
+    ${ACCOUNT}
+    <div class="gd-row" data-id="merchant"><span class="gd-ic"><span class="gd-avatar">AH</span></span><span class="gd-rt"><b>AH HOCK CHICKEN RICE</b><small>SGQR · Stall #01-23</small></span></div>
+    ${darkbar('amount', 'Amount in', '4.50')}
+    <div class="gd-limit"><small>Authorised limit</small><small>SGD 1,000.00</small></div>
+    ${field('', 'Add Comments for Recipient', 'PayNow Transfer')}
+    ${btn('pay', 'PAY NOW', 'primary')}`,
+  bills: ({ saved = false } = {}) => `${top('Bills, Cards & GIRO')}
+    <div class="gd-subtabs"><span class="on">Bills</span><span>Credit cards</span><span>Manage GIRO & Bills</span></div>
+    ${row('add', '➕', 'Add a new biller')}
+    <p class="gd-label">Your bills</p>
+    ${saved ? row('bill', '⚡', 'SP GROUP', 'Bill ref: 9123456789 · DBS Multiplier', '⋮') : ''}
+    ${row('', '🟥', 'DBS CASHLINE', 'Bill ref: 0820000001', '⋮')}
+    <p class="gd-label">Set up recurring payments</p>
+    ${row('', '🔁', 'By GIRO', 'Auto-debit your account every bill')}`,
+  addbill: () => `${top('Add a bill')}
+    <p class="gd-p"><b>Bill details</b></p>
+    ${field('biller', 'Biller', 'SP GROUP ⌄')}
+    ${field('ref', 'Bill reference', '9123456789')}
+    <small class="gd-forgot">💡 It's printed on your bill. <u>View examples</u></small>
+    ${field('', 'Pay from', 'DBS Multiplier Account ⌄')}
+    ${btn('next', 'Next', 'primary')}`,
+  addbillreview: () => `${top('Add a bill')}
+    <p class="gd-p"><b>Check your biller details</b></p>
+    ${row('', '⚡', 'SP GROUP', 'Biller')}
+    ${row('', '🧾', '9123456789', 'Bill reference')}
+    ${row('', '🟥', 'DBS Multiplier Account', 'Pay from')}
+    ${btn('addnow', 'Add now', 'primary')}`,
+  paybill: () => `${top('Pay bills')}
+    ${ACCOUNT}
+    ${row('', '⚡', 'SP GROUP', 'Bill ref: 9123456789')}
+    <div class="gd-field" data-id="amount"><small>Amount</small><span><b>SGD</b> &nbsp;86.15</span></div>
+    <p class="gd-p"><small>Make this payment</small><br>◉ Now &nbsp;&nbsp; ○ Later</p>
+    <div class="gd-total">Total amount <b>SGD 86.15</b></div>
     ${btn('next', 'Next', 'primary')}`,
   sms: () => `${top('Messages')}
     <div class="gd-bubble"><small>+65 8xxx xxxx · 10:42</small>DBS: Your account has been LOCKED due to suspicious activity. Verify within 24 hours: <u class="gd-link">dbs-secure-verify.com</u></div>
     <div class="gd-actions two">${btn('delete', '🗑️ Delete', 'ghost')}${btn('report', '🚩 Report junk', 'ghost')}</div>
-    <p class="gd-note">🚫 Scammers copy bank names. The bank will not send you links to log in.</p>`,
-  more: () => `${top('More', false)}
-    ${row('', '👤', 'Profile', '', '›')}
-    ${row('', '🔔', 'Alerts & notifications', '', '›')}
-    ${row('safety', '🛑', 'Safety Switch', 'Lock your cards and digibank in an emergency', '›')}
-    ${row('', '📞', 'Contact us', '', '›')}
-    ${tabs(DBS_TABS, 'tab-more')}`,
-  safety: () => `${top('Safety Switch')}
-    <p class="gd-p center">🛑<br><b>Think a scammer has your details?</b></p>
-    <p class="gd-p">This locks your cards and digital banking right away, so no one can take money out. You'll need to visit or call the bank to switch it back on.</p>
-    ${btn('activate', 'Activate Safety Switch', 'danger')}`,
+    <p class="gd-note">🚫 Scammers copy bank names. Banks don't send links for you to log in.</p>`,
+  call: () => `<div class="gd-dial"><small>Calling</small><b>1800 339 6963</b><small>DBS Fraud Hotline · 24 hours</small>
+      <div class="gd-ivr" data-id="ivr">🔢 Choose the option to activate <b>Safety Switch</b></div>
+      <span class="gd-callbtn" data-id="call">📞</span></div>`,
 };
 
 export const SCREENS = {
@@ -487,55 +533,61 @@ export const APPS = [
         id: 'dbs-balance', emoji: '💰', en: 'Log in and check your money', zh: '登录和查余额', my: 'ဝင်ရောက်ပြီး ငွေစစ်ခြင်း',
         steps: [
           { screen: 'store', opts: DBS_STORE, tap: 'get', en: 'Get the official DBS digibank app from the App Store or Play Store. Check the maker is DBS Bank.', zh: '在 App Store 或 Play Store 下载官方的 DBS digibank 应用程序，确认开发者是 DBS Bank。', my: 'App Store သို့မဟုတ် Play Store မှ တရားဝင် DBS digibank အက်ပ်ကို ရယူပါ။ ထုတ်လုပ်သူမှာ DBS Bank ဖြစ်ကြောင်း စစ်ပါ။' },
-          { screen: 'dbs.login', tap: 'login', en: 'Open the app. Tap Log in, then look at the phone or touch the fingerprint sensor.', zh: '打开应用程序，点 “Log in”，然后看着手机或按指纹。', my: 'အက်ပ်ကို ဖွင့်ပါ။ Log in ကို နှိပ်ပြီး ဖုန်းကို ကြည့်ပါ သို့မဟုတ် လက်ဗွေကို ထိပါ။', chips: [{ en: '🔒 Never log in from a link', zh: '🔒 绝不从链接登录', my: '🔒 လင့်ခ်မှ ဘယ်တော့မှ မဝင်ပါနှင့်' }] },
-          { screen: 'dbs.home', tap: 'balance', en: 'Your money is shown at the top. This is your balance.', zh: '最上面显示的就是你户口里的钱（余额）。', my: 'အပေါ်ဆုံးတွင် သင့်ငွေကို ပြထားပါသည်။ ဤသည်မှာ သင့်လက်ကျန်ငွေ ဖြစ်ပါသည်။' },
-          { screen: 'dbs.home', tap: 'history', en: 'Tap History to see money coming in and going out.', zh: '点 “History”（记录）查看进出的钱。', my: 'ဝင်ငွေ၊ ထွက်ငွေကို ကြည့်ရန် History ကို နှိပ်ပါ။' },
-          { screen: 'dbs.history', en: 'Check it now and then. If you see something you don\'t know, call the bank straight away.', zh: '要常常查看。看到不认识的交易，马上打电话给银行。', my: 'ရံဖန်ရံခါ စစ်ပါ။ မသိသော အရာကို တွေ့လျှင် ဘဏ်ကို ချက်ချင်း ဖုန်းဆက်ပါ။' },
+          { screen: 'dbs.start', tap: 'login', en: 'Open the app. Tap Log In.', zh: '打开应用程序，点 “Log In”（登录）。', my: 'အက်ပ်ကို ဖွင့်ပါ။ Log In ကို နှိပ်ပါ။' },
+          { screen: 'dbs.login', tap: 'faceid', en: 'Tap the face icon to use Face ID or your fingerprint. Or type your User ID and PIN, then tap LOGIN.', zh: '点脸部图标，用面部识别或指纹登录；或输入 User ID 和 PIN，再点 “LOGIN”。', my: 'Face ID သို့မဟုတ် လက်ဗွေဖြင့် ဝင်ရန် မျက်နှာပုံ အိုင်ကွန်ကို နှိပ်ပါ။ သို့မဟုတ် User ID နှင့် PIN ရိုက်ထည့်ပြီး LOGIN ကို နှိပ်ပါ။', chips: [{ en: '🔒 Never log in from a link', zh: '🔒 绝不从链接登录', my: '🔒 လင့်ခ်မှ ဘယ်တော့မှ မဝင်ပါနှင့်' }] },
+          { screen: 'dbs.home', tap: 'deposits', en: 'Tap Deposits to see your accounts.', zh: '点 “Deposits”（存款）查看你的户口。', my: 'သင့်အကောင့်များကို ကြည့်ရန် Deposits ကို နှိပ်ပါ။' },
+          { screen: 'dbs.home', opts: { open: true }, tap: 'account', en: 'This is your balance. Tap the account to see money in and out.', zh: '这就是你的余额。点户口可以查看进出的钱。', my: 'ဤသည်မှာ သင့်လက်ကျန်ငွေ ဖြစ်ပါသည်။ ဝင်ငွေ၊ ထွက်ငွေကို ကြည့်ရန် အကောင့်ကို နှိပ်ပါ။' },
+          { screen: 'dbs.history', en: 'Check it now and then. If you see something you don\'t know, call the bank straight away.', zh: '要常常查看。看到不认识的交易，马上打电话给银行。', my: 'ရံဖန်ရံခါ စစ်ပါ။ မသိသော အရာကို တွေ့လျှင် ဘဏ်ကို ချက်ချင်း ဖုန်းဆက်ပါ။', chips: [{ en: '💡 Peek Balance on the first screen shows your balance without logging in', zh: '💡 首页的 “Peek Balance” 不用登录也能看余额', my: '💡 ပထမစာမျက်နှာရှိ Peek Balance ဖြင့် မဝင်ဘဲ လက်ကျန်ငွေကို ကြည့်နိုင်ပါသည်' }] },
         ],
       },
       {
         id: 'dbs-paynow', emoji: '📲', en: 'Send money with PayNow', zh: '用 PayNow 转账', my: 'PayNow ဖြင့် ငွေပို့ခြင်း',
         steps: [
-          { screen: 'dbs.home', tap: 'paynow', en: 'Tap PayNow.', zh: '点 “PayNow”。', my: 'PayNow ကို နှိပ်ပါ။' },
-          { screen: 'dbs.paynow', tap: 'mobile', en: 'Tap Mobile number.', zh: '点 “Mobile number”（手机号码）。', my: 'Mobile number ကို နှိပ်ပါ။' },
+          { screen: 'dbs.start', tap: 'paynow', en: 'Open the app. Tap PayNow.', zh: '打开应用程序，点 “PayNow”。', my: 'အက်ပ်ကို ဖွင့်ပါ။ PayNow ကို နှိပ်ပါ။' },
+          { screen: 'dbs.login', tap: 'faceid', en: 'Log in with your face, fingerprint or PIN.', zh: '用面部、指纹或 PIN 登录。', my: 'မျက်နှာ၊ လက်ဗွေ သို့မဟုတ် PIN ဖြင့် ဝင်ပါ။' },
+          { screen: 'dbs.paynow', tap: 'mobile', en: 'Tap PayNow to Mobile.', zh: '点 “PayNow to Mobile”（转到手机号码）。', my: 'PayNow to Mobile ကို နှိပ်ပါ။' },
           { screen: 'dbs.paynowto', tap: 'find', en: 'Type the person\'s mobile number. Tap Next.', zh: '输入对方的手机号码，点 “Next”（下一步）。', my: 'လက်ခံမည့်သူ၏ ဖုန်းနံပါတ်ကို ရိုက်ထည့်ပါ။ Next ကို နှိပ်ပါ။' },
-          { screen: 'dbs.paynowto', opts: { found: true }, tap: 'name', en: 'Stop and check the name! Is it the person you know?', zh: '停一下，核对名字！是你认识的那个人吗？', my: 'ရပ်ပြီး အမည်ကို စစ်ပါ။ သင်သိသော လူ ဟုတ်ပါသလား။', chips: [{ en: '❌ Wrong name? Don\'t send', zh: '❌ 名字不对？不要转', my: '❌ အမည်မှားလျှင် မပို့ပါနှင့်' }] },
-          { screen: 'dbs.amount', tap: 'amount', en: 'Type the amount. Check it twice. Tap Next.', zh: '输入金额，核对两次，点 “Next”。', my: 'ငွေပမာဏကို ရိုက်ထည့်ပါ။ နှစ်ခါ စစ်ပါ။ Next ကို နှိပ်ပါ။' },
-          { screen: 'dbs.review', tap: 'send', en: 'Check the name and amount once more. Tap Transfer Now.', zh: '再核对一次名字和金额，点 “Transfer Now”（立即转账）。', my: 'အမည်နှင့် ပမာဏကို နောက်တစ်ကြိမ် စစ်ပါ။ Transfer Now ကို နှိပ်ပါ။', chips: [{ en: '⚠️ Money sent usually can\'t come back', zh: '⚠️ 转出的钱通常拿不回来', my: '⚠️ ပို့ပြီးသော ငွေ ပြန်ရခဲပါသည်' }] },
-          { screen: 'dbs.sent', en: 'Done! The money arrives in seconds.', zh: '完成！钱几秒钟就到了。', my: 'ပြီးပါပြီ။ ငွေသည် စက္ကန့်အနည်းငယ်အတွင်း ရောက်ပါသည်။' },
+          { screen: 'dbs.paynowto', opts: { found: true }, tap: 'name', en: 'Stop and check the Name on PayNow! Is it the person you know?', zh: '停一下，核对 “Name on PayNow” 的名字！是你认识的那个人吗？', my: 'ရပ်ပြီး Name on PayNow ကို စစ်ပါ။ သင်သိသော လူ ဟုတ်ပါသလား။', chips: [{ en: '❌ Wrong name? Don\'t send', zh: '❌ 名字不对？不要转', my: '❌ အမည်မှားလျှင် မပို့ပါနှင့်' }] },
+          { screen: 'dbs.amount', tap: 'amount', en: 'Type the amount. Add a comment if you like. Tap Next.', zh: '输入金额，可以加备注，然后点 “Next”。', my: 'ငွေပမာဏကို ရိုက်ထည့်ပါ။ လိုလျှင် မှတ်ချက် ထည့်ပါ။ Next ကို နှိပ်ပါ။' },
+          { screen: 'dbs.review', tap: 'send', en: 'Let\'s review! Check the name and amount once more. Tap Transfer now.', zh: '再核对一次名字和金额，点 “Transfer now”（立即转账）。', my: 'အမည်နှင့် ပမာဏကို နောက်တစ်ကြိမ် စစ်ပါ။ Transfer now ကို နှိပ်ပါ။', chips: [{ en: '⚠️ Money sent usually can\'t come back', zh: '⚠️ 转出的钱通常拿不回来', my: '⚠️ ပို့ပြီးသော ငွေ ပြန်ရခဲပါသည်' }] },
+          { screen: 'dbs.sent', tap: 'done', en: 'Successful! The money arrives in seconds. Tap Done.', zh: '成功了！钱几秒钟就到。点 “Done”（完成）。', my: 'အောင်မြင်ပါပြီ။ ငွေသည် စက္ကန့်အနည်းငယ်အတွင်း ရောက်ပါသည်။ Done ကို နှိပ်ပါ။' },
         ],
       },
       {
-        id: 'dbs-scan', emoji: '📷', en: 'Scan a QR code to pay', zh: '扫码付款', my: 'QR ကုဒ် စကင်ဖတ်ပြီး ငွေပေးခြင်း',
+        id: 'dbs-scan', emoji: '🔳', en: 'Scan a QR code to pay', zh: '扫码付款', my: 'QR ကုဒ် စကင်ဖတ်ပြီး ငွေပေးခြင်း',
         steps: [
-          { screen: 'dbs.home', tap: 'scan', en: 'At the stall, open the app. Tap Scan & Pay.', zh: '在摊位前打开应用程序，点 “Scan & Pay”（扫码付款）。', my: 'ဆိုင်ရှေ့တွင် အက်ပ်ကို ဖွင့်ပါ။ Scan & Pay ကို နှိပ်ပါ။' },
-          { screen: 'dbs.scan', tap: 'qr', en: 'Point the camera at the shop\'s QR code. Hold still until it beeps.', zh: '把相机对准店家的 QR 码，拿稳，直到它扫到为止。', my: 'ကင်မရာကို ဆိုင်၏ QR ကုဒ်ဆီ ချိန်ပါ။ ဖတ်ပြီးသည်အထိ ငြိမ်ငြိမ် ကိုင်ထားပါ။', chips: [{ en: '🔍 Stuck-on sticker over the QR? Ask the stall', zh: '🔍 QR 码上贴了贴纸？先问摊主', my: '🔍 QR ပေါ်တွင် စတစ်ကာ ကပ်ထားလား။ ဆိုင်ရှင်ကို မေးပါ' }] },
-          { screen: 'dbs.scanpay', tap: 'merchant', en: 'Check the shop name is the shop in front of you.', zh: '核对店名是不是你面前的这家店。', my: 'ဆိုင်အမည်သည် သင့်ရှေ့ရှိ ဆိုင် ဟုတ်မဟုတ် စစ်ပါ။' },
+          { screen: 'dbs.start', tap: 'scan', en: 'At the stall, open the app. Tap Scan & Pay.', zh: '在摊位前打开应用程序，点 “Scan & Pay”（扫码付款）。', my: 'ဆိုင်ရှေ့တွင် အက်ပ်ကို ဖွင့်ပါ။ Scan & Pay ကို နှိပ်ပါ။' },
+          { screen: 'dbs.login', tap: 'faceid', en: 'Log in with your face, fingerprint or PIN.', zh: '用面部、指纹或 PIN 登录。', my: 'မျက်နှာ၊ လက်ဗွေ သို့မဟုတ် PIN ဖြင့် ဝင်ပါ။' },
+          { screen: 'dbs.scan', tap: 'qr', en: 'Point the camera at the shop\'s QR code and hold still.', zh: '把相机对准店家的 QR 码，拿稳。', my: 'ကင်မရာကို ဆိုင်၏ QR ကုဒ်ဆီ ချိန်ပြီး ငြိမ်ငြိမ် ကိုင်ထားပါ။', chips: [{ en: '🔍 A sticker stuck over the QR? Ask the stall first', zh: '🔍 QR 码上贴了贴纸？先问摊主', my: '🔍 QR ပေါ်တွင် စတစ်ကာ ကပ်ထားလား။ ဆိုင်ရှင်ကို အရင် မေးပါ' }] },
+          { screen: 'dbs.scanpay', tap: 'merchant', en: 'Check the name is the shop in front of you.', zh: '核对名字是不是你面前的这家店。', my: 'အမည်သည် သင့်ရှေ့ရှိ ဆိုင် ဟုတ်မဟုတ် စစ်ပါ။' },
           { screen: 'dbs.scanpay', tap: 'amount', en: 'Type the amount if it isn\'t filled in. Check it.', zh: '如果金额没有自动出现，就输入金额，再核对一次。', my: 'ပမာဏ မပါလျှင် ရိုက်ထည့်ပါ။ ပြန်စစ်ပါ။' },
-          { screen: 'dbs.scanpay', tap: 'pay', en: 'Tap Pay.', zh: '点 “Pay”（付款）。', my: 'Pay ကို နှိပ်ပါ။' },
-          { screen: 'dbs.sent', opts: { what: 'Payment successful', detail: '$4.50 to AH HOCK CHICKEN RICE', ref: 'QR2610241130' }, en: 'Paid! Show this screen to the stall owner.', zh: '付好了！把这个画面给摊主看。', my: 'ပေးပြီးပါပြီ။ ဤစာမျက်နှာကို ဆိုင်ရှင်အား ပြပါ။' },
+          { screen: 'dbs.scanpay', tap: 'pay', en: 'Tap PAY NOW.', zh: '点 “PAY NOW”（付款）。', my: 'PAY NOW ကို နှိပ်ပါ။' },
+          { screen: 'dbs.sent', opts: { label: 'Amount', amount: '4.50', to: 'AH HOCK CHICKEN RICE', again: false }, en: 'Paid! Show this screen to the stall owner.', zh: '付好了！把这个画面给摊主看。', my: 'ပေးပြီးပါပြီ။ ဤစာမျက်နှာကို ဆိုင်ရှင်အား ပြပါ။' },
         ],
       },
       {
         id: 'dbs-bills', emoji: '🧾', en: 'Pay a bill', zh: '缴付账单', my: 'ဘေလ် ပေးဆောင်ခြင်း',
         steps: [
-          { screen: 'dbs.home', tap: 'paytransfer', en: 'Tap Pay & Transfer.', zh: '点 “Pay & Transfer”（付款和转账）。', my: 'Pay & Transfer ကို နှိပ်ပါ။' },
-          { screen: 'dbs.paytransfer', tap: 'bills', en: 'Tap Pay Bills.', zh: '点 “Pay Bills”（缴付账单）。', my: 'Pay Bills ကို နှိပ်ပါ။' },
-          { screen: 'dbs.bills', tap: 'add', en: 'The first time, tap Add Billing Organisation. Next time, the bill is saved here.', zh: '第一次要点 “Add Billing Organisation”（添加收款机构），下次账单就会存在这里。', my: 'ပထမဆုံးအကြိမ်တွင် Add Billing Organisation ကို နှိပ်ပါ။ နောက်တစ်ကြိမ်တွင် ဘေလ်ကို ဤနေရာတွင် သိမ်းထားပါမည်။' },
-          { screen: 'dbs.billorg', tap: 'sp', en: 'Search for who sent the bill, e.g. SP Group. Tap it.', zh: '搜索账单是谁寄来的，例如 SP Group，点它。', my: 'ဘေလ်ပို့သူကို ရှာပါ၊ ဥပမာ SP Group။ ၎င်းကို နှိပ်ပါ။' },
-          { screen: 'dbs.billref', tap: 'ref', en: 'Copy the account number from your bill, and the amount. Tap Next.', zh: '照账单输入账号和金额，点 “Next”（下一步）。', my: 'ဘေလ်ပေါ်မှ အကောင့်နံပါတ်နှင့် ပမာဏကို ကူးထည့်ပါ။ Next ကို နှိပ်ပါ။', chips: [{ en: '🧾 Keep the bill next to you', zh: '🧾 把账单放在旁边对着看', my: '🧾 ဘေလ်ကို ဘေးတွင် ထားပါ' }] },
-          { screen: 'dbs.review', opts: { icon: '⚡', to: 'SP Group', via: 'Account 9-123-456-789', amount: '$86.15', note: '', action: 'Pay Now' }, tap: 'send', en: 'Check the details. Tap Pay Now.', zh: '核对资料，点 “Pay Now”（立即付款）。', my: 'အသေးစိတ်ကို စစ်ပါ။ Pay Now ကို နှိပ်ပါ။' },
-          { screen: 'dbs.sent', opts: { what: 'Bill paid', detail: '$86.15 to SP Group', ref: 'BP2610240457' }, en: 'Done! Keep the reference number in case you need it.', zh: '完成！记下参考号码，以备需要。', my: 'ပြီးပါပြီ။ လိုအပ်ပါက ကိုးကားနံပါတ်ကို သိမ်းထားပါ။' },
+          { screen: 'dbs.home', tap: 'tab-pay', en: 'Log in. Tap Pay & Transfer at the bottom.', zh: '登录后，点下面的 “Pay & Transfer”（付款与转账）。', my: 'ဝင်ပြီးနောက် အောက်ခြေရှိ Pay & Transfer ကို နှိပ်ပါ။' },
+          { screen: 'dbs.paytransfer', tap: 'bills', en: 'Tap Bills, Cards & GIRO.', zh: '点 “Bills, Cards & GIRO”（账单、信用卡和 GIRO）。', my: 'Bills, Cards & GIRO ကို နှိပ်ပါ။' },
+          { screen: 'dbs.bills', tap: 'add', en: 'The first time, tap Add a new biller.', zh: '第一次要点 “Add a new biller”（添加收款机构）。', my: 'ပထမဆုံးအကြိမ်တွင် Add a new biller ကို နှိပ်ပါ။' },
+          { screen: 'dbs.addbill', tap: 'biller', en: 'Choose who the bill is from, e.g. SP GROUP.', zh: '选择账单是谁寄来的，例如 SP GROUP。', my: 'ဘေလ် ပို့သူကို ရွေးပါ၊ ဥပမာ SP GROUP။' },
+          { screen: 'dbs.addbill', tap: 'ref', en: 'Copy the bill reference number from your bill. Tap Next.', zh: '照账单输入账单参考号码（Bill reference），点 “Next”。', my: 'ဘေလ်ပေါ်မှ ကိုးကားနံပါတ် (Bill reference) ကို ကူးထည့်ပါ။ Next ကို နှိပ်ပါ။', chips: [{ en: '🧾 Keep the bill next to you', zh: '🧾 把账单放在旁边对着看', my: '🧾 ဘေလ်ကို ဘေးတွင် ထားပါ' }] },
+          { screen: 'dbs.addbillreview', tap: 'addnow', en: 'Check the details. Tap Add now. Next time the bill is already saved.', zh: '核对资料，点 “Add now”（添加）。下次就不用再加了。', my: 'အသေးစိတ်ကို စစ်ပါ။ Add now ကို နှိပ်ပါ။ နောက်တစ်ကြိမ်တွင် ဘေလ်ကို သိမ်းထားပြီး ဖြစ်ပါမည်။' },
+          { screen: 'dbs.bills', opts: { saved: true }, tap: 'bill', en: 'Tap the bill you want to pay.', zh: '点你要缴付的账单。', my: 'ပေးလိုသော ဘေလ်ကို နှိပ်ပါ။' },
+          { screen: 'dbs.paybill', tap: 'amount', en: 'Type the amount from your bill. Choose Now. Tap Next.', zh: '输入账单上的金额，选 “Now”（现在），点 “Next”。', my: 'ဘေလ်ပေါ်ရှိ ပမာဏကို ရိုက်ထည့်ပါ။ Now ကို ရွေးပါ။ Next ကို နှိပ်ပါ။' },
+          { screen: 'dbs.review', opts: { title: 'Pay bills', label: 'Total amount', amount: '86.15', to: 'SP GROUP', toSub: 'Bill ref: 9123456789', action: '🛡️ Pay bills now' }, tap: 'send', en: 'Check once more. Tap Pay bills now.', zh: '再核对一次，点 “Pay bills now”（立即缴付）。', my: 'နောက်တစ်ကြိမ် စစ်ပါ။ Pay bills now ကို နှိပ်ပါ။' },
+          { screen: 'dbs.sent', opts: { label: 'Total amount', amount: '86.15', to: 'SP GROUP', again: false }, en: 'Successful! The bill is paid.', zh: '成功了！账单已缴付。', my: 'အောင်မြင်ပါပြီ။ ဘေလ် ပေးပြီးပါပြီ။' },
         ],
       },
       {
         id: 'dbs-safe', emoji: '🛡️', en: 'Stay safe from scams', zh: '防范诈骗', my: 'လိမ်လည်မှုမှ ကာကွယ်ခြင်း',
         steps: [
-          { screen: 'dbs.sms', tap: 'delete', en: 'An SMS says your account is locked and has a link? It\'s a scam. Don\'t tap the link. Delete it.', zh: '短信说你的户口被锁、还附上链接？这是诈骗！不要点链接，把它删掉。', my: 'သင့်အကောင့် ပိတ်ထားသည်ဟု ပြောပြီး လင့်ခ်ပါသော SMS လား။ လိမ်လည်မှု ဖြစ်ပါသည်။ လင့်ခ်ကို မနှိပ်ပါနှင့်။ ဖျက်ပစ်ပါ။', chips: [{ en: '🚫 Banks don\'t send login links', zh: '🚫 银行不会发登录链接', my: '🚫 ဘဏ်များသည် ဝင်ရောက်ရန် လင့်ခ် မပို့ပါ' }] },
-          { screen: 'dbs.home', tap: 'tab-more', en: 'Think a scammer has your details? Tap More.', zh: '觉得骗子拿到了你的资料？点 “More”（更多）。', my: 'လိမ်လည်သူက သင့်အချက်အလက်များ ရသွားပြီဟု ထင်ပါသလား။ More ကို နှိပ်ပါ။' },
-          { screen: 'dbs.more', tap: 'safety', en: 'Tap Safety Switch.', zh: '点 “Safety Switch”（安全开关）。', my: 'Safety Switch ကို နှိပ်ပါ။' },
-          { screen: 'dbs.safety', tap: 'activate', en: 'This locks your cards and online banking at once. Use it only in an emergency.', zh: '这会马上锁住你的卡和网上银行。只在紧急时使用。', my: 'ဤခလုတ်သည် သင့်ကတ်များနှင့် အွန်လိုင်းဘဏ်ကို ချက်ချင်း ပိတ်ပါသည်။ အရေးပေါ်မှသာ သုံးပါ။' },
-          { screen: 'dbs.home', en: 'Then call the number on the back of your card, and the ScamShield Helpline 1799 for advice.', zh: '然后打卡背面的电话号码，也可以打 ScamShield 热线 1799 寻求建议。', my: 'ထို့နောက် သင့်ကတ်နောက်ကျောရှိ ဖုန်းနံပါတ်ကို ဆက်ပါ။ အကြံဉာဏ်အတွက် ScamShield Helpline 1799 ကိုလည်း ဆက်နိုင်ပါသည်။', chips: ['📞 1799', { en: '🤫 Never share your OTP or PIN', zh: '🤫 绝不透露 OTP 或密码', my: '🤫 OTP သို့မဟုတ် PIN ကို ဘယ်တော့မှ မမျှဝေပါနှင့်' }] },
+          { screen: 'dbs.sms', tap: 'delete', en: 'An SMS says your account is locked and has a link? It\'s a scam. Don\'t tap the link. Delete it.', zh: '短信说你的户口被锁、还附上链接？这是诈骗！不要点链接，把它删掉。', my: 'သင့်အကောင့် ပိတ်ထားသည်ဟု ပြောပြီး လင့်ခ်ပါသော SMS လား။ လိမ်လည်မှု ဖြစ်ပါသည်။ လင့်ခ်ကို မနှိပ်ပါနှင့်။ ဖျက်ပစ်ပါ။', chips: [{ en: '🚫 Banks don\'t send links to log in', zh: '🚫 银行不会发登录链接', my: '🚫 ဘဏ်များသည် ဝင်ရောက်ရန် လင့်ခ် မပို့ပါ' }] },
+          { screen: 'dbs.start', en: 'Only use the app itself. Even its first screen reminds you never to share your details or OTP.', zh: '只用银行应用程序本身。它的首页也提醒你：绝不透露资料或 OTP。', my: 'အက်ပ်ကိုသာ သုံးပါ။ ၎င်း၏ ပထမစာမျက်နှာကပင် သင့်အချက်အလက် သို့မဟုတ် OTP ကို ဘယ်တော့မှ မမျှဝေရန် သတိပေးပါသည်။' },
+          { screen: 'dbs.call', tap: 'call', en: 'Gave your details to a scammer? Call the DBS Fraud Hotline right away: 1800 339 6963. It\'s open 24 hours.', zh: '把资料给了骗子？马上打 DBS 防诈骗热线：1800 339 6963，24 小时服务。', my: 'လိမ်လည်သူကို အချက်အလက် ပေးမိပြီလား။ DBS Fraud Hotline 1800 339 6963 ကို ချက်ချင်း ဖုန်းဆက်ပါ။ ၂၄ နာရီ ဖွင့်ပါသည်။', chips: ['📞 1800 339 6963', { en: '🌏 From overseas: +65 6339 6963', zh: '🌏 海外：+65 6339 6963', my: '🌏 နိုင်ငံခြားမှ: +65 6339 6963' }] },
+          { screen: 'dbs.call', tap: 'ivr', en: 'Choose the option for Safety Switch. It blocks your digibank, PayLah! and cards, so no one can take money out.', zh: '选择 “Safety Switch”（安全开关），它会冻结你的 digibank、PayLah! 和银行卡，别人就拿不走钱。', my: 'Safety Switch ရွေးချယ်မှုကို ရွေးပါ။ ၎င်းသည် သင့် digibank၊ PayLah! နှင့် ကတ်များကို ပိတ်ပေးသဖြင့် မည်သူမျှ ငွေမထုတ်နိုင်ပါ။' },
+          { screen: 'dbs.call', en: 'Stay on the line. An officer will help you with the next steps. For advice, you can also call the ScamShield Helpline 1799.', zh: '不要挂断，客服人员会协助你下一步。也可以打 ScamShield 热线 1799 寻求建议。', my: 'ဖုန်းကို မချပါနှင့်။ ဝန်ထမ်းတစ်ဦးက နောက်အဆင့်များကို ကူညီပါမည်။ အကြံဉာဏ်အတွက် ScamShield Helpline 1799 ကိုလည်း ဆက်နိုင်ပါသည်။', chips: ['📞 1799', { en: '🤫 Never share your OTP or PIN', zh: '🤫 绝不透露 OTP 或密码', my: '🤫 OTP သို့မဟုတ် PIN ကို ဘယ်တော့မှ မမျှဝေပါနှင့်' }] },
         ],
       },
     ],

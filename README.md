@@ -341,8 +341,10 @@ switch.
   (JustGrab, taxi, 6-seater, GrabFamily, GrabAssist for seniors and foldable wheelchairs, Premium; what to do with a
   wheelchair that can't fold), and staying safe.
 - **FairPrice:** create an account, and order groceries for delivery (search, add, cart, delivery slot, checkout).
-- **DBS digibank:** log in and check your balance, PayNow (check the name before sending), scan a QR code to pay,
-  pay a bill, and staying safe from scams (SMS links, Safety Switch, ScamShield 1799).
+- **DBS digibank:** log in and check your balance, PayNow (check the "Name on PayNow" before sending), scan a QR
+  code to pay, pay a bill (Pay & Transfer → Bills, Cards & GIRO), and staying safe from scams (SMS links; the
+  Safety Switch, which is turned on by calling the DBS Fraud Hotline 1800 339 6963; ScamShield 1799). The screens
+  follow the screenshots in DBS's help pages and its handbook "Your simple guide to digibank" (dbs.com.sg).
 - **Content** lives in `src/godigital.js`: screens are small HTML builders and lessons are lists of steps. Tests check
   every step's button exists on its screen and every step is in all three languages.
 - The screens are simplified drawings, not copies of the real apps, and the app says it isn't made by or linked to
