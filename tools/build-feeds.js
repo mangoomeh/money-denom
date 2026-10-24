@@ -32,8 +32,8 @@ const POPULAR = {
   npm: ['https://cdn.jsdelivr.net/npm/npm-high-impact@1/lib/top.js', (t) => [...t.matchAll(/'([^']+)'/g)].map((m) => m[1])],
 };
 
-async function get(url, as = 'text', timeoutMs = 30000) {
-  const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; PocketApps-SecurityWatch/1.0; +https://mangoomeh.github.io/pocket-apps/)' }, signal: AbortSignal.timeout(timeoutMs) });
+async function get(url, as = 'text', timeoutMs = 30000, headers = {}) {
+  const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; PocketApps-SecurityWatch/1.0; +https://mangoomeh.github.io/pocket-apps/)', ...headers }, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return as === 'json' ? res.json() : res.text();
 }
@@ -55,100 +55,136 @@ async function pool(items, n, fn) {
 
 const now = new Date();
 const recentSince = new Date(now.getTime() - RECENT_DAYS * 86400000);
-const sources = [];
-let kev = null;
-try {
-  const catalog = await get(KEV_URL, 'json');
-  kev = { version: catalog.catalogVersion, released: catalog.dateReleased, total: catalog.count ?? catalog.vulnerabilities.length, items: kevRecent(catalog, 90, now) };
-  sources.push({ name: 'CISA KEV', ok: true, count: kev.items.length });
-} catch (e) {
-  sources.push({ name: 'CISA KEV', ok: false, error: e.message });
+
+// The four groups run at the same time; each returns its data and its line(s) for `sources`.
+async function collectKev() {
+  try {
+    const catalog = await get(KEV_URL, 'json');
+    const kev = { version: catalog.catalogVersion, released: catalog.dateReleased, total: catalog.count ?? catalog.vulnerabilities.length, items: kevRecent(catalog, 90, now) };
+    return { kev, sources: [{ name: 'CISA KEV', ok: true, count: kev.items.length }] };
+  } catch (e) {
+    return { kev: null, sources: [{ name: 'CISA KEV', ok: false, error: e.message }] };
+  }
 }
 
-const since = new Date(now.getTime() - NEWS_DAYS * 86400000).toISOString();
-const news = [];
-await Promise.all(FEEDS.map(async ([name, url]) => {
-  try {
-    const items = parseFeed(await get(url), name).filter((n) => !n.date || n.date >= since).slice(0, PER_SOURCE);
-    news.push(...items);
-    sources.push({ name, ok: true, count: items.length });
-  } catch (e) {
-    sources.push({ name, ok: false, error: e.message });
-  }
-}));
-news.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+async function collectNews() {
+  const since = new Date(now.getTime() - NEWS_DAYS * 86400000).toISOString();
+  const results = await Promise.all(FEEDS.map(async ([name, url]) => {
+    try {
+      const items = parseFeed(await get(url), name).filter((n) => !n.date || n.date >= since).slice(0, PER_SOURCE);
+      return { items, source: { name, ok: true, count: items.length } };
+    } catch (e) {
+      return { items: [], source: { name, ok: false, error: e.message } };
+    }
+  }));
+  const news = results.flatMap((r) => r.items).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return { news, sources: results.map((r) => r.source) };
+}
 
 // Every CVE the NVD published this week, keeping high and critical by their best score
 // (CVSS 4.0 or 3.x). The NVD's own severity filter only knows CVSS 3, so it misses CVEs
-// scored only with 4.0. Without a key the NVD allows 5 requests in 30 seconds.
-let cves = null;
-{
+// scored only with 4.0. Without a key the NVD allows 5 requests in 30 seconds; with a free
+// key (the NVD_API_KEY secret), 50.
+async function collectCves() {
+  const key = process.env.NVD_API_KEY;
+  const headers = key ? { apiKey: key } : {};
+  const GAP = key ? 700 : 6500; // ms between requests, to stay under the limit
+  const PAGE = 2000; // the most the NVD gives per request, so a week is a few requests
+  const SMALL = 200; // if a big page keeps getting cut off part-way, its range is fetched in these
   const fmt = (d) => d.toISOString().replace(/\.\d+Z$/, '.000Z');
-  const PAGE = 200; // the NVD often drops big responses part-way, so pages are small
-  const pageAt = async (start) => {
+  // Every request, retries included, takes the next free slot GAP after the last one.
+  let nextSlot = 0;
+  const slot = () => {
+    const at = Math.max(Date.now(), nextSlot);
+    nextSlot = at + GAP;
+    return sleep(at - Date.now());
+  };
+  const pageAt = async (start, size) => {
     for (let attempt = 1; ; attempt++) {
+      await slot();
       try {
-        return await get(`${NVD_URL}?pubStartDate=${fmt(recentSince)}&pubEndDate=${fmt(now)}&resultsPerPage=${PAGE}&startIndex=${start}`, 'json', 60000);
+        return await get(`${NVD_URL}?pubStartDate=${fmt(recentSince)}&pubEndDate=${fmt(now)}&resultsPerPage=${size}&startIndex=${start}`, 'json', 60000, headers);
       } catch (e) {
-        if (attempt === 3) throw e;
-        await sleep(6500 * attempt);
+        if (attempt === 2) throw e;
       }
     }
   };
-  // Pages are started 6.5 s apart without waiting for the one before, which keeps to the
-  // NVD's limit while several slow pages arrive at once.
+  // One big page, or if that fails, the same range in small pages (whatever arrives is kept).
+  let error = null;
+  const range = async (start, size, total) => {
+    try {
+      return nvdItems(await pageAt(start, size));
+    } catch (e) {
+      const starts = [];
+      for (let s = start; s < Math.min(start + size, total ?? start + SMALL); s += SMALL) starts.push(s);
+      const pages = await Promise.all(starts.map((s) => pageAt(s, SMALL).catch((e2) => { error ??= e2.message; return null; })));
+      if (pages.every((p) => !p)) error ??= e.message;
+      return pages.filter(Boolean).flatMap((p) => nvdItems(p));
+    }
+  };
   const all = [];
   let total = null;
-  let error = null;
   try {
-    const first = await pageAt(0);
+    let first;
+    try {
+      first = await pageAt(0, PAGE);
+    } catch {
+      first = await pageAt(0, SMALL); // still learn the total, then go small
+    }
     total = first.totalResults;
     all.push(...nvdItems(first));
+    const got = first.vulnerabilities?.length ?? 0;
+    const size = got >= PAGE ? PAGE : SMALL;
     const starts = [];
-    for (let s = PAGE; s < total; s += PAGE) starts.push(s);
-    const pages = await Promise.all(starts.map((start, i) => sleep(6500 * (i + 1)).then(() => pageAt(start)).catch((e) => { error ??= e.message; return null; })));
-    for (const page of pages) if (page) all.push(...nvdItems(page));
+    for (let s = got; s < total; s += size) starts.push(s);
+    for (const items of await Promise.all(starts.map((s) => range(s, size, total)))) all.push(...items);
   } catch (e) {
     error = e.message;
   }
+  let cves = null;
   if (all.length) {
     const items = all.filter((c) => c.score >= 7).map((c) => ({ ...c, summary: c.summary.length > 240 ? `${c.summary.slice(0, 239)}…` : c.summary }))
       .sort((a, b) => b.score - a.score || (b.published || '').localeCompare(a.published || ''));
     // If the NVD gave up part-way, keep what arrived and say so.
     cves = { days: RECENT_DAYS, total, fetched: all.length, partial: Boolean(error), items };
   }
-  sources.push(error && !all.length ? { name: 'NVD', ok: false, error } : { name: 'NVD', ok: true, count: cves.items.length, partial: Boolean(error) });
+  return { cves, sources: [error && !all.length ? { name: 'NVD', ok: false, error } : { name: 'NVD', ok: true, count: cves.items.length, partial: Boolean(error) }] };
 }
 
 // Open-source advisories OSV published or changed this week: GitHub-reviewed and other
 // vulnerabilities in packages, and malware found in popular packages.
-let advisories = null;
-try {
-  const popular = new Set();
-  for (const [eco, [url, names]] of Object.entries(POPULAR)) {
-    try {
-      const body = await get(url, url.endsWith('.json') ? 'json' : 'text');
-      for (const n of names(body)) popular.add(`${eco}:${n.toLowerCase()}`);
-    } catch { /* without the list, that ecosystem's malware reports are left out */ }
+async function collectAdvisories() {
+  try {
+    const popular = new Set();
+    await Promise.all(Object.entries(POPULAR).map(async ([eco, [url, names]]) => {
+      try {
+        const body = await get(url, url.endsWith('.json') ? 'json' : 'text');
+        for (const n of names(body)) popular.add(`${eco}:${n.toLowerCase()}`);
+      } catch { /* without the list, that ecosystem's malware reports are left out */ }
+    }));
+    const since = recentSince.toISOString();
+    const items = [];
+    await Promise.all(OSV_ECOSYSTEMS.map(async (eco) => {
+      try {
+        let ids = recentOsvIds(await get(`${OSV_BUCKET}/${encodeURIComponent(eco)}/modified_id.csv`), since);
+        // Malware reports only matter for the ecosystems with a popular-package list.
+        if (!POPULAR[eco]) ids = ids.filter((id) => !id.startsWith('MAL-'));
+        const records = await pool(ids, 24, (id) => get(`${OSV_BUCKET}/${encodeURIComponent(eco)}/${id}.json`, 'json'));
+        items.push(...records.filter(Boolean).map((r) => advisoryItem(r, since)).filter((it) => keepAdvisory(it, popular)));
+      } catch { /* skip this ecosystem */ }
+    }));
+    const advisories = { days: RECENT_DAYS, items: dedupeAdvisories(items) };
+    return { advisories, sources: [{ name: 'OSV advisories', ok: true, count: advisories.items.length }] };
+  } catch (e) {
+    return { advisories: null, sources: [{ name: 'OSV advisories', ok: false, error: e.message }] };
   }
-  const since = recentSince.toISOString();
-  const items = [];
-  await Promise.all(OSV_ECOSYSTEMS.map(async (eco) => {
-    try {
-      let ids = recentOsvIds(await get(`${OSV_BUCKET}/${encodeURIComponent(eco)}/modified_id.csv`), since);
-      // Malware reports only matter for the ecosystems with a popular-package list.
-      if (!POPULAR[eco]) ids = ids.filter((id) => !id.startsWith('MAL-'));
-      const records = await pool(ids, 24, (id) => get(`${OSV_BUCKET}/${encodeURIComponent(eco)}/${id}.json`, 'json'));
-      items.push(...records.filter(Boolean).map((r) => advisoryItem(r, since)).filter((it) => keepAdvisory(it, popular)));
-    } catch { /* skip this ecosystem */ }
-  }));
-  advisories = { days: RECENT_DAYS, items: dedupeAdvisories(items) };
-  sources.push({ name: 'OSV advisories', ok: true, count: advisories.items.length });
-} catch (e) {
-  sources.push({ name: 'OSV advisories', ok: false, error: e.message });
 }
+
+const started = Date.now();
+const [{ kev, sources: s1 }, { news, sources: s2 }, { cves, sources: s3 }, { advisories, sources: s4 }] = await Promise.all([collectKev(), collectNews(), collectCves(), collectAdvisories()]);
+const sources = [...s1, ...s2, ...s3, ...s4];
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({ builtAt: now.toISOString(), kev, cves, advisories, news, sources }));
 for (const s of sources) console.log(`${s.ok ? 'ok  ' : 'FAIL'} ${s.name}${s.ok ? `: ${s.count}${s.partial ? ' (partial)' : ''}` : `: ${s.error}`}`);
-console.log(`Wrote ${OUT}`);
+console.log(`Wrote ${OUT} in ${((Date.now() - started) / 1000).toFixed(1)} s`);
